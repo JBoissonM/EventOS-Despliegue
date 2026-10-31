@@ -3,9 +3,10 @@ export interface Evento {
   idEvento: number;
   nombre: string;
   descripcion: string;
-  poster?: string | null;
+  poster: string;
   idAlcance?: AlcanceEvento;
   idEstadoEvento?: EstadoEvento;
+  esUrgente?: boolean;
   etiquetas?: TipoEtiqueta[];
   subEventos?: SubEvento[];
   justificacion?: string | null;
@@ -34,7 +35,6 @@ export interface Recinto {
   idRecinto: number;
   nombre: string;
   aforo: number;
-  computadorasDisponibles?: number;
   idEstadoRecinto?: EstadoRecinto;
 }
 
@@ -122,8 +122,9 @@ export interface Ponente {
 
 export interface Verificacion {
   idVerificacion: number;
-  informacionAdicional: string;
+  informacionAdicional: string | null; //Los externos pueden no mandar estos datos
   archivo: string;
+  fecha: Date|string;
   idRol: number;
   idUsuario: number;
 }
@@ -233,4 +234,50 @@ export enum RecintoId {
   LABORATORIO_A = 2,
   LABORATORIO_B = 3,
   SALA_14 = 4,
+}
+
+export enum TipoPerfilVerificacion {
+  ESTUDIANTE = 'Estudiante',
+  PROFESOR = 'Profesor',
+  DOCENTE = 'Docente',
+  EMPRESA = 'Empresa',
+  EXTERNO = 'Externo',
+}
+
+
+//Verificar identidad y verificacion de vigencia de autenticacion
+export interface PerfilUsuarioResponse {
+  idUsuario: number;
+  nombreCompleto: string;
+  correo: string;
+  tipoCuenta: TipoCuentaUsuario;
+  cuenta: EstadoVerificacion; 
+  tipoUsuario: string;
+  fechaUltimaVerificacion: Date | string | null;
+  verificacionVigente: boolean;
+}
+
+
+export interface MovimientoBitacoraItem {
+  idBitacoraEvento: number;
+  idEvento: number;
+  idSubEvento: number;
+  evento: string;
+  subEvento: string;
+  idEstadoEvento: EstadoEvento;
+  estado: string;
+  idUsuarioActor: number | null;
+  usuario: string;
+  correoUsuario: string | null;
+  fecha: string;
+  hora: string;
+  fechaHoraCambio: string;
+}
+
+export interface JefeDepartamentoItem {
+  idUsuario: number;
+  boleta: string;
+  nombre: string;
+  correoInstitucional: string;
+  esJefeAcademia: boolean;
 }

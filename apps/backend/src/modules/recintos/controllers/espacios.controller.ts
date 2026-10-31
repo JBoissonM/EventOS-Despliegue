@@ -15,7 +15,7 @@ import { TipoCuentaUsuario } from '@eventos/shared';
 import { CambiarEstadoRecintoDto } from '../dto/cambiar-estado-recinto.dto';
 import { CambiarEstadoEquipoDto } from '../dto/cambiar-estado-equipo.dto';
 
-@Controller(['espacios', 'recintos', 'equipos'])
+@Controller('espacios')
 export class EspaciosController {
     constructor(private readonly recintoService: RecintoService) {}
 
@@ -53,7 +53,7 @@ export class EspaciosController {
     }
 
     //Cambiar estado de un equipo de cómputo
-    @Patch([':idEquipo/estado', 'equipos/:idEquipo/estado', ':id/equipos/:idEquipo/estado'])
+    @Patch(':id/equipos/:idEquipo/estado')
     @UseGuards(RolesGuard)
     @Roles(TipoCuentaUsuario.ADMINISTRADOR)
     async cambiarEstadoEquipo(
@@ -64,7 +64,7 @@ export class EspaciosController {
     }
 
     //Consulta la agenda y horarios disponibles de un espacio en una fecha
-    @Get([':id/agenda', ':id/horarios-disponibles'])
+    @Get(':id/horarios-disponibles')
     @UseGuards(RolesGuard)
     async obtenerAgenda(
         @Param('id', ParseIntPipe) id: number,
