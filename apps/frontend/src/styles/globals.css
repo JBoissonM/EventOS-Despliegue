@@ -3,7 +3,7 @@
 
 @theme {
   /* Colores principales */
-  --color-eventos-primary: #725B8C;
+  --color-eventos-primary: #AD97C4;
   --color-secondary: #1B585F;
 
   /* Colores claros */
@@ -11,9 +11,14 @@
   --color-eventos-secondary-light: #B7D6D9;
 
   /* Estados */
-  --color-eventos-success: #338315;
+  --color-eventos-success: #18A60D;
   --color-eventos-error: #AD3343;
   --color-eventos-warning: #CDCD36;
+
+
+  /* Boton */
+  --color-eventos-cancel: #5F1B36;
+
 
   /* Neutros */
   --color-eventos-neutral: #E9E9E9;
@@ -23,4 +28,3 @@
   /* Fuente */
   --font-merriweather: "Poppins", serif;
 }
-

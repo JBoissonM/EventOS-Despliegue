@@ -15,7 +15,9 @@ import { MenuSubdireccion } from "../features/educational-services/MenuSubdirecc
 
 import { ReservationDemoPage } from "../features/reservations/pages/ReservationDemoPage";
 import { MyTicketsDemoPage } from "../features/tickets/pages/MyTicketsDemoPage";
+import { EventDetailsDemoPage } from "../features/event-details/pages/EventDetailsDemoPage";
 import { DigitalTicketDemoPage } from "../features/tickets/pages/DigitalTicketsDemo";
+import { SubEventDetailsDemoPage } from "../features/event-details/pages/SubEventDetailsDemoPage";
 import { ReservationAvailabilityPreviewPage } from "../features/reservations/pages/ReservationAvailabilityPreviewPage";
 
 export function AppRouter() {
@@ -35,6 +37,16 @@ export function AppRouter() {
           <Route
           path="/demo-boletos"
           element={<MyTicketsDemoPage />}
+          />
+
+          <Route
+            path="/demo-evento"
+            element={<EventDetailsDemoPage />}
+          />
+
+          <Route
+            path="/demo-actividad/:idSubEvento"
+            element={<SubEventDetailsDemoPage />}
           />
 
           <Route

@@ -1,4 +1,3 @@
-
 import { ReservationPanel } from "../components/organisms/ReservationPanel";
 import { AutomaticReservationPanel } from "../components/organisms/AutomaticReservationPanel";
 import type { SeatMapItem } from "../components/organisms/SeatMap";
@@ -29,7 +28,7 @@ export type ReservationPageProps =
 
 export function ReservationPage(props: ReservationPageProps) {
   return (
-    <main className="mx-auto max-w-6xl space-y-6 px-4 py-8">
+    <main className="mx-auto max-w-[1600px] space-y-6 px-4 py-8">
       <header className="space-y-2">
         <h1 className="font-merriweather text-3xl font-bold">
           Reservar lugar
