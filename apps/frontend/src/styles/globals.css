@@ -3,15 +3,15 @@
 
 @theme {
   /* Colores principales */
-  --color-eventos-primary: #AD97C4;
-  --color-secondary: #1B585F;
+  --color-eventos-primary: #5F1B36;
+  --color-eventos-secondary: #1B585F;
 
   /* Colores claros */
   --color-eventos-primary-light: #EDD5D6;
   --color-eventos-secondary-light: #B7D6D9;
 
   /* Estados */
-  --color-eventos-success: #18A60D;
+  --color-eventos-success: #338315;
   --color-eventos-error: #AD3343;
   --color-eventos-warning: #CDCD36;
 
@@ -23,7 +23,27 @@
   /* Neutros */
   --color-eventos-neutral: #E9E9E9;
 
-  --color-primary: #463757;
+  --color-primary: #5F1B36;
+
+  --color-eventos-panel-border: #255E67;
+  --color-eventos-panel-surface: #F7F5F5;
+  --color-eventos-action-hover: #752443;
+  --color-eventos-action-hover-soft: #F0E5E9;
+  --color-eventos-reservation-notice: #FFF4C9;
+  --color-eventos-reservation-notice-border: #E9B14A;
+  --color-eventos-reservation-notice-text: #6D4C14;
+
+  --color-eventos-ink: #030712;
+  --color-eventos-body-text: #111827;
+  --color-eventos-muted-text: #4B5563;
+  --color-eventos-placeholder-text: #6B7280;
+  --color-eventos-muted-surface: #F9FAFB;
+  --color-eventos-divider: #D1D5DB;
+  --color-eventos-divider-strong: #9CA3AF;
+  --color-eventos-error-strong: #B91C1C;
+  --color-eventos-on-primary: #FFFFFF;
+  --color-eventos-navbar-divider: #60253A;
+  --color-eventos-navbar-link: #E7E5E4;
 
   /* Fuente */
   --font-merriweather: "Poppins", serif;

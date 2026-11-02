@@ -5,94 +5,94 @@ import {
   UsersRound,
 } from "lucide-react";
 
-import { EstadoSubEvento } from "@eventos/shared";
+import { EstadoSubEvento, ModalidadAcceso } from "@eventos/shared";
 
 import type {
   EventActivityViewModel,
 } from "../../types/eventDetails.types";
 
-export interface ReservationInfoCardProps {
+import { formatEventDate } from "../../utils/formatEventDate";
+
+interface ReservationInfoCardProps {
   activity: EventActivityViewModel;
   kind?: "evento" | "actividad";
   isSubmitting?: boolean;
+  error?: string | null;
   onReserve: (idSubEvento: number) => void;
+  onRetryAvailability?: () => void;
+  authenticationState?: "guest" | "authenticated" | "session-error";
+  onLogin?: () => void;
 }
 
-function formatDate(date: string): string {
-  const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(date);
-
-  if (!match) {
-    return date;
-  }
-
-  const [, year, month, day] = match;
-
-  return `${day}/${month}/${year.slice(2)}`;
-}
-
-function formatTime(time: string): string {
-  return time.slice(0, 5);
+function formatTime(time: string | undefined): string {
+  return time ? time.slice(0, 5) : "";
 }
 
 export function ReservationInfoCard({
                                       activity,
                                       kind = "evento",
                                       isSubmitting = false,
+                                      error = null,
                                       onReserve,
+                                      onRetryAvailability,
+  authenticationState = "authenticated",
+  onLogin,
                                     }: ReservationInfoCardProps) {
   const {
     idSubEvento,
     fecha,
-    horaInicio,
-    horaFin,
     recinto,
-    lugaresDisponibles,
     estado,
     estadoReservaUsuario,
+    disponibilidad,
+    modalidadAcceso,
   } = activity;
 
   const isReserved = estadoReservaUsuario === "reservado";
-
   const isApproved = estado === EstadoSubEvento.ACEPTADO;
 
-  const reservationIsKnown =
-    estadoReservaUsuario !== "desconocido";
+  const availabilityStatus = disponibilidad.estado;
+  const availableSeats = disponibilidad.lugaresDisponibles;
+  const allowsReservation = disponibilidad.permiteReservar;
 
-  const availabilityIsKnown =
-    lugaresDisponibles !== null;
-
-  const hasAvailability =
-    availabilityIsKnown && lugaresDisponibles > 0;
+  const isAvailabilityReady =
+    availabilityStatus === "lista" &&
+    availableSeats !== null;
 
   const canReserve =
-    !isReserved &&
     isApproved &&
-    reservationIsKnown &&
-    hasAvailability &&
+    !isReserved &&
+    estadoReservaUsuario === "sin-reserva" &&
+    isAvailabilityReady &&
+    availableSeats > 0 &&
+    allowsReservation === true &&
     !isSubmitting;
 
-  const reservationTitle =
-    kind === "actividad"
-      ? "Actividad Reservada"
-      : "Evento Reservado";
+  const schedule = fecha
+    ? `${formatTime(fecha.horaInicio)}–${formatTime(fecha.horaFin)} hrs`
+    : "Por confirmar";
 
   const availabilityText =
-    lugaresDisponibles === null
+    availableSeats === null
       ? "Por consultar"
-      : String(Math.max(0, lugaresDisponibles));
+      : recinto
+        ? `${availableSeats}/${recinto.aforo}`
+        : String(availableSeats);
+
+  const reservedTitle =
+    kind === "evento"
+      ? "Evento Reservado"
+      : "Actividad Reservada";
 
   return (
     <section
       aria-label="Información de reservación"
-      className="
-        flex min-h-[350px] w-full flex-col
-        rounded-md border border-[#255E67]
-        bg-[#F7F5F5] p-5
-        sm:min-h-[415px]
-      "
+      className="flex min-h-[350px] w-full flex-col rounded-md border border-eventos-panel-border bg-eventos-panel-surface p-5 sm:min-h-[415px]"
     >
-      {/* Datos de la actividad */}
-      <dl className="space-y-5">
+      <p className="mb-5 inline-flex self-start rounded-full bg-eventos-secondary-light px-3 py-1 text-sm font-semibold text-eventos-secondary">
+        Modalidad de acceso: {modalidadAcceso === ModalidadAcceso.ENTRADA_LIBRE ? "Entrada Libre" : "Con Reservación"}
+      </p>
+      <dl className="space-y-6">
         <div className="flex items-start gap-3">
           <CalendarDays
             size={25}
@@ -100,9 +100,9 @@ export function ReservationInfoCard({
             aria-hidden="true"
           />
 
-          <div className="flex flex-wrap gap-1">
+          <div className="flex flex-wrap gap-x-1">
             <dt className="font-semibold">Fecha:</dt>
-            <dd>{formatDate(fecha)}</dd>
+            <dd>{formatEventDate(fecha?.fecha)}</dd>
           </div>
         </div>
 
@@ -113,9 +113,9 @@ export function ReservationInfoCard({
             aria-hidden="true"
           />
 
-          <div className="flex flex-wrap gap-1">
+          <div className="flex flex-wrap gap-x-1">
             <dt className="font-semibold">Espacio:</dt>
-            <dd>{recinto.nombre}</dd>
+            <dd>{recinto?.nombre ?? "Por confirmar"}</dd>
           </div>
         </div>
 
@@ -126,12 +126,9 @@ export function ReservationInfoCard({
             aria-hidden="true"
           />
 
-          <div className="flex flex-wrap gap-1">
+          <div className="flex flex-wrap gap-x-1">
             <dt className="font-semibold">Horario:</dt>
-            <dd>
-              {formatTime(horaInicio)}-
-              {formatTime(horaFin)} hrs
-            </dd>
+            <dd>{schedule}</dd>
           </div>
         </div>
 
@@ -142,43 +139,116 @@ export function ReservationInfoCard({
             aria-hidden="true"
           />
 
-          <div className="flex flex-wrap gap-1">
+          <div className="flex flex-wrap gap-x-1">
             <dt className="font-semibold">
-              Cupos restantes:
+              {modalidadAcceso === ModalidadAcceso.ENTRADA_LIBRE ? "Aforo:" : "Cupos restantes:"}
             </dt>
-            <dd>{availabilityText}</dd>
+            <dd>{modalidadAcceso === ModalidadAcceso.ENTRADA_LIBRE ? recinto?.aforo ?? "Por confirmar" : availabilityText}</dd>
           </div>
         </div>
       </dl>
 
-      {/* Estado y acción de reservación */}
       <div
         aria-live="polite"
-        className="
-          mt-10 flex flex-1 flex-col
-          items-center justify-center
-          text-center
-        "
+        aria-atomic="true"
+        className="mt-10 flex flex-1 flex-col items-center justify-center gap-4 text-center"
       >
-        {isReserved ? (
-          <p className="font-merriweather text-2xl font-semibold">
-            {reservationTitle}
+        {!isApproved ? (
+          <p className="text-lg font-semibold text-eventos-muted-text">
+            Actividad no disponible
           </p>
-        ) : !isApproved ? (
-          <p className="text-lg font-semibold text-gray-600">
-            Reservación no disponible
+        ) : modalidadAcceso === ModalidadAcceso.ENTRADA_LIBRE ? (
+          <div className="w-full rounded-lg border border-eventos-panel-border bg-eventos-secondary-light p-4 text-left">
+            <p className="font-semibold text-eventos-secondary">Entrada Libre</p>
+            <p className="mt-2 text-sm text-eventos-secondary">
+              Acceso por orden de llegada hasta completar el aforo del recinto.
+            </p>
+          </div>
+        ) : isReserved ? (
+          <p className="font-merriweather text-2xl font-semibold text-eventos-panel-border">
+            {reservedTitle}
           </p>
-        ) : !reservationIsKnown ? (
-          <p className="text-sm text-gray-600">
-            Comprobando reservación...
-          </p>
-        ) : !availabilityIsKnown ? (
-          <p className="text-sm text-gray-600">
+        ) : availabilityStatus === "error" ? (
+          <>
+            <p role="alert" className="text-sm text-eventos-error-strong">
+              {error ?? "No fue posible consultar la disponibilidad."}
+            </p>
+            {onRetryAvailability && (
+              <button
+                type="button"
+                onClick={onRetryAvailability}
+                className="rounded-lg border border-eventos-primary px-5 py-2 font-semibold text-eventos-primary hover:bg-eventos-action-hover-soft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-eventos-primary"
+              >
+                Reintentar
+              </button>
+            )}
+          </>
+        ) : !isAvailabilityReady ? (
+          <p className="text-sm text-eventos-muted-text">
             Consultando disponibilidad...
           </p>
-        ) : !hasAvailability ? (
-          <p className="text-lg font-semibold text-gray-600">
+        ) : availableSeats <= 0 ? (
+          <p className="text-lg font-semibold text-eventos-muted-text">
             Sin lugares disponibles
+          </p>
+        ) : !allowsReservation ? (
+          <p className="text-lg font-semibold text-eventos-muted-text">
+            Reservaciones no disponibles
+          </p>
+        ) : authenticationState === "session-error" ? (
+          <div className="w-full rounded-lg border border-eventos-reservation-notice-border bg-eventos-reservation-notice p-4 text-left">
+            <p role="alert" className="font-semibold text-eventos-reservation-notice-text">
+              No pudimos verificar tu sesión
+            </p>
+            <p className="mt-2 text-sm text-eventos-reservation-notice-text">
+              Inicia sesión nuevamente para comprobar tus boletos y continuar.
+            </p>
+            {onLogin && (
+              <button
+                type="button"
+                onClick={onLogin}
+                className="mt-4 w-full rounded-lg bg-eventos-primary px-4 py-3 text-sm font-semibold text-eventos-on-primary hover:bg-eventos-action-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-eventos-primary"
+              >
+                Iniciar sesión nuevamente
+              </button>
+            )}
+          </div>
+        ) : estadoReservaUsuario === "error" ? (
+          <>
+            <p role="alert" className="text-sm text-eventos-error-strong">
+              {error ?? "No fue posible verificar tus reservaciones."}
+            </p>
+            {onRetryAvailability && (
+              <button
+                type="button"
+                onClick={onRetryAvailability}
+                className="rounded-lg border border-eventos-primary px-5 py-2 font-semibold text-eventos-primary hover:bg-eventos-action-hover-soft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-eventos-primary"
+              >
+                Reintentar
+              </button>
+            )}
+          </>
+        ) : authenticationState === "guest" ? (
+          <div className="w-full rounded-lg border border-eventos-reservation-notice-border bg-eventos-reservation-notice p-4 text-left">
+            <p className="font-semibold text-eventos-reservation-notice-text">
+              ¿Quieres reservar un lugar?
+            </p>
+            <p className="mt-2 text-sm text-eventos-reservation-notice-text">
+              Inicia sesión para consultar tus boletos y solicitar una reservación.
+            </p>
+            {onLogin && (
+              <button
+                type="button"
+                onClick={onLogin}
+                className="mt-4 w-full rounded-lg bg-eventos-primary px-4 py-3 text-sm font-semibold text-eventos-on-primary hover:bg-eventos-action-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-eventos-primary"
+              >
+                Iniciar sesión para reservar
+              </button>
+            )}
+          </div>
+        ) : estadoReservaUsuario === "no-consultado" ? (
+          <p className="text-sm text-eventos-muted-text">
+            Comprobando si ya tienes una reservación...
           </p>
         ) : (
           <button
@@ -186,28 +256,12 @@ export function ReservationInfoCard({
             disabled={!canReserve}
             aria-busy={isSubmitting}
             onClick={() => onReserve(idSubEvento)}
-            className="
-              rounded-xl bg-[#5F1B36]
-              px-7 py-5
-              font-merriweather text-xl
-              font-semibold text-white
-              transition-opacity
-              hover:opacity-90
-              focus-visible:outline-2
-              focus-visible:outline-offset-2
-              focus-visible:outline-[#5F1B36]
-              disabled:cursor-not-allowed
-              disabled:opacity-50
-            "
+            className="rounded-xl bg-eventos-primary px-7 py-5 font-merriweather text-xl font-semibold text-eventos-on-primary transition-colors hover:bg-eventos-action-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-eventos-primary disabled:cursor-not-allowed disabled:opacity-50"
           >
-            {isSubmitting
-              ? "Procesando..."
-              : "Reservar Lugar"}
+            {isSubmitting ? "Procesando..." : "Reservar Lugar"}
           </button>
         )}
       </div>
     </section>
   );
 }
-
-export default ReservationInfoCard;

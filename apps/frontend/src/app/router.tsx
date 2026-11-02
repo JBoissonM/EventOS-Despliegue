@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router";
 import { MainLayout } from "../components/templates/MainLayout";
+import { PublicEventLayout } from "../components/templates/PublicEventLayout";
 import { DashboardLayout } from "../components/templates/DashboardLayout";
 import { ProtectedRoute } from "../app/ProtectedRoutes";
 
@@ -12,18 +13,17 @@ import { ListadoSolicitudes } from "../features/educational-services/ListadoSoli
 import { MenuSubdireccion } from "../features/educational-services/MenuSubdireccion";
 
 import { MenuAsistente } from "../features/assistant/menu-asistente";
+import { MyTicketsRoute } from "../features/tickets/pages/MyTicketsRoute";
+import { DigitalTicketRoute } from "../features/tickets/pages/DigitalTicketRoute";
 
 import { GestionEspacios } from "../features/admin/Gestion-Espacios";
 import { GestionEquipos } from "../features/admin/Gestion-Equipos";
 
-import { ReservationDemoPage } from "../features/reservations/pages/ReservationDemoPage";
-import { ReservationAvailabilityPreviewPage } from "../features/reservations/pages/ReservationAvailabilityPreviewPage";
+import { ReservationRoute } from "../features/event-details/pages/ReservationRoute";
 
-import { MyTicketsDemoPage } from "../features/tickets/pages/MyTicketsDemoPage";
-import { DigitalTicketDemoPage } from "../features/tickets/pages/DigitalTicketsDemo";
-
-import { EventDetailsDemoPage } from "../features/event-details/pages/EventDetailsDemoPage";
-import { SubEventDetailsDemoPage } from "../features/event-details/pages/SubEventDetailsDemoPage";
+import { EventDetailsRoute } from "../features/event-details/pages/EventDetailsRoute";
+import { SubEventDetailsRoute } from "../features/event-details/pages/SubEventDetailsRoute";
+import { EventCatalogPage } from "../features/event-catalog/pages/EventCatalogPage";
 
 export function AppRouter() {
   return (
@@ -34,40 +34,27 @@ export function AppRouter() {
           <Route path="/registro" element={<Registro />} />
 
           <Route
-            path="/demo-reservacion"
-            element={<ReservationDemoPage />}
-          />
-
-          <Route
-            path="/demo-boletos"
-            element={<MyTicketsDemoPage />}
-          />
-
-          <Route
-            path="/demo-evento"
-            element={<EventDetailsDemoPage />}
-          />
-
-          <Route
-            path="/demo-actividad/:idSubEvento"
-            element={<SubEventDetailsDemoPage />}
-          />
-
-          <Route
             path="/detalles-solicitud/"
             element={<DetallesSolicitud />}
           />
         </Route>
 
-        <Route
-          path="/demo-boleto"
-          element={<DigitalTicketDemoPage />}
-        />
-
-        <Route
-          path="/demo-disponibilidad/:idSubEvento"
-          element={<ReservationAvailabilityPreviewPage />}
-        />
+        <Route element={<PublicEventLayout />}>
+          <Route path="/cartelera" element={<EventCatalogPage />} />
+          <Route path="/asistente/cartelera" element={<EventCatalogPage />} />
+          <Route
+            path="/eventos/:idEvento"
+            element={<EventDetailsRoute />}
+          />
+          <Route
+            path="/eventos/:idEvento/actividades/:idSubEvento"
+            element={<SubEventDetailsRoute />}
+          />
+          <Route
+            path="/eventos/:idEvento/actividades/:idSubEvento/reservar"
+            element={<ReservationRoute />}
+          />
+        </Route>
 
         <Route
           element={
@@ -85,6 +72,8 @@ export function AppRouter() {
               path="/menu-asistente"
               element={<MenuAsistente />}
             />
+            <Route path="/asistente/boletos" element={<MyTicketsRoute />} />
+            <Route path="/asistente/boletos/:idBoleto" element={<DigitalTicketRoute />} />
 
             <Route
               path="/solicitud-evento"

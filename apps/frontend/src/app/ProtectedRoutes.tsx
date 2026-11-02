@@ -1,15 +1,16 @@
-import { Navigate, Outlet } from "react-router";
+import { Navigate, Outlet, useLocation } from "react-router";
+import { getCurrentUserRole } from "../lib/userNavigation";
 
 interface ProtectedRouteProps {
   allowedRoles: string[];
 }
 
 export function ProtectedRoute({ allowedRoles }: ProtectedRouteProps) {
-  const usuarioGuardado = JSON.parse(localStorage.getItem("usuario") || "{}");
-  const rolUsuario = usuarioGuardado.tipoCuenta;
+  const rolUsuario = getCurrentUserRole();
+  const location = useLocation();
 
   if (!rolUsuario) {
-    return <Navigate to="/login" replace />;
+    return <Navigate to="/login" replace state={{ returnUrl: location.pathname }} />;
   }
 
   if (!allowedRoles.includes(rolUsuario)) {

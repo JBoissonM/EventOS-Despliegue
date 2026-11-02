@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { ApiError } from "../../../../lib/apiClient";
 import { Button } from "../../../../components/atoms/Button/Button";
 import { ConfirmationDialog } from "../../../../components/organisms/ConfirmationDialog/ConfirmationDialog";
 import { ReservationSummary } from "../molecules/ReservationSummary";
@@ -13,7 +14,9 @@ export interface ReservationPanelProps {
   endTime: string;
   venue: string;
   seats: SeatMapItem[];
-  onReserve: (idAsiento: number) => Promise<void>;
+  onReserve: (idAsiento: number) => Promise<number | void>;
+  onViewTicket?: (idBoleto: number) => void;
+  availableSeats?: number;
   aisleAfter?: number[];
 }
 
@@ -25,6 +28,8 @@ export function ReservationPanel({
                                    venue,
                                    seats,
                                    onReserve,
+                                   onViewTicket,
+                                   availableSeats,
                                    aisleAfter = [],
                                  }: ReservationPanelProps) {
   const [selectedSeatId, setSelectedSeatId] =
@@ -35,6 +40,7 @@ export function ReservationPanel({
   const [isReserved, setIsReserved] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isSuccessOpen, setIsSuccessOpen] = useState(false);
+  const [createdTicketId, setCreatedTicketId] = useState<number | null>(null);
 
   const selectedSeat =
     seats.find(
@@ -58,22 +64,24 @@ export function ReservationPanel({
     setError(null);
 
     try {
-      await onReserve(selectedSeat.idAsiento);
+      const ticketId = await onReserve(selectedSeat.idAsiento);
 
+      if (typeof ticketId === "number") setCreatedTicketId(ticketId);
       setIsReserved(true);
       setIsConfirmOpen(false);
       setIsSuccessOpen(true);
-    } catch {
-      setError(
-        "No fue posible completar la reservación. Inténtalo nuevamente.",
-      );
+    } catch (cause) {
+      const message = cause instanceof ApiError && cause.status === 409
+        ? `${cause.message} La disponibilidad se está actualizando.`
+        : "No fue posible completar la reservación. Comprueba tu conexión e inténtalo nuevamente.";
+      setError(message);
       setIsConfirmOpen(false);
     } finally {
       setIsLoading(false);
     }
   };
 
-  const availableSeats = seats.filter((seat) => !seat.occupied).length;
+  const displayedAvailableSeats = availableSeats ?? seats.filter((seat) => !seat.occupied).length;
 
   const handleCancelSelection = () => {
     setSelectedSeatId(null);
@@ -86,7 +94,7 @@ export function ReservationPanel({
         {/* Mapa y acciones de reservación */}
         <div className="min-w-0 space-y-5">
           {!isReserved && (
-            <div className="min-w-0 overflow-x-auto">
+            <div className="min-w-0">
               <SeatMap
                 seats={seats}
                 selectedSeatId={selectedSeat?.idAsiento ?? null}
@@ -136,7 +144,7 @@ export function ReservationPanel({
             endTime={endTime}
             venue={venue}
             selectedSeatLabel={selectedSeatLabel}
-            availableSeats={availableSeats}
+            availableSeats={displayedAvailableSeats}
           />
         </aside>
       </div>
@@ -159,6 +167,9 @@ export function ReservationPanel({
         eventName={eventName}
         seatLabel={selectedSeatLabel}
         onClose={() => setIsSuccessOpen(false)}
+        onViewTicket={createdTicketId !== null && onViewTicket
+          ? () => onViewTicket(createdTicketId)
+          : undefined}
       />
     </section>
   );

@@ -1,55 +1,75 @@
 import type {
-  Evento,
-  SubEvento,
-  Fecha,
-  Recinto,
-  Ponente,
+  AlcanceEvento,
+  ModalidadAcceso,
+  EstadoSubEvento,
 } from "@eventos/shared";
 
-export type ReservationUserStatus =
-  | "desconocido"
-  | "sin-reserva"
-  | "reservado";
+export interface EventDateViewModel {
+  fecha: string;
+  horaInicio: string;
+  horaFin: string;
+}
 
-export type VenueDetails = Pick<
-  Recinto,
-  "idRecinto" | "nombre" | "aforo"
->;
+export interface EventVenueViewModel {
+  idRecinto: number;
+  nombre: string;
+  aforo: number;
+}
+
+export interface EventSpeakerViewModel {
+  idPonente: number;
+  nombreCompleto: string;
+}
+
+export type ReservationUserStatus =
+  | "no-consultado"
+  | "sin-reserva"
+  | "reservado"
+  | "error";
+
+export type AvailabilityStatus =
+  | "pendiente"
+  | "cargando"
+  | "lista"
+  | "error";
+
+export interface EventAvailabilityViewModel {
+  estado: AvailabilityStatus;
+  lugaresDisponibles: number | null;
+  permiteReservar: boolean | null;
+}
 
 export interface EventActivityViewModel {
-  idSubEvento: SubEvento["idSubEvento"];
-  idEvento: SubEvento["idEvento"];
+  idSubEvento: number;
+  idEvento: number;
 
-  nombre: SubEvento["nombre"];
-  estado: SubEvento["estado"];
+  nombre: string;
+  descripcion: string;
 
-  fecha: Fecha["fecha"];
-  horaInicio: Fecha["horaInicio"];
-  horaFin: Fecha["horaFin"];
+  estado: EstadoSubEvento;
+  accesoQR: boolean;
+  modalidadAcceso: ModalidadAcceso;
+  requiereSeleccionAsiento: boolean;
 
-  recinto: VenueDetails;
+  fecha: EventDateViewModel | null;
+  recinto: EventVenueViewModel | null;
 
-  lugaresDisponibles: number | null;
+  ponentes: EventSpeakerViewModel[];
 
+  disponibilidad: EventAvailabilityViewModel;
   estadoReservaUsuario: ReservationUserStatus;
 }
 
-export interface EventDetailsViewModel
-  extends Pick<
-    Evento,
-    "idEvento" | "nombre" | "descripcion" | "poster"
-  > {
+export interface EventDetailsViewModel {
+  idEvento: number;
+
+  nombre: string;
+  descripcion: string;
+  posterReferencia: string | null;
+
+  idAlcance: AlcanceEvento | null;
+  esAccesoLibre: boolean;
+  requiereCuenta: boolean;
+
   actividades: EventActivityViewModel[];
-}
-
-export type SpeakerViewModel = Pick<
-  Ponente,
-  "idPonente" | "nombre" | "apellidoPa" | "apellidoMa"
->;
-
-export interface SubEventDetailsViewModel
-  extends EventActivityViewModel {
-  descripcion: SubEvento["descripcion"];
-  accesoQR: SubEvento["accesoQR"];
-  ponentes: SpeakerViewModel[];
 }

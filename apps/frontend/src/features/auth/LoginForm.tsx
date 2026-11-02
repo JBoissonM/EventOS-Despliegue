@@ -1,6 +1,6 @@
 import { useState, useRef } from "react";
 import ReCAPTCHA from "react-google-recaptcha";
-import { useNavigate } from "react-router";
+import { useLocation, useNavigate } from "react-router";
 import { FieldMessage } from "../../components/atoms/FieldMessage/FieldMessage";
 import { Input } from "../../components/atoms/Input/Input";
 import { Button } from "../../components/atoms/Button/Button";
@@ -9,9 +9,12 @@ import { FormField } from "../../components/molecules/FormField";
 import { PasswordField } from "../../components/molecules/PasswordField";
 import { CaptchaField } from "../../components/molecules/CaptchaField";
 import { AuthLayout } from "../../components/templates/AuthLayout";
+import { API_BASE_URL } from "../../lib/apiClient";
+import { getCurrentUserHomePath } from "../../lib/userNavigation";
 
 export function LoginForm() {
   const navigate = useNavigate();
+  const location = useLocation();
 
   const [formData, setFormData] = useState({
     correo: "",
@@ -106,7 +109,7 @@ export function LoginForm() {
     setLoading(true);
 
     try {
-      const response = await fetch("http://localhost:3000/api/auth/login", {
+      const response = await fetch(`${API_BASE_URL}/auth/login`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -127,15 +130,19 @@ export function LoginForm() {
       localStorage.setItem("token", data.access_token);
       localStorage.setItem("usuario", JSON.stringify(data.usuario));
 
-      const rol = data.usuario?.tipoCuenta; // revisar con back
+      const returnUrl = (
+        location.state as { returnUrl?: unknown } | null
+      )?.returnUrl;
 
-      if (rol === "admin" || rol === "Administrador") {
-        navigate("/gestion-espacios");
-      } else if (rol === "subdireccion") {
-        navigate("/detalles-solicitud"); 
-      } else {
-        navigate("/menu-asistente");
+      if (
+        typeof returnUrl === "string" &&
+        /^\/(?:eventos\/[1-9]\d*(?:\/actividades\/[1-9]\d*)?|asistente\/boletos(?:\/[1-9]\d*)?)$/.test(returnUrl)
+      ) {
+        navigate(returnUrl, { replace: true });
+        return;
       }
+
+      navigate(getCurrentUserHomePath() ?? "/login", { replace: true });
 
     } catch (error: any) {
       setErrors((prev) => ({
@@ -173,7 +180,7 @@ export function LoginForm() {
         <Button fullWidth size="md" variant="primary" className="mt-2" type="submit" text="Iniciar Sesión" loadingText="Iniciando sesión..." loading={loading}/>
 
         <div className="mt-1 text-center">
-          <TextLink to="/registro" className="text-sky-500 hover:text-sky-600 font-merriweather font-semibold text-[16px]">
+          <TextLink to="/registro" state={location.state} className="text-eventos-secondary hover:text-eventos-primary font-merriweather font-semibold text-[16px]">
             ¿No tienes cuenta? Regístrate
           </TextLink>
         </div>

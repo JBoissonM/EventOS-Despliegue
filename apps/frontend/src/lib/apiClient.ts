@@ -1,6 +1,7 @@
-const API_BASE_URL =
+export const API_BASE_URL = (
   import.meta.env.VITE_API_BASE_URL ??
-  "http://localhost:3000/api";
+  "http://localhost:3000/api"
+).replace(/\/+$/, "");
 
 export class ApiError extends Error {
   constructor(
@@ -76,4 +77,36 @@ export async function apiRequest<T>(
   }
 
   return data as T;
+}
+
+export async function apiRequestPdf(path: string): Promise<Blob> {
+  const token = localStorage.getItem("token");
+  const baseUrl = API_BASE_URL.replace(/\/+$/, "");
+  const normalizedPath = path.replace(/^\/+/, "");
+  const headers = new Headers({ Accept: "application/pdf" });
+
+  if (token) headers.set("Authorization", `Bearer ${token}`);
+
+  const response = await fetch(`${baseUrl}/${normalizedPath}`, {
+    method: "GET",
+    headers,
+    cache: "no-store",
+  });
+
+  if (!response.ok) {
+    const data: unknown = await response.json().catch(() => null);
+    let message = `Error HTTP ${response.status}`;
+    if (data && typeof data === "object" && "message" in data) {
+      const received = data.message;
+      if (typeof received === "string") message = received;
+      else if (Array.isArray(received)) message = received.map(String).join(", ");
+    }
+    throw new ApiError(response.status, message);
+  }
+
+  const contentType = response.headers.get("Content-Type") ?? "";
+  if (!contentType.toLowerCase().includes("application/pdf")) {
+    throw new Error("El servidor no devolvió un archivo PDF válido.");
+  }
+  return response.blob();
 }
