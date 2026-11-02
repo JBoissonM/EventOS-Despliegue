@@ -1,6 +1,6 @@
 import { useState, useRef } from "react";
 import ReCAPTCHA from "react-google-recaptcha";
-import { useLocation, useNavigate } from "react-router";
+import { useNavigate } from "react-router";
 import { FieldMessage } from "../../components/atoms/FieldMessage/FieldMessage";
 import { Input } from "../../components/atoms/Input/Input";
 import { Button } from "../../components/atoms/Button/Button";
@@ -10,12 +10,9 @@ import { PasswordField } from "../../components/molecules/PasswordField";
 import { CaptchaField } from "../../components/molecules/CaptchaField";
 import { AuthLayout } from "../../components/templates/AuthLayout";
 import { Modal } from "../../components/molecules/Modal";
-import { API_BASE_URL } from "../../lib/apiClient";
-import { getCurrentUserHomePath } from "../../lib/userNavigation";
 
 export function LoginForm() {
   const navigate = useNavigate();
-  const location = useLocation();
 
   const [formData, setFormData] = useState({
     correo: "",
@@ -41,7 +38,7 @@ export function LoginForm() {
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-
+    
     setFormData((prev) => ({ ...prev, [name]: value }));
 
     if (name === "correo") {
@@ -61,7 +58,7 @@ export function LoginForm() {
         setErrors((prev) => ({ ...prev, contrasena: "" }));
       }
     }
-  };
+  };  
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -107,7 +104,7 @@ export function LoginForm() {
     setLoading(true);
 
     try {
-      const response = await fetch(`${API_BASE_URL}/auth/login`, {
+      const response = await fetch("http://localhost:3000/api/auth/login", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -144,21 +141,15 @@ export function LoginForm() {
       localStorage.setItem("token", data.access_token);
       localStorage.setItem("usuario", JSON.stringify(data.usuario));
 
-      const returnUrl = (
-        location.state as { returnUrl?: unknown } | null
-      )?.returnUrl;
-      const homePath = getCurrentUserHomePath();
+      const rol = data.usuario?.tipoCuenta;
 
-      if (
-        typeof returnUrl === "string" &&
-        /^\/(?:eventos\/[1-9]\d*(?:\/actividades\/[1-9]\d*)?|asistente\/boletos(?:\/[1-9]\d*)?)$/.test(returnUrl) &&
-        (returnUrl.startsWith("/eventos/") || homePath === "/menu-asistente")
-      ) {
-        navigate(returnUrl, { replace: true });
-        return;
+      if (rol === "admin" || rol === "Administrador") {
+        navigate("/menu-admin");
+      } else if (rol === "Subdirección") {
+        navigate("/subdireccion/menu-principal"); 
+      } else {
+        navigate("/menu-asistente");
       }
-
-      navigate(homePath ?? "/login", { replace: true });
 
     } catch (error: any) {
       if (error.message) {
@@ -177,7 +168,7 @@ export function LoginForm() {
   return (
     <AuthLayout title="Iniciar Sesión" generalError={errors.general}>
       <form onSubmit={handleSubmit} className="space-y-4">
-
+        
         <FormField label="Correo Electrónico" htmlFor="correo">
           <Input id="correo" type="email" name="correo" placeholder="Ingresar tu correo electrónico" aria-describedby="email-error" value={formData.correo} onChange={handleChange} hasError={!!errors.correo}/>
           <div className="min-h-1.5 mt-1">
@@ -185,7 +176,7 @@ export function LoginForm() {
               <p className="mt-1 text-eventos-error text-xs font-merriweather">{errors.correo}</p>
             ) : (
               <FieldMessage variant="helper">
-                Usa tu correo institucional (@ipn.mx, @alumno.ipn.mx) o tu cuenta personal.
+                Usa tu correo institucional (@ipn.mx, @alumno.ipn.mx) o tu cuenta personal. 
               </FieldMessage>
             )}
           </div>
@@ -193,7 +184,7 @@ export function LoginForm() {
 
         <div className="-mt-8">
           <PasswordField id="contrasena" name="contrasena" label="Contraseña" placeholder="Ejemplo01!" value={formData.contrasena} onChange={handleChange} error={errors.contrasena}/>
-        </div>
+        </div>    
         <CaptchaField recaptchaRef={recaptchaRef} onChange={handleCaptchaChange} error={captchaError}
           sitekey="6LddCvktAAAAAM980VTf7Y1lBBjUbjKEIOqMEXBi"
         />
@@ -201,7 +192,7 @@ export function LoginForm() {
         <Button fullWidth size="md" variant="primary" className="mt-2" type="submit" text="Iniciar Sesión" loadingText="Iniciando sesión..." loading={loading}/>
 
         <div className="mt-1 text-center">
-          <TextLink to="/registro" state={location.state} className="text-eventos-secondary hover:text-eventos-primary font-merriweather font-semibold text-[16px]">
+          <TextLink to="/registro" className="text-sky-500 hover:text-sky-600 font-merriweather font-semibold text-[16px]">
             ¿No tienes cuenta? Regístrate
           </TextLink>
         </div>
@@ -216,7 +207,7 @@ export function LoginForm() {
             Por motivos de seguridad y protección contra accesos no autorizados, el ingreso a esta cuenta ha sido suspendido durante 30 minutos.
           </p>
           <div className="flex justify-end pt-2">
-            <Button text="Cerrar" type="button" onClick={() => setModalBloqueoAbierto(false)} className="bg-eventos-primary hover:bg-eventos-action-hover text-eventos-on-primary px-6 py-2 rounded-md transition-colors shadow"/>
+            <Button text="Cerrar" type="button" onClick={() => setModalBloqueoAbierto(false)} className="bg-[#5c1d33] hover:bg-[#4a1c2d] text-white px-6 py-2 rounded-md transition-colors shadow"/>
           </div>
         </div>
       </Modal>

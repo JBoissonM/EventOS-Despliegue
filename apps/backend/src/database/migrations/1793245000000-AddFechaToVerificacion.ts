@@ -1,4 +1,4 @@
-import type { MigrationInterface, QueryRunner } from 'typeorm';
+import { MigrationInterface, QueryRunner } from 'typeorm';
 
 export class AddFechaToVerificacion1793245000000 implements MigrationInterface {
   name = 'AddFechaToVerificacion1793245000000';

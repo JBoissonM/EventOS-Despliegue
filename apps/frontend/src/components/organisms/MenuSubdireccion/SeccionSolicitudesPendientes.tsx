@@ -61,6 +61,7 @@ export function SeccionSolicitudesPendientes() {
       render: (solicitud) => solicitud.fechaFin,
       className: "min-w-[10rem] px-4",
     },
+    
     {
       id:"detalles",
       encabezado: "Detalles",
@@ -69,6 +70,7 @@ export function SeccionSolicitudesPendientes() {
       },
       className: "min-w-[12rem] px-4",
     }
+  
   ];
 
   return (
