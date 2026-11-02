@@ -6,7 +6,7 @@ import { Table, type Columna } from "../../components/organisms/Table/Table";
 type SolicitudTabla = {
   idEvento: number;
   nombre: string;
-  idOrganizador: number;
+  nombreSolicitante: string;
   fechaInicio: string | null;
   fechaCierre: string | null;
 };
@@ -74,10 +74,20 @@ function convertirSolicitud(valor: unknown): SolicitudTabla {
     .filter((fecha: string | null): fecha is string => fecha !== null)
     .sort();
 
+  const solicitante = valor.solicitante;
+  let nombreSolicitante = "No disponible";
+
+  if (solicitante !== null && solicitante !== undefined) {
+    if (!esRegistro(solicitante)) {
+      throw new Error("La respuesta contiene datos de solicitante inválidos.");
+    }
+    nombreSolicitante = obtenerTexto(solicitante, "nombreCompleto");
+  }
+
   return {
     idEvento: obtenerNumero(valor, "idEvento"),
     nombre: obtenerTexto(valor, "nombre"),
-    idOrganizador: obtenerNumero(valor, "idOrganizador"),
+    nombreSolicitante,
     fechaInicio: fechas[0] ?? null,
     fechaCierre: fechas[fechas.length - 1] ?? null,
   };
@@ -165,9 +175,9 @@ export function ListadoSolicitudes() {
     },
     {
       id: "solicitante",
-      encabezado: "Nombre del solicitante",
-      render: (solicitud) => solicitud.idOrganizador,
-      className: "min-w-[12rem] px-4",
+      encabezado: "Solicitante",
+      render: (solicitud) => solicitud.nombreSolicitante,
+      resaltar: true,
     },
     {
       id: "fechaInicio",
