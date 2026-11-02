@@ -1,5 +1,5 @@
 import 'reflect-metadata';                      // activa la lectura de metadata de decoradores
-import { DataSource, DataSourceOptions } from 'typeorm';
+import { DataSource, type DataSourceOptions } from 'typeorm';
 
 export const dbOptions: DataSourceOptions = {   // los datos de conexión, reutilizables
   type: 'postgres',                             // qué base de datos

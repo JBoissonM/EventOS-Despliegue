@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { ApiError } from "../../../../lib/apiClient";
 
 import { Button } from "../../../../components/atoms/Button/Button";
 import { ConfirmationDialog } from "../../../../components/organisms/ConfirmationDialog/ConfirmationDialog";
@@ -11,7 +12,9 @@ export interface AutomaticReservationPanelProps {
   startTime: string;
   endTime: string;
   venue: string;
-  onReserve: () => Promise<void>;
+  onReserve: () => Promise<number | void>;
+  onViewTicket?: (idBoleto: number) => void;
+  availableSeats?: number;
 }
 
 export function AutomaticReservationPanel({
@@ -21,12 +24,15 @@ export function AutomaticReservationPanel({
                                             endTime,
                                             venue,
                                             onReserve,
+                                            onViewTicket,
+                                            availableSeats,
                                           }: AutomaticReservationPanelProps) {
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isReserved, setIsReserved] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isSuccessOpen, setIsSuccessOpen] = useState(false);
+  const [createdTicketId, setCreatedTicketId] = useState<number | null>(null);
 
   const handleConfirm = async () => {
     if (isLoading || isReserved) return;
@@ -35,15 +41,17 @@ export function AutomaticReservationPanel({
     setError(null);
 
     try {
-      await onReserve();
+      const ticketId = await onReserve();
 
+      if (typeof ticketId === "number") setCreatedTicketId(ticketId);
       setIsReserved(true);
       setIsConfirmOpen(false);
       setIsSuccessOpen(true);
-    } catch {
-      setError(
-        "No fue posible reservar un lugar. Verifica la disponibilidad e inténtalo nuevamente.",
-      );
+    } catch (cause) {
+      const message = cause instanceof ApiError && cause.status === 409
+        ? `${cause.message} La disponibilidad se está actualizando.`
+        : "No fue posible reservar un lugar. Comprueba tu conexión e inténtalo nuevamente.";
+      setError(message);
       setIsConfirmOpen(false);
     } finally {
       setIsLoading(false);
@@ -59,6 +67,7 @@ export function AutomaticReservationPanel({
         endTime={endTime}
         venue={venue}
         selectedSeatLabel={null}
+        availableSeats={availableSeats}
         showSeat={false}
       />
 
@@ -69,8 +78,7 @@ export function AutomaticReservationPanel({
 
         <p className="mt-3 text-sm text-gray-600">
           Para este recinto no necesitas seleccionar un asiento.
-          El sistema asignará un lugar disponible al confirmar
-          tu reservación.
+          Tu reservación registrará un cupo general, sin asiento numerado.
         </p>
       </div>
 
@@ -107,6 +115,9 @@ export function AutomaticReservationPanel({
         isOpen={isSuccessOpen}
         eventName={eventName}
         onClose={() => setIsSuccessOpen(false)}
+        onViewTicket={createdTicketId !== null && onViewTicket
+          ? () => onViewTicket(createdTicketId)
+          : undefined}
       />
     </section>
   );

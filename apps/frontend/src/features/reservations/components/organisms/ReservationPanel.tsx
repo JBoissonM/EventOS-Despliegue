@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { ApiError } from "../../../../lib/apiClient";
 import { Button } from "../../../../components/atoms/Button/Button";
 import { ConfirmationDialog } from "../../../../components/organisms/ConfirmationDialog/ConfirmationDialog";
 import { ReservationSummary } from "../molecules/ReservationSummary";
@@ -13,7 +14,9 @@ export interface ReservationPanelProps {
   endTime: string;
   venue: string;
   seats: SeatMapItem[];
-  onReserve: (idAsiento: number) => Promise<void>;
+  onReserve: (idAsiento: number) => Promise<number | void>;
+  onViewTicket?: (idBoleto: number) => void;
+  availableSeats?: number;
   aisleAfter?: number[];
 }
 
@@ -25,6 +28,8 @@ export function ReservationPanel({
                                    venue,
                                    seats,
                                    onReserve,
+                                   onViewTicket,
+                                   availableSeats,
                                    aisleAfter = [],
                                  }: ReservationPanelProps) {
   const [selectedSeatId, setSelectedSeatId] =
@@ -35,6 +40,7 @@ export function ReservationPanel({
   const [isReserved, setIsReserved] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isSuccessOpen, setIsSuccessOpen] = useState(false);
+  const [createdTicketId, setCreatedTicketId] = useState<number | null>(null);
 
   const selectedSeat =
     seats.find(
@@ -58,59 +64,90 @@ export function ReservationPanel({
     setError(null);
 
     try {
-      await onReserve(selectedSeat.idAsiento);
+      const ticketId = await onReserve(selectedSeat.idAsiento);
 
+      if (typeof ticketId === "number") setCreatedTicketId(ticketId);
       setIsReserved(true);
       setIsConfirmOpen(false);
       setIsSuccessOpen(true);
-    } catch {
-      setError(
-        "No fue posible completar la reservación. Inténtalo nuevamente.",
-      );
+    } catch (cause) {
+      const message = cause instanceof ApiError && cause.status === 409
+        ? `${cause.message} La disponibilidad se está actualizando.`
+        : "No fue posible completar la reservación. Comprueba tu conexión e inténtalo nuevamente.";
+      setError(message);
       setIsConfirmOpen(false);
     } finally {
       setIsLoading(false);
     }
   };
 
+  const displayedAvailableSeats = availableSeats ?? seats.filter((seat) => !seat.occupied).length;
+
+  const handleCancelSelection = () => {
+    setSelectedSeatId(null);
+    setError(null);
+  };
+
   return (
     <section className="space-y-6">
-      {!isReserved && (
-        <SeatMap
-          seats={seats}
-          selectedSeatId={selectedSeat?.idAsiento ?? null}
-          onSelect={handleSeatSelect}
-          aisleAfter={aisleAfter}
-          venueName={venue}
-        />
-      )}
+      <div className="grid grid-cols-1 items-start gap-6 xl:grid-cols-[minmax(0,1fr)_320px] 2xl:grid-cols-[minmax(0,1fr)_350px]">
+        {/* Mapa y acciones de reservación */}
+        <div className="min-w-0 space-y-5">
+          {!isReserved && (
+            <div className="min-w-0">
+              <SeatMap
+                seats={seats}
+                selectedSeatId={selectedSeat?.idAsiento ?? null}
+                onSelect={handleSeatSelect}
+                aisleAfter={aisleAfter}
+                venueName={venue}
+              />
+            </div>
+          )}
 
-      <ReservationSummary
-        eventName={eventName}
-        date={date}
-        startTime={startTime}
-        endTime={endTime}
-        venue={venue}
-        selectedSeatLabel={selectedSeatLabel}
-      />
+          {error && (
+            <p role="alert" className="text-sm text-eventos-error">
+              {error}
+            </p>
+          )}
 
-      {error && (
-        <p role="alert" className="text-sm text-eventos-error">
-          {error}
-        </p>
-      )}
+          {isReserved ? (
+            <p role="status" className="text-eventos-success">
+              Reservación registrada correctamente.
+            </p>
+          ) : (
+            <div className="flex flex-wrap justify-center gap-4">
+              <button
+                type="button"
+                disabled={!selectedSeat || isLoading}
+                onClick={handleCancelSelection}
+                className="rounded-lg bg-[var(--color-eventos-cancel)] px-6 py-3 font-semibold text-white hover:brightness-90 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Cancelar
+              </button>
 
-      {isReserved ? (
-        <p role="status" className="text-eventos-success">
-          Reservación registrada correctamente.
-        </p>
-      ) : (
-        <Button
-          text="Reservar asiento"
-          disabled={!selectedSeat || isLoading}
-          onClick={() => setIsConfirmOpen(true)}
-        />
-      )}
+              <Button
+                text="Confirmar reserva"
+                disabled={!selectedSeat || isLoading}
+                onClick={() => setIsConfirmOpen(true)}
+              />
+            </div>
+          )}
+        </div>
+
+        {/* Resumen a la derecha del mapa en escritorio */}
+        <aside className="min-w-0 xl:sticky xl:top-6">
+          <ReservationSummary
+            eventName={eventName}
+            date={date}
+            startTime={startTime}
+            endTime={endTime}
+            venue={venue}
+            selectedSeatLabel={selectedSeatLabel}
+            availableSeats={displayedAvailableSeats}
+          />
+        </aside>
+      </div>
 
       <ConfirmationDialog
         isOpen={isConfirmOpen}
@@ -130,6 +167,9 @@ export function ReservationPanel({
         eventName={eventName}
         seatLabel={selectedSeatLabel}
         onClose={() => setIsSuccessOpen(false)}
+        onViewTicket={createdTicketId !== null && onViewTicket
+          ? () => onViewTicket(createdTicketId)
+          : undefined}
       />
     </section>
   );

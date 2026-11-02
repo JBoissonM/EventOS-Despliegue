@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router";
+import { useLocation, useNavigate } from "react-router";
 import { Input } from "../../components/atoms/Input/Input";
 import { Button } from "../../components/atoms/Button/Button";
 import { FieldMessage } from "../../components/atoms/FieldMessage/FieldMessage";
@@ -7,13 +7,15 @@ import { TextLink } from "../../components/atoms/TextLink/TextLink";
 import { FormField } from "../../components/molecules/FormField";
 import { PasswordField } from "../../components/molecules/PasswordField";
 import { Modal } from "../../components/molecules/Modal";
+import { API_BASE_URL } from "../../lib/apiClient";
 
 export function Registro() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [formData, setFormData] = useState({
     nombre: "",
     apellidoPa: "",
-    apellidoMaterno: "", 
+    apellidoMaterno: "",
     correo: "",
     contrasena: "",
     confirmarContrasena: "",
@@ -37,7 +39,7 @@ export function Registro() {
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    
+
     setFormData((prev) => ({
       ...prev,
       [name]: value,
@@ -203,7 +205,7 @@ export function Registro() {
         contrasena: formData.contrasena,
       };
 
-      const response = await fetch("http://localhost:3000/api/auth/registro", {
+      const response = await fetch(`${API_BASE_URL}/auth/registro`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -215,7 +217,7 @@ export function Registro() {
 
       if (!response.ok) {
         let mensajeError = "Error al registrar el usuario.";
-        
+
         if (Array.isArray(data.message)) {
           mensajeError = data.message.join(". ");
         } else if (typeof data.message === "string") {
@@ -237,7 +239,7 @@ export function Registro() {
   return (
     <div className="flex min-h-[calc(100vh-160px)] items-center justify-center p-4">
       <div className="w-full max-w-2xl rounded-lg bg-white p-8 shadow-sm border border-gray-100">
-        
+
         <h1 className="mb-8 text-center text-3xl font-merriweather font-bold text-[36px] text-gray-900">
           Registro
         </h1>
@@ -267,7 +269,7 @@ export function Registro() {
                     <p className="text-eventos-error text-xs font-merriweather">{errors.correo}</p>
                   ) : (
                     <FieldMessage variant="helper">
-                      Usa tu correo institucional (@ipn.mx, @alumno.ipn.mx) o tu cuenta personal. 
+                      Usa tu correo institucional (@ipn.mx, @alumno.ipn.mx) o tu cuenta personal.
                     </FieldMessage>
                   )}
                 </div>
@@ -321,16 +323,16 @@ export function Registro() {
           </div>
 
           <div className="mt-4 text-center">
-            <TextLink to="/login" className="text-sky-500 font-merriweather font-semibold text-[16px] hover:text-sky-600">
+            <TextLink to="/login" state={location.state} className="text-eventos-secondary font-merriweather font-semibold text-[16px] hover:text-eventos-primary">
               ¿Ya tienes cuenta? Inicia sesión
             </TextLink>
           </div>
         </form>
       </div>
 
-      <Modal titulo="¡Registro exitoso!" contenido="Tu cuenta ha sido creada correctamente. Ya puedes iniciar sesión en la plataforma." mostrarModal={modalExitoAbierto} cerrarModal={() => { setModalExitoAbierto(false); navigate("/login");}}>
+      <Modal titulo="¡Registro exitoso!" contenido="Tu cuenta ha sido creada correctamente. Ya puedes iniciar sesión en la plataforma." mostrarModal={modalExitoAbierto} cerrarModal={() => { setModalExitoAbierto(false); navigate("/login", { state: location.state });}}>
         <div className="flex justify-end pt-4">
-          <Button text="Aceptar" type="button" onClick={() => {setModalExitoAbierto(false); navigate("/login");}}
+          <Button text="Aceptar" type="button" onClick={() => {setModalExitoAbierto(false); navigate("/login", { state: location.state });}}
             className="font-merriweather text-sm px-6 py-2.5 rounded-md transition-colors shadow"
           />
         </div>

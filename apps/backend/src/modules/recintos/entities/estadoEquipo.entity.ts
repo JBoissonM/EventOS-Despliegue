@@ -1,5 +1,5 @@
 import { Column, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn } from 'typeorm';
-import { EstadoEquipo } from '@eventos/shared';
+import type { EstadoEquipo } from '@eventos/shared';
 import { RecintoEntity } from './recinto.entity';
 
 @Entity({ name: 'estadoEquipo' })
