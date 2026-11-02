@@ -6,6 +6,8 @@ import { CardSubevento } from "../../components/organisms/SolicitudEventos/CardS
 import { SeccionDatosPrellenados } from "../../components/organisms/DetallesSolicitud/SeccionDatosPrellenados";
 import type { SubeventoFormData } from "../events/SolicitudEventos";
 import { Modal } from "../../components/molecules/Modal";
+import { useNavigate } from "react-router";
+
 
 export interface DatosPrellenados {
   nombreSolicitante: string;
@@ -141,6 +143,9 @@ export function DetallesSolicitud() {
   const [error, setError] = useState<string | null>(null);
   const [accion, setAccion] = useState<"aprobar" | "rechazar" | null>(null);
   const [errorAccion, setErrorAccion] = useState<string | null>(null);
+  const [mostrarModalExito, setModalExito] = useState(false);
+  const navigate = useNavigate();
+
 
   useEffect(() => {
     const controller = new AbortController();
@@ -231,6 +236,11 @@ export function DetallesSolicitud() {
         throw new Error(`La acción falló (HTTP ${response.status}).`);
       }
 
+      if (accion === "aprobar") {
+        navigate("/subdireccion/lista-solicitudes");
+        return;
+      }
+
       setAccion(null);
     } catch (error) {
       setErrorAccion(
@@ -239,6 +249,19 @@ export function DetallesSolicitud() {
           : "No se pudo actualizar la solicitud.",
       );
     }
+
+   <Modal
+      titulo="Operación exitosa"
+      contenido="Se ha cancelado exitosamente el evento"
+      mostrarModal={mostrarModalExito}
+      cerrarModal={() => !mostrarModalExito}>
+      <Button
+        text="Aceptar"
+        variant="primary"
+        type="button"
+        onClick={() => {setModalExito(false), navigate(`/subdireccion/lista-solicitudes`)}}></Button>
+    </Modal>;
+
   };
 
   return (
