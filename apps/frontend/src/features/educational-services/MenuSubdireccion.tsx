@@ -5,11 +5,12 @@ import { CardMetricas } from "../../components/molecules/CardMetricas";
 
 export function MenuSubdireccion() {
   return (
-    <section className="space-y-5">
+    <section className="space-y-5 ">
       <h1 className="font-merriweather font-bold text-[36px]">
         Menú principal
       </h1>
       <h2 className="font-merriweather text-[24px]">Metricas</h2>
+      <br />
       <div
         id="contenedorMetricas"
         className="grid grid-cols-3 justify-items-center">
@@ -23,9 +24,11 @@ export function MenuSubdireccion() {
           <span className="text-merriweather font-bold text-3xl">0</span>{" "}
         </CardMetricas>
       </div>
+      <br />
       <h2 className="font-merriweather text-[24px]">
         Agenda de los recintos del día de hoy
       </h2>
+      <br />
       <div
         id="contenedorAgendaRecintos"
         className="grid grid-cols-1 items-start justify-items-center gap-[60px] md:grid-cols-2">
@@ -38,14 +41,11 @@ export function MenuSubdireccion() {
           <AgendaRecinto titulo="Laboratorio 1104" />
         </div>
       </div>
+      <br />
       <h2 className="font-merriweather text-[24px]">
         Solicitudes pendientes recientes
       </h2>
       <SeccionSolicitudesPendientes />
-      <Button
-        text="Ver todos mis eventos"
-        variant="primary"
-        type="button"></Button>
     </section>
   );
 }

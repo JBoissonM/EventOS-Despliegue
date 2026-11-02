@@ -159,27 +159,27 @@ export function ListadoSolicitudes() {
   const columnas: Columna<SolicitudTabla>[] = [
     {
       id: "nombre",
-      encabezado: "Evento",
+      encabezado: "Nombre del evento",
       render: (solicitud) => solicitud.nombre,
-      resaltar: true,
+      className: "min-w-[12rem] px-4",
     },
     {
       id: "solicitante",
-      encabezado: "ID del solicitante",
+      encabezado: "Nombre del solicitante",
       render: (solicitud) => solicitud.idOrganizador,
-      resaltar: true,
+      className: "min-w-[12rem] px-4",
     },
     {
       id: "fechaInicio",
       encabezado: "Fecha inicio",
       render: (solicitud) => mostrarFecha(solicitud.fechaInicio),
-      resaltar: true,
+      className: "min-w-[12rem] px-4",
     },
     {
       id: "fechaCierre",
       encabezado: "Fecha fin",
       render: (solicitud) => mostrarFecha(solicitud.fechaCierre),
-      resaltar: true,
+      className: "min-w-[12rem] px-4",
     },
     {
       id: "acciones",
@@ -196,16 +196,17 @@ export function ListadoSolicitudes() {
 
   return (
     <section className="space-y-5">
-      <div id="titulos" className="space-y-5">
+      <div id="titulos">
         <h1 className="font-merriweather text-[36px] font-bold">
           Solicitudes pendientes
         </h1>
       </div>
-      <div id="contenedorTabla" className="mx-[150px]">
         {cargando && <p role="status">Cargando solicitudes...</p>}
         {error && <p role="alert">{error}</p>}
         {!cargando && !error && solicitudes.length === 0 && (
-          <div id="contenederIcono" className="flex min-h-[50vh] flex-col items-center justify-center text-center space-y-2">
+          <div
+            id="contenederIcono"
+            className="flex min-h-[50vh] flex-col items-center justify-center text-center space-y-2">
             <svg
               xmlns="http://www.w3.org/2000/svg"
               width="60"
@@ -222,19 +223,22 @@ export function ListadoSolicitudes() {
               <rect x="3" y="3" width="18" height="18" rx="2" />
               <path d="M3 9h18" />
             </svg>
-            <p className="merriweather text-[24px] font-semibold">Sin solicitudes pendientes.</p>
+            <p className="merriweather text-[24px] font-semibold">
+              Sin solicitudes pendientes.
+            </p>
             <p></p>
           </div>
         )}
         {!cargando && !error && solicitudes.length > 0 && (
+          <div id="contenedorTabla" className="mx-auto w-full max-w-7xl overflow-x-auto">
           <Table
             columnas={columnas}
             filas={solicitudes}
             obtenerClave={(solicitud) => solicitud.idEvento}
-            className="w-full divide-y text-left"
+            className="table-auto min-w-full text-center [&_tbody_tr]:h-20 [&_thead_tr]:h-[80px]"
           />
+          </div>
         )}
-      </div>
     </section>
   );
 }
