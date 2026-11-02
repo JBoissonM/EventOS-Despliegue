@@ -4,10 +4,12 @@ import { QrService } from './services/qr.service';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ReservationsController } from './controllers/reservations.controller';
 import { ReservationsService } from './services/reservations.service';
+import { TicketPdfService } from './services/ticket-pdf.service';
 
 import { BoletoEntity } from './entities/boleto.entity';
 import { EstadoBoletoEntity } from './entities/estadoBoleto.entity';
 import { AsistenteEventoEntity } from './entities/asistenteEvento.entity';
+import { ReservaHistorialEntity } from './entities/reservaHistorial.entity';
 
 import { EventoEntity } from '../eventos/entities/evento.entity';
 import { SubEventoEntity } from '../eventos/entities/subevento.entity';
@@ -16,6 +18,7 @@ import { EventoPersonalLogisticaEntity } from '../eventos/entities/eventoPersona
 import { RecintoEntity } from '../recintos/entities/recinto.entity';
 import { AsientoEntity } from './entities/asiento.entity';
 import { PonenteEntity } from '../eventos/entities/ponente.entity';
+import { UsuarioEntity } from '../auth/entities/usuario.entity';
 
 
 @Module({
@@ -24,6 +27,7 @@ import { PonenteEntity } from '../eventos/entities/ponente.entity';
       BoletoEntity,
       EstadoBoletoEntity,
       AsistenteEventoEntity,
+      ReservaHistorialEntity,
       EventoEntity,
       SubEventoEntity,
       FechaEntity,
@@ -31,6 +35,7 @@ import { PonenteEntity } from '../eventos/entities/ponente.entity';
       RecintoEntity,
       AsientoEntity,
       PonenteEntity,
+      UsuarioEntity,
     ]),
     JwtModule.register({
       secret: process.env.JWT_SECRET || 'clave_secreta_desarrollo',
@@ -38,6 +43,6 @@ import { PonenteEntity } from '../eventos/entities/ponente.entity';
     }),
   ],
   controllers: [ReservationsController],
-  providers: [QrService, ReservationsService],
+  providers: [QrService, ReservationsService, TicketPdfService],
 })
 export class ReservationsModule {}

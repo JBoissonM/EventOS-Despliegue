@@ -1,3 +1,8 @@
+export enum ModalidadAcceso {
+  ENTRADA_LIBRE = 'ENTRADA_LIBRE',
+  CON_RESERVACION = 'CON_RESERVACION',
+}
+
 //interfaces
 export interface Evento {
   idEvento: number;
@@ -21,6 +26,7 @@ export interface SubEvento {
   nombre: string;
   descripcion: string;
   accesoQR: boolean;
+  modalidadAcceso: ModalidadAcceso;
   estado: EstadoSubEvento;
 }
 
@@ -69,8 +75,10 @@ export interface AsientoDisponible {
 export interface DisponibilidadSubEvento {
   idSubEvento: number;
   recinto: Recinto;
-  lugaresDisponibles: number;  //<- calculado por el back
-  asientos: AsientoDisponible[]; // <- lista de asientos disponibles
+  lugaresDisponibles: number;
+  permiteReservar: boolean;
+  requiereSeleccionAsiento: boolean;
+  asientos: AsientoDisponible[];
 }
 
 export interface CrearReservaPayload {
@@ -165,6 +173,7 @@ export interface SubeventoPayload {
   descripcion: string;
   idRecinto: number;
   accesoQR?: boolean;
+  modalidadAcceso?: ModalidadAcceso;
   fecha: string;
   horaInicio: string;
   horaFin: string;

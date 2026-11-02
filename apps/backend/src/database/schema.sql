@@ -133,6 +133,7 @@ CREATE TABLE boleto (
 CREATE TABLE "subEvento" (
   "idSubEvento" integer GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   "accesoQR" boolean NOT NULL,
+  "modalidadAcceso" varchar(30) NOT NULL DEFAULT 'CON_RESERVACION' CHECK ("modalidadAcceso" IN ('ENTRADA_LIBRE', 'CON_RESERVACION')),
   estado varchar(50) NOT NULL,
   nombre varchar(150) NOT NULL,
   descripcion varchar(500) NOT NULL,
@@ -165,6 +166,16 @@ CREATE TABLE "asistenteEvento" (
   "idBoleto" integer REFERENCES boleto("idBoleto"),
   PRIMARY KEY ("idSubEvento", "idUsuario")
 );
+
+CREATE TABLE "reservaHistorial" (
+  "idBoleto" integer PRIMARY KEY REFERENCES boleto("idBoleto"),
+  "idSubEvento" integer NOT NULL REFERENCES "subEvento"("idSubEvento"),
+  "idUsuario" integer NOT NULL REFERENCES usuario("idUsuario"),
+  "fechaAsociacion" timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX "IDX_reservaHistorial_usuario_subEvento"
+  ON "reservaHistorial" ("idUsuario", "idSubEvento");
 
 -- 20. Bitácora Evento
 CREATE TABLE "bitacoraEvento" (
@@ -235,11 +246,25 @@ ON CONFLICT ("idRol") DO NOTHING;
 -- 7. Recintos Iniciales de ESCOM
 INSERT INTO recinto ("idRecinto", nombre, aforo, "computadorasDisponibles", "idEstadoRecinto") OVERRIDING SYSTEM VALUE
 VALUES 
-  (1, 'Auditorio Principal', 250, 0, 1),
+  (1, 'Auditorio Principal', 242, 0, 1),
   (2, 'Laboratorio de Cómputo A', 35, 35, 1),
   (3, 'Laboratorio de Cómputo B', 25, 25, 1),
   (4, 'Sala 14', 50, 0, 1)
 ON CONFLICT ("idRecinto") DO NOTHING;
+
+INSERT INTO asiento (fila, numero, "idRecinto")
+SELECT filas.fila, numeros.numero, 1
+FROM (VALUES ('A'),('B'),('C'),('D'),('E'),('F'),('G'),('H'),('I'),('J'),('K')) AS filas(fila)
+CROSS JOIN generate_series(1,23) AS numeros(numero)
+WHERE (
+  (filas.fila = 'A' AND numeros.numero IN (4,5,6,9,10,11,12,13,14,15,16,18,19,20))
+  OR (filas.fila = 'B' AND numeros.numero BETWEEN 2 AND 22)
+  OR filas.fila NOT IN ('A', 'B')
+)
+AND NOT EXISTS (
+  SELECT 1 FROM asiento a
+  WHERE a."idRecinto" = 1 AND a.fila = filas.fila AND a.numero = numeros.numero
+);
 
 -- Ajustar secuencias de identity para futuros INSERTs automáticos
 SELECT setval(pg_get_serial_sequence('"alcance"', 'idAlcance'), COALESCE(MAX("idAlcance"), 1)) FROM "alcance";

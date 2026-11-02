@@ -1,5 +1,5 @@
 import { Column, Entity, PrimaryGeneratedColumn } from 'typeorm';
-import { Rol } from '@eventos/shared';
+import type { Rol } from '@eventos/shared';
 
 @Entity({ name: 'rol' })
 export class RolEntity implements Rol {

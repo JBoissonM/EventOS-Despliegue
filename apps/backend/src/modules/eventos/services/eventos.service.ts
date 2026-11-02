@@ -7,7 +7,7 @@ import {
   InternalServerErrorException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, Repository } from 'typeorm';
+import { DataSource, In, Repository } from 'typeorm';
 import { EventoEntity } from '../entities/evento.entity';
 import { UsuarioEntity } from '../../auth/entities/usuario.entity';
 import { SubEventoEntity } from '../entities/subevento.entity';
@@ -19,6 +19,7 @@ import { PonenteEntity } from '../entities/ponente.entity';
 import { AsientoEntity } from '../../reservas/entities/asiento.entity';
 import {
   AlcanceEvento,
+  ModalidadAcceso,
   EstadoEvento,
   EstadoSubEvento,
   EstadoVerificacion,
@@ -190,6 +191,12 @@ export class EventosService {
 
     // Validar las reglas de cada recinto y consultar colisiones con la BD
     for (const subeventoActual of subeventos) {
+      if (
+        subeventoActual.modalidadAcceso === ModalidadAcceso.ENTRADA_LIBRE &&
+        subeventoActual.accesoQR
+      ) {
+        throw new BadRequestException('La entrada libre no puede exigir boleto con QR.');
+      }
       await this.recintoService.validarRecinto(
         subeventoActual.idRecinto,
         subeventoActual.accesoQR ?? false,
@@ -246,6 +253,7 @@ export class EventosService {
           idRecinto: sub.idRecinto,
           idFecha: fechaGuardada.idFecha,
           accesoQR: sub.accesoQR ?? false,
+          modalidadAcceso: sub.modalidadAcceso ?? ModalidadAcceso.CON_RESERVACION,
           estado: estadoSubEventoInicial,
         });
 
@@ -580,6 +588,19 @@ async obtenerEventosPublicos(usuarioActual?: {
         usuarioActual?.tipoCuenta === TipoCuentaUsuario.ADMINISTRADOR);
 
     const cartelera = [];
+    const idsSubEventos = eventos.flatMap((evento) =>
+      (evento.subEventos ?? []).map((sub) => sub.idSubEvento),
+    );
+    const ponentes = idsSubEventos.length > 0
+      ? await this.ponenteRepository.find({ where: { idSubEvento: In(idsSubEventos) } })
+      : [];
+    const ponentesPorActividad = new Map<number, PonenteEntity[]>();
+
+    for (const ponente of ponentes) {
+      const grupo = ponentesPorActividad.get(ponente.idSubEvento) ?? [];
+      grupo.push(ponente);
+      ponentesPorActividad.set(ponente.idSubEvento, grupo);
+    }
 
     for (const e of eventos) {
       // Filtrar únicamente subeventos próximos (fecha >= hoy en CDMX) y que no estén cancelados
@@ -600,21 +621,18 @@ async obtenerEventosPublicos(usuarioActual?: {
         continue;
       }
 
-      // Un evento es de libre acceso si es Público y tiene al menos un subevento próximo sin requisito de QR/boleto
       const esAccesoLibre =
         e.idAlcance === AlcanceEvento.PUBLICO &&
-        subEventosProximos.some((sub) => !sub.accesoQR);
+        subEventosProximos.every((sub) => sub.modalidadAcceso === ModalidadAcceso.ENTRADA_LIBRE);
+      const requiereCuenta = subEventosProximos.some(
+        (sub) => sub.modalidadAcceso === ModalidadAcceso.CON_RESERVACION,
+      );
 
-      if (!tieneSesion) {
-        //Sin sesión iniciada [solo eventos próximos de libre acceso]
-        if (!esAccesoLibre) {
-          continue;
-        }
-      } else {
-        //Con sesión iniciada (Externos solo ven PUBLICO; Internos ven PUBLICO e INTERNO)
-        if (e.idAlcance === AlcanceEvento.INTERNO && !esUsuarioInterno) {
-          continue;
-        }
+      if (!tieneSesion && e.idAlcance !== AlcanceEvento.PUBLICO) {
+        continue;
+      }
+      if (e.idAlcance === AlcanceEvento.INTERNO && !esUsuarioInterno) {
+        continue;
       }
 
       cartelera.push({
@@ -624,8 +642,16 @@ async obtenerEventosPublicos(usuarioActual?: {
         poster: e.poster,
         idAlcance: e.idAlcance,
         esAccesoLibre,
-        requiereCuenta: !esAccesoLibre,
-        subEventos: subEventosProximos,
+        requiereCuenta,
+        subEventos: subEventosProximos.map((sub) => ({
+          ...sub,
+          ponentes: (ponentesPorActividad.get(sub.idSubEvento) ?? []).map((ponente) => ({
+            idPonente: ponente.idPonente,
+            nombre: ponente.nombre,
+            apellidoPa: ponente.apellidoPa,
+            apellidoMa: ponente.apellidoMa,
+          })),
+        })),
       });
     }
 
@@ -644,7 +670,7 @@ async obtenerEventosPublicos(usuarioActual?: {
       where: { idEvento, idEstadoEvento: EstadoEvento.ACEPTADO },
     });
 
-    if (!evento) {
+    if (!evento || evento.idAlcance === AlcanceEvento.PRIVADO) {
       throw new NotFoundException('El evento no existe o no se encuentra disponible.');
     }
 
@@ -659,14 +685,17 @@ async obtenerEventosPublicos(usuarioActual?: {
         usuarioActual?.tipoCuenta === TipoCuentaUsuario.SUBDIRECCION ||
         usuarioActual?.tipoCuenta === TipoCuentaUsuario.ADMINISTRADOR);
 
+    const actividadesVigentes = subEventos.filter((sub) => sub.estado !== EstadoSubEvento.CANCELADO);
     const esAccesoLibre =
       evento.idAlcance === AlcanceEvento.PUBLICO &&
-      subEventos.some((sub) => sub.estado !== EstadoSubEvento.CANCELADO && !sub.accesoQR);
+      actividadesVigentes.length > 0 &&
+      actividadesVigentes.every((sub) => sub.modalidadAcceso === ModalidadAcceso.ENTRADA_LIBRE);
+    const requiereCuenta = actividadesVigentes.some(
+      (sub) => sub.modalidadAcceso === ModalidadAcceso.CON_RESERVACION,
+    );
 
-    if (!tieneSesion && !esAccesoLibre) {
-      throw new ForbiddenException(
-        'Debes iniciar sesión o registrarte para consultar eventos que requieren cuenta.',
-      );
+    if (!tieneSesion && evento.idAlcance !== AlcanceEvento.PUBLICO) {
+      throw new ForbiddenException('Este evento requiere autorización para consultar sus detalles.');
     }
 
     if (evento.idAlcance === AlcanceEvento.INTERNO && !esUsuarioInterno) {
@@ -693,6 +722,7 @@ async obtenerEventosPublicos(usuarioActual?: {
         descripcion: sub.descripcion,
         estado: sub.estado,
         accesoQR: sub.accesoQR,
+        modalidadAcceso: sub.modalidadAcceso,
         requiereSeleccionAsiento: totalAsientosRecinto > 0,
         fecha: fecha
           ? {
@@ -725,7 +755,7 @@ async obtenerEventosPublicos(usuarioActual?: {
       poster: evento.poster,
       idAlcance: evento.idAlcance,
       esAccesoLibre,
-      requiereCuenta: !esAccesoLibre,
+      requiereCuenta,
       subEventos: subEventosDetallados,
     };
   }
