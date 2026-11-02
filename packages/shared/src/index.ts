@@ -352,6 +352,18 @@ export interface SolicitudVerificacionItem {
   archivo: string;
 }
 
+export interface SolicitanteResumen {
+  idUsuario: number;
+  nombre: string;
+  apellidoPa: string;
+  apellidoMa: string | null;
+  nombreCompleto: string;
+  correo: string;
+  esVerificado: EstadoVerificacion;
+  tipoCuenta: TipoCuentaUsuario;
+  esJefeAcademia: boolean;
+}
+
 // Cuentas del sistema para el Panel de Administrador
 export interface CuentaSistemaItem {
   idUsuario: number;
