@@ -11,6 +11,13 @@ import { SolicitudEvento } from "../features/events/SolicitudEventos";
 import { DetallesSolicitud } from "../features/educational-services/DetallesSolicitud";
 import { ListadoSolicitudes } from "../features/educational-services/ListadoSolicitudes";
 import { MenuSubdireccion } from "../features/educational-services/MenuSubdireccion";
+import { SolicitudesAprobadas } from "../features/educational-services/SolicitudesAprobadas";
+import { Perfil } from "../features/account/miPerfil";
+import { Verificacion } from "../features/account/verificacion";
+import { JefeDepartamento } from "../features/admin/JefeDepartamento";
+import { GestionUsuarios } from "../features/admin/Gestion-Usuarios";
+import { BitacoraGeneral } from "../features/admin/Bitacora";
+import { MenuPrincipalAdministracion } from "../features/admin/menu-admin";
 
 import { MenuAsistente } from "../features/assistant/menu-asistente";
 import { MyTicketsRoute } from "../features/tickets/pages/MyTicketsRoute";
@@ -56,6 +63,12 @@ export function AppRouter() {
           />
         </Route>
 
+        <Route element={<ProtectedRoute allowedRoles={["Administrador", "Subdirección", "Asistente", "Usuario Externo", "Usuario Interno"]} />}>
+          <Route element={<DashboardLayout />}>
+            <Route path="/perfil" element={<Perfil />} />
+          </Route>
+        </Route>
+
         <Route
           element={
             <ProtectedRoute
@@ -74,6 +87,7 @@ export function AppRouter() {
             />
             <Route path="/asistente/boletos" element={<MyTicketsRoute />} />
             <Route path="/asistente/boletos/:idBoleto" element={<DigitalTicketRoute />} />
+            <Route path="/verificacion" element={<Verificacion />} />
 
             <Route
               path="/solicitud-evento"
@@ -97,6 +111,10 @@ export function AppRouter() {
               path="/gestion-equipos/:id"
               element={<GestionEquipos />}
             />
+            <Route path="/admin/jefe-departamento" element={<JefeDepartamento />} />
+            <Route path="/admin/gestion-usuarios" element={<GestionUsuarios />} />
+            <Route path="/admin/bitacora" element={<BitacoraGeneral />} />
+            <Route path="/menu-admin" element={<MenuPrincipalAdministracion />} />
           </Route>
         </Route>
 
@@ -120,6 +138,7 @@ export function AppRouter() {
               path="/subdireccion/menu-principal"
               element={<MenuSubdireccion />}
             />
+            <Route path="/subdireccion/solicitudes-aprobadas" element={<SolicitudesAprobadas />} />
           </Route>
         </Route>
 

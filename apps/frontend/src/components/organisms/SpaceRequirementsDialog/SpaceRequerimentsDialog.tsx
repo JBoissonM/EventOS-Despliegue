@@ -147,15 +147,18 @@ export function SpaceRequerimentsDialog({
               <p>Equipos habilitados: {equiposHabilitados} </p>
               <p>Equipos deshabilitados: {equiposDeshabilitados}</p>
             </div>
-            <div id="contenedorTabla" className="min-w-0 overflow-x-auto">
+            <div
+              id="contenedorTabla"
+              className="min-w-0 max-h-[42vh] overflow-auto">
               <Table
                 columnas={columnas}
                 filas={equipos}
                 obtenerClave={(equipo) => equipo.numeroEquipo}
-                className="w-full min-w-[300px] table-fixed text-left text-sm [&_thead_tr]:h-8 [&_tbody_tr]:h-10 divide-y [&_th]:align-top [&_th]:px-2 [&_td]:px-2 [&_td]:py-2"
+                className="w-full min-w-[300px] table-fixed text-left text-sm [&_thead_tr]:h-8 [&_tbody_tr]:h-10 divide-y [&_th]:sticky [&_th]:top-0 [&_th]:bg-white [&_th]:align-top [&_th]:px-2 [&_td]:px-2 [&_td]:py-2"
               />
             </div>
           </div>
+          <br />
           <div id="contenedorBoton" className="flex justify-end">
             <Button variant="primary" text="Salir" onClick={cerrar}></Button>
           </div>

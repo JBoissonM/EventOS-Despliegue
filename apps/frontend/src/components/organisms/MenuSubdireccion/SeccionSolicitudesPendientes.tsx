@@ -64,7 +64,7 @@ export function SeccionSolicitudesPendientes() {
     {
       id:"detalles",
       encabezado: "Detalles",
-      render: (solicitud) => {
+      render: () => {
         return <Button text="Ver detalles" variant="primary"/>
       },
       className: "min-w-[12rem] px-4",

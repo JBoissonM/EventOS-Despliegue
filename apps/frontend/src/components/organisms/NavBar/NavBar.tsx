@@ -25,9 +25,11 @@ export function Navbar({ userRole, returnUrl }: NavbarProps) {
         ];
       case "admin":
         return [
+          { label: "Menú", to: "/menu-admin" },
           { label: "Bitácora", to: "/admin/bitacora" },
-          { label: "Cuentas de usuario", to: "/admin/usuarios" },
-          { label: "Espacios Físicos", to: "/gestion-espacios" },
+          { label: "Gestión de jefes", to: "/admin/jefe-departamento" },
+          { label: "Gestión de espacios", to: "/gestion-espacios" },
+          { label: "Gestión de usuarios", to: "/admin/gestion-usuarios" },
         ];
       case "visitante":
         return [];
@@ -36,7 +38,7 @@ export function Navbar({ userRole, returnUrl }: NavbarProps) {
         return [
           { label: "Menú", to: "/subdireccion/menu-principal" },
           { label: "Mis eventos", to: "/subdireccion/menu-principal" },
-          { label: "Solicitudes Aprobadas", to: "/subdireccion/menu-principal" },
+          { label: "Solicitudes Aprobadas", to: "/subdireccion/solicitudes-aprobadas" },
           { label: "Solicitudes Pendientes", to: "/subdireccion/lista-solicitudes" },
           { label: "Solicitar evento", to: "/solicitud-evento" },
         ];

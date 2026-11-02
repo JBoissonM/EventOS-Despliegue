@@ -19,6 +19,7 @@ export function GestionEquipos() {
   const [loading, setLoading] = useState(true);
 
   const [modalAbierto, setModalAbierto] = useState(false);
+  const [modalEspacioAbierto, setModalEspacioAbierto] = useState(false);
   const [equipoPendiente, setEquipoPendiente] = useState<Equipo | null>(null);
 
   const getToken = () => {
@@ -67,9 +68,18 @@ export function GestionEquipos() {
     if (!equipoPendiente) return;
 
     const nuevoEstado = !equipoPendiente.estado;
+    const isDesactivando = equipoPendiente.estado === true && nuevoEstado === false;
+    const equiposActivosCount = equipos.filter((e) => e.estado).length;
+    const esUltimoActivo = isDesactivando && equiposActivosCount === 1;
+
+    if (esUltimoActivo) {
+      setModalAbierto(false);
+      setModalEspacioAbierto(true);
+      return; 
+    }
 
     try {
-      const response = await fetch(`http://localhost:3000/api/espacios/equipos/${equipoPendiente.idEstadoEquipo}/estado`, {
+      const response = await fetch(`http://localhost:3000/api/espacios/${id}/equipos/${equipoPendiente.idEstadoEquipo}/estado`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
@@ -92,13 +102,65 @@ export function GestionEquipos() {
     }
   };
 
+  const handleConfirmarInhabilitarEspacio = async () => {
+    if (!equipoPendiente) return;
+
+    try {
+      const responseEquipo = await fetch(`http://localhost:3000/api/espacios/${id}/equipos/${equipoPendiente.idEstadoEquipo}/estado`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${getToken()}`,
+        },
+        body: JSON.stringify({ estado: false }),
+      });
+
+      const dataEquipo = await responseEquipo.json();
+      if (!responseEquipo.ok) {
+        throw new Error(dataEquipo.message || "Error al actualizar el estado del equipo.");
+      }
+
+      const responseEspacio = await fetch(`http://localhost:3000/api/espacios/${id}/estado`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${getToken()}`,
+        },
+        body: JSON.stringify({ estado: false }),
+      });
+
+      if (!responseEspacio.ok) {
+        const dataEspacio = await responseEspacio.json();
+        throw new Error(dataEspacio.message || "Error al inhabilitar el espacio.");
+      }
+
+      await fetchEquipos();
+      setModalEspacioAbierto(false);
+      setEquipoPendiente(null);
+    } catch (err: any) {
+      alert(err.message);
+    }
+  };
+
+  const handleCancelarInhabilitarEspacio = () => {
+    setModalEspacioAbierto(false);
+    setEquipoPendiente(null);
+  };
+
   return (
     <div className="space-y-6 font-merriweather text-gray-800">
+
+      <div className="mb-2">
+        <button onClick={() => navigate("/gestion-espacios")} className="flex items-center text-sm font-semibold text-gray-700 hover:text-gray-900 transition-colors">
+          <span className="font-merriweather text-[16px] mr-3">← Volver a Gestion de Espacios</span>
+        </button>
+      </div>
+
       <div>
         <h1 className="text-2xl font-bold text-gray-900 mb-1">
           Mapa visual de inventario
         </h1>
-        <p className="text-sm text-gray-600">
+        <p className="text-[20px] text-gray-600">
           <span className="font-semibold">Laboratorio ID:</span> {id}
         </p>
       </div>
@@ -116,10 +178,6 @@ export function GestionEquipos() {
             <p><span className="font-semibold">Equipos disponibles:</span> {equiposDisponibles}</p>
             <p><span className="font-semibold">Equipos fuera de servicio:</span> {equiposFueraDeServicio}</p>
           </div>
-
-          <div className="pt-2">
-            <Button text="Regresar" variant="primary" size="sm" className="bg-[#5c1d33] hover:bg-[#4a1c2d] text-white px-6 py-2 rounded" onClick={() => navigate("/gestion-espacios")}/>
-          </div>
         </div>
 
         <ListaEquiposTable equipos={equipos} onToggleEquipo={handleToggleClick}/>
@@ -128,15 +186,32 @@ export function GestionEquipos() {
       <Modal titulo="Advertencia" contenido="" mostrarModal={modalAbierto} cerrarModal={() => setModalAbierto(false)}>
         <div className="space-y-6">
           <p className="text-sm text-gray-700 font-merriweather">
-            ¿Estás seguro que quieres {equipoPendiente?.estado ? "inhabilitar" : "habilitar"} al Equipo {equipoPendiente?.numeroEquipo}?
+            ¿Estás seguro que quieres {equipoPendiente?.estado ? "inhabilitar" : "habilitar"} el Equipo {equipoPendiente?.numeroEquipo}?
           </p>
 
           <div className="flex items-center justify-end space-x-3">
             <Button text="Cancelar" type="button" variant="outline" onClick={() => setModalAbierto(false)}
-              className="bg-gray-200 hover:bg-gray-300 text-gray-800 font-merriweather text-sm px-6 py-2.5 rounded-md transition-colors"
+              className="font-merriweather text-sm px-6 py-2.5 rounded-md transition-colors"
             />
             <Button text="Aceptar" type="button" onClick={handleConfirmarCambio}
-              className="bg-[#5c1d33] hover:bg-[#4a1c2d] text-white font-merriweather text-sm px-6 py-2.5 rounded-md transition-colors shadow"
+              className="font-merriweather text-sm px-6 py-2.5 rounded-md transition-colors shadow"
+            />
+          </div>
+        </div>
+      </Modal>
+
+      <Modal titulo="Inhabilitación de Laboratorio" contenido="" mostrarModal={modalEspacioAbierto} cerrarModal={handleCancelarInhabilitarEspacio}>
+        <div className="space-y-6">
+          <p className="text-sm text-gray-700 font-merriweather">
+            ¿Estás seguro de inhabilitar el equipo? Al hacerlo, el espacio se inhabilitará y los eventos programados podrían verse afectados.
+          </p>
+
+          <div className="flex items-center justify-end space-x-3">
+            <Button text="Cancelar" type="button" variant="outline" onClick={handleCancelarInhabilitarEspacio}
+              className="font-merriweather text-sm px-6 py-2.5 rounded-md transition-colors"
+            />
+            <Button text="Aceptar" type="button" onClick={handleConfirmarInhabilitarEspacio}
+              className="font-merriweather text-sm px-6 py-2.5 rounded-md transition-colors shadow"
             />
           </div>
         </div>
