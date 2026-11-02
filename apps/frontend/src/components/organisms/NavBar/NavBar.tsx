@@ -20,7 +20,7 @@ export function Navbar({ userRole }: NavbarProps) {
         ];
       case "admin":
         return [
-          { label: "Menú", to: "/admin/usuarios" },
+          { label: "Menú", to: "/menu-admin" },
           { label: "Bitácora", to: "/admin/bitacora" },
           { label: "Gestión de Jefes de departamento", to: "/admin/jefe-departamento" },
           { label: "Gestión de espacios", to: "/gestion-espacios" },

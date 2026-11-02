@@ -115,47 +115,48 @@ export function Perfil() {
           <span className="font-merriweather text-[16px] mr-3">← Volver al menú</span>
         </button>
       </div>
+      <div className="px-12">  
+        <h1 className="text-[32px] font-bold text-gray-900 mb-6 font-merriweather">
+          Perfil
+        </h1>
 
-      <h1 className="text-[32px] font-bold text-gray-900 mb-6 font-merriweather">
-        Perfil
-      </h1>
-
-      <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-8 relative max-w-4xl font-merriweather">
-        
-        <div className="absolute top-6 right-6">
-          <span className={`px-3 py-1 text-xs font-semibold rounded-full border ${
-            esVerificado 
-              ? "bg-green-50 text-green-700 border-green-200" 
-              : "bg-[#fff7d6] text-amber-800 border-[#fce5a8]"
-          }`}>
-            {esVerificado ? "Verificado" : "Sin verificar"}
-          </span>
-        </div>
-
-        <div className="flex items-start space-x-6">
-          <div className="w-16 h-16 rounded-full bg-gray-50 border border-gray-300 flex items-center justify-center text-gray-600 shrink-0">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-            </svg>
+        <div className="bg-white rounded-2xl border mx-auto border-gray-200 shadow-sm p-8 relative max-w-300 font-merriweather">
+          
+          <div className="absolute top-6 right-6">
+            <span className={`px-3 py-1 text-[14px] font-semibold rounded-full border ${
+              esVerificado 
+                ? "bg-green-50 text-green-700 border-green-200" 
+                : "bg-[#fff7d6] text-amber-800 border-[#fce5a8]"
+            }`}>
+              {esVerificado ? "Verificado" : "Sin verificar"}
+            </span>
           </div>
 
-          <div className="font-merriweather space-y-2 grow">
-            <h2 className="font-merriweather text-xl text-gray-900">
-              {perfil?.nombreCompleto || "Nombre del Usuario"}
-            </h2>
-            <p className="text-sm text-gray-800 font-medium">
-              Rol: <span className="font-merriweather font-normal">{datosDinamicos.rol}</span>
-            </p>
-            <p className="text-sm text-gray-800 font-medium">
-              Tipo de usuario: <span className="font-merriweather font-normal">{datosDinamicos.tipo}</span>
-            </p>
+          <div className="flex items-start space-x-6">
+            <div className="w-16 h-16 rounded-full bg-gray-50 border border-gray-300 flex items-center justify-center text-gray-600 shrink-0">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+              </svg>
+            </div>
 
-            <div className="pt-4">
-              <Button text="Cerrar sesión" type="button" onClick={handleCerrarSesion} className="px-5 py-2 rounded-md text-sm transition-colors shadow-sm"/>
+            <div className="font-merriweather text-[18px] space-y-2 grow">
+              <h2 className="font-merriweather text-gray-900">
+                {perfil?.nombreCompleto || "Nombre del Usuario"}
+              </h2>
+              <p className="text-gray-800 font-medium">
+                Rol: <span className="font-merriweather font-normal">{datosDinamicos.rol}</span>
+              </p>
+              <p className="text-gray-800 font-medium">
+                Tipo de usuario: <span className="font-merriweather font-normal">{datosDinamicos.tipo}</span>
+              </p>
+
+              <div className="pt-4">
+                <Button text="Cerrar sesión" type="button" onClick={handleCerrarSesion} className="px-5 py-2 rounded-md text-sm transition-colors shadow-sm"/>
+              </div>
             </div>
           </div>
         </div>
-      </div>
+      </div>  
     </div>
   );
 }

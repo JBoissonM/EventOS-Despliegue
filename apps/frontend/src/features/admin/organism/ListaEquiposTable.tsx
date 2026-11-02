@@ -24,7 +24,7 @@ export function ListaEquiposTable({ equipos, onToggleEquipo }: ListaEquiposTable
         </div>   
       </div>
 
-      <div className="space-y-3 max-h-[350px] overflow-y-auto pr-2">
+      <div className="space-y-3 max-h-76 overflow-y-auto pr-2">
         {equipos.map((equipo) => (
           <EquipoItem key={equipo.idEstadoEquipo} equipo={equipo} onToggle={onToggleEquipo}/>
         ))}

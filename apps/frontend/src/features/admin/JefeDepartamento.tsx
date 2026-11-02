@@ -107,9 +107,9 @@ export function JefeDepartamento() {
   const listaActual = activeTab === "asignar" ? candidatos : jefesActivos;
 
   return (
-    <div className="space-y-6 font-merriweather text-gray-800 w-full p-4">
+    <div className="space-y-6 font-merriweather text-gray-800 w-full p-0">
       <div className="mb-2">
-        <button onClick={() => navigate(-1)} className="flex items-center text-sm font-semibold text-gray-700 hover:text-gray-900 transition-colors">
+        <button onClick={() => navigate("/menu-admin")} className="flex items-center text-sm font-semibold text-gray-700 hover:text-gray-900 transition-colors">
           <span className="font-merriweather text-[16px] mr-3">← Volver al menú</span>
         </button>
       </div>

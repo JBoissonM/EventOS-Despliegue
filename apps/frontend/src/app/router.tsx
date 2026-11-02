@@ -17,6 +17,7 @@ import { Verificacion } from "../features/account/verificacion";
 import { JefeDepartamento } from "../features/admin/JefeDepartamento";
 import { GestionUsuarios } from "../features/admin/Gestion-Usuarios";
 import { BitacoraGeneral } from "../features/admin/Bitacora";
+import { MenuPrincipalAdministracion } from "../features/admin/menu-admin";
 
 import { ReservationDemoPage } from "../features/reservations/pages/ReservationDemoPage";
 import { MyTicketsDemoPage } from "../features/tickets/pages/MyTicketsDemoPage";
@@ -65,17 +66,7 @@ export function AppRouter() {
         </Route>
 
         {/* Rutas para asistente*/}
-        <Route
-          element={
-            <ProtectedRoute
-              allowedRoles={[
-                "Asistente",
-                "Usuario Externo",
-                "Usuario Interno",
-                "Subdirección",
-              ]}
-            />
-          }>
+        <Route element={<ProtectedRoute allowedRoles={["Asistente", "Usuario Externo", "Usuario Interno"]}/>}>
           <Route element={<DashboardLayout />}>
             <Route path="/menu-asistente" element={<MenuAsistente />} />
             <Route path="/solicitud-evento" element={<SolicitudEvento />} />
@@ -97,6 +88,7 @@ export function AppRouter() {
               element={<GestionUsuarios />}
             />
             <Route path="admin/bitacora" element={<BitacoraGeneral />} />
+            <Route path="/menu-admin" element={<MenuPrincipalAdministracion />} />
           </Route>
         </Route>
 
