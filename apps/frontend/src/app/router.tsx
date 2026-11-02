@@ -24,6 +24,8 @@ import { MyTicketsDemoPage } from "../features/tickets/pages/MyTicketsDemoPage";
 import { DigitalTicketDemoPage } from "../features/tickets/pages/DigitalTicketsDemo";
 import { ReservationAvailabilityPreviewPage } from "../features/reservations/pages/ReservationAvailabilityPreviewPage";
 
+import { SolicitudesAprobadas } from "../features/educational-services/SolicitudesAprobadas";
+
 export function AppRouter() {
   return (
     <BrowserRouter>
@@ -36,7 +38,6 @@ export function AppRouter() {
           <Route path="/demo-reservacion" element={<ReservationDemoPage />} />
           <Route path="/demo-boletos" element={<MyTicketsDemoPage />} />
           <Route path="/detalles-solicitud/" element={<DetallesSolicitud />} />
-
         </Route>
 
         <Route path="/demo-boleto" element={<DigitalTicketDemoPage />} />
@@ -47,14 +48,25 @@ export function AppRouter() {
         />
 
         {/*Pantalla Perfil compartida*/}
-        <Route element={<ProtectedRoute allowedRoles={["Administrador","Subdirección","Asistente", "Usuario Externo", "Usuario Interno"]}/>}>
+        <Route
+          element={
+            <ProtectedRoute
+              allowedRoles={[
+                "Administrador",
+                "Subdirección",
+                "Asistente",
+                "Usuario Externo",
+                "Usuario Interno",
+              ]}
+            />
+          }>
           <Route element={<DashboardLayout />}>
             <Route path="/perfil" element={<Perfil />} />
           </Route>
         </Route>
 
         {/* Rutas para asistente*/}
-        <Route element={<ProtectedRoute allowedRoles={["Asistente", "Usuario Externo", "Usuario Interno", "Subdirección"]}/>}>
+        <Route element={<ProtectedRoute allowedRoles={["Asistente", "Usuario Externo", "Usuario Interno"]}/>}>
           <Route element={<DashboardLayout />}>
             <Route path="/menu-asistente" element={<MenuAsistente />} />
             <Route path="/solicitud-evento" element={<SolicitudEvento />} />
@@ -67,8 +79,14 @@ export function AppRouter() {
           <Route element={<DashboardLayout />}>
             <Route path="/gestion-espacios" element={<GestionEspacios />} />
             <Route path="/gestion-equipos/:id" element={<GestionEquipos />} />
-            <Route path="admin/jefe-departamento" element={<JefeDepartamento />} />
-            <Route path="admin/gestion-usuarios" element={<GestionUsuarios />} />
+            <Route
+              path="admin/jefe-departamento"
+              element={<JefeDepartamento />}
+            />
+            <Route
+              path="admin/gestion-usuarios"
+              element={<GestionUsuarios />}
+            />
             <Route path="admin/bitacora" element={<BitacoraGeneral />} />
             <Route path="/menu-admin" element={<MenuPrincipalAdministracion />} />
           </Route>
@@ -77,9 +95,22 @@ export function AppRouter() {
         {/* Rutas para Subdirección*/}
         <Route element={<ProtectedRoute allowedRoles={["Subdirección"]} />}>
           <Route element={<DashboardLayout />}>
-            <Route path="/detalles-solicitud/:id" element={<DetallesSolicitud />} />
-            <Route path="/subdireccion/lista-solicitudes" element={<ListadoSolicitudes />} />
-            <Route path="/subdireccion/menu-principal" element={<MenuSubdireccion />}/>
+            <Route
+              path="/detalles-solicitud/:id"
+              element={<DetallesSolicitud />}
+            />
+            <Route
+              path="/subdireccion/lista-solicitudes"
+              element={<ListadoSolicitudes />}
+            />
+            <Route
+              path="/subdireccion/menu-principal"
+              element={<MenuSubdireccion />}
+            />
+            <Route
+              path="/subdireccion/solicitudes-aprobadas"
+              element={<SolicitudesAprobadas />}
+            />
           </Route>
         </Route>
 

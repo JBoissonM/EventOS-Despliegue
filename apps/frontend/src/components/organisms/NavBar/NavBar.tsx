@@ -31,7 +31,7 @@ export function Navbar({ userRole }: NavbarProps) {
         return [
           { label: "Menú", to: "/subdireccion/menu-principal" },
           { label: "Mis eventos", to: "/subdireccion/menu-principal" },
-          { label: "Solicitudes Aprobadas", to: "/subdireccion/menu-principal" },
+          { label: "Solicitudes Aprobadas", to: "/subdireccion/solicitudes-aprobadas" },
           { label: "Solicitudes Pendientes", to: "/subdireccion/lista-solicitudes" },
           { label: "Solicitar evento", to: "/solicitud-evento" },
         ];

@@ -6,12 +6,13 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, Repository } from 'typeorm';
+import { DataSource, In, Repository } from 'typeorm';
 import {
   EstadoEvento,
   EstadoSubEvento,
   EstadoVerificacion,
   TipoCuentaUsuario,
+  type SolicitanteResumen,
   type SubeventoPayload,
 } from '@eventos/shared';
 import { EventoEntity } from '../entities/evento.entity';
@@ -250,6 +251,29 @@ export class SolicitudesService {
     });
   }
 
+  private formatearSolicitante(usuario: UsuarioEntity): SolicitanteResumen {
+    return {
+      idUsuario: usuario.idUsuario,
+      nombre: usuario.nombre,
+      apellidoPa: usuario.apellidoPa,
+      apellidoMa: usuario.apellidoMa,
+      nombreCompleto: `${usuario.nombre} ${usuario.apellidoPa}${
+        usuario.apellidoMa ? ' ' + usuario.apellidoMa : ''
+      }`,
+      correo: usuario.correo,
+      esVerificado: usuario.esVerificado,
+      tipoCuenta: usuario.tipoCuenta,
+      esJefeAcademia: usuario.esJefeAcademia,
+    };
+  }
+
+  private resolverPosterUrl(poster?: string | null): string | null {
+    if (!poster) return null;
+    return poster.startsWith('http://') || poster.startsWith('https://')
+      ? poster
+      : this.storageService.publicUrl(poster);
+  }
+
   async listarSolicitudesPorEstado(estado?: string) {
     const mapa: Record<string, EstadoEvento> = {
       pendiente: EstadoEvento.ENPROCESO,
@@ -281,14 +305,38 @@ export class SolicitudesService {
       order: { esUrgente: 'DESC', idEvento: 'DESC' },
     });
 
+    const idsOrganizadores = [
+      ...new Set(eventos.map((evento) => evento.idOrganizador)),
+    ];
+
+    const usuarios =
+      idsOrganizadores.length > 0
+        ? await this.usuarioRepository.find({
+            where: { idUsuario: In(idsOrganizadores) },
+            select: {
+              idUsuario: true,
+              nombre: true,
+              apellidoPa: true,
+              apellidoMa: true,
+              correo: true,
+              esVerificado: true,
+              tipoCuenta: true,
+              esJefeAcademia: true,
+            },
+          })
+        : [];
+
+    const mapaSolicitantes = new Map(
+      usuarios.map((usuario) => [
+        usuario.idUsuario,
+        this.formatearSolicitante(usuario),
+      ]),
+    );
+
     return eventos.map((evento) => ({
       ...evento,
-      posterUrl: evento.poster
-        ? evento.poster.startsWith('http://') ||
-          evento.poster.startsWith('https://')
-          ? evento.poster
-          : this.storageService.publicUrl(evento.poster)
-        : null,
+      posterUrl: this.resolverPosterUrl(evento.poster),
+      solicitante: mapaSolicitantes.get(evento.idOrganizador) ?? null,
     }));
   }
 
@@ -323,14 +371,7 @@ export class SolicitudesService {
       },
     });
 
-    let posterUrl: string | null = null;
-    if (evento.poster) {
-      posterUrl =
-        evento.poster.startsWith('http://') ||
-        evento.poster.startsWith('https://')
-          ? evento.poster
-          : this.storageService.publicUrl(evento.poster);
-    }
+    const posterUrl = this.resolverPosterUrl(evento.poster);
 
     return {
       idEvento: evento.idEvento,
@@ -343,21 +384,7 @@ export class SolicitudesService {
       poster: evento.poster,
       poster_url: posterUrl,
       posterUrl: posterUrl,
-      solicitante: solicitante
-        ? {
-            idUsuario: solicitante.idUsuario,
-            nombre: solicitante.nombre,
-            apellidoPa: solicitante.apellidoPa,
-            apellidoMa: solicitante.apellidoMa,
-            nombreCompleto: `${solicitante.nombre} ${solicitante.apellidoPa}${
-              solicitante.apellidoMa ? ' ' + solicitante.apellidoMa : ''
-            }`,
-            correo: solicitante.correo,
-            esVerificado: solicitante.esVerificado,
-            tipoCuenta: solicitante.tipoCuenta,
-            esJefeAcademia: solicitante.esJefeAcademia,
-          }
-        : null,
+      solicitante: solicitante ? this.formatearSolicitante(solicitante) : null,
       subeventos: (evento.subEventos || []).map((sub) => ({
         idSubEvento: sub.idSubEvento,
         nombre: sub.nombre,
