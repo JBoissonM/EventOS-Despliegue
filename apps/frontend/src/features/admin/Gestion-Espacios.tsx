@@ -90,7 +90,15 @@ export function GestionEspacios() {
   const isInhabilitando = espacioSeleccionado?.idEstadoRecinto === 1;
 
   return (
+    
     <div className="space-y-6 font-merriweather text-gray-800">
+      
+      <div className="mb-2">
+        <button onClick={() => navigate("/menu-admin")} className="flex items-center text-sm font-semibold text-gray-700 hover:text-gray-900 transition-colors">
+          <span className="font-merriweather text-[16px] mr-3">← Volver al menú</span>
+        </button>
+      </div>
+
       <div>
         <h1 className="text-2xl font-bold text-gray-900 mb-1">
           Gestión de espacios físicos
@@ -106,10 +114,6 @@ export function GestionEspacios() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-4">
         {!loading && espacios.map((espacio) => (
           <EspacioCard key={espacio.idRecinto} espacio={espacio} onToggleEstado={handlePreToggle} onGestionarEquipos={(id) => navigate(`/gestion-equipos/${id}`)}/>))}
-      </div>
-
-      <div className="flex justify-end pt-6">
-        <Button text="Regresar" variant="primary" size="sm" className="px-6 py-2 rounded" onClick={() => navigate(-1)}/>
       </div>
 
       <Modal titulo={isInhabilitando ? "Inhabilitar espacio físico" : "Habilitar espacio físico"} contenido="" mostrarModal={modalAbierto} cerrarModal={() => setModalAbierto(false)}>

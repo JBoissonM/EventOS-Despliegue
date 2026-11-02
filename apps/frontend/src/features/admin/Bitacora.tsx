@@ -5,7 +5,7 @@ import { Input } from "../../components/atoms/Input/Input";
 import { Modal } from "../../components/molecules/Modal";
 
 interface BitacoraItem {
-  idBitacora?: number;
+  idBitacoraEvento?: number;
   evento: string;
   estado: string;
   usuario: string;
@@ -28,18 +28,23 @@ export function BitacoraGeneral() {
   const cargarBitacora = async (query = "") => {
     setLoading(true);
     try {
-      const endpoint = `http://localhost:3000/api/bitacora${query ? `?buscar=${encodeURIComponent(query)}` : ""}`;
+      const endpoint = `http://localhost:3000/api/eventos/bitacora${query ? `?buscar=${encodeURIComponent(query)}` : ""}`;
       const response = await fetch(endpoint, {
         headers: {
           Authorization: `Bearer ${getToken()}`,
         },
       });
+
       if (response.ok) {
         const data = await response.json();
-        setBitacora(data);
+        setBitacora(data.movimientos || []);
+      } else {
+        console.error("Error al obtener la bitácora del servidor");
+        setBitacora([]);
       }
     } catch (err) {
-      console.error("Error al cargar la bitácora", err);
+      console.error("Error de conexión al cargar la bitácora", err);
+      setBitacora([]);
     } finally {
       setLoading(false);
     }
@@ -54,25 +59,40 @@ export function BitacoraGeneral() {
     cargarBitacora(busqueda);
   };
 
-  const handleExportar = () => {
-    // Manejador exportación PDF
-    setModalExito(true);
+  const handleExportar = async () => {
+    try {
+      const endpoint = `http://localhost:3000/api/eventos/bitacora/exportar${busqueda ? `?buscar=${encodeURIComponent(busqueda)}` : ""}`;
+      const response = await fetch(endpoint, {
+        headers: {
+          Authorization: `Bearer ${getToken()}`,
+        },
+      });
+
+      if (response.ok) {
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `bitacora_general_${new Date().toISOString().split("T")[0]}.csv`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        window.URL.revokeObjectURL(url);
+        
+        setModalExito(true);
+      } else {
+        alert("No hay registros disponibles para exportar.");
+      }
+    } catch (err) {
+      console.error("Error al exportar la bitácora", err);
+      alert("Ocurrió un error al intentar exportar el archivo.");
+    }
   };
 
-  const bitacoraFiltrada = bitacora.filter((item) => {
-    const termino = busqueda.trim().toLowerCase();
-    if (!termino) return true;
-    return (
-      item.usuario.toLowerCase().includes(termino) ||
-      item.evento.toLowerCase().includes(termino) ||
-      item.estado.toLowerCase().includes(termino)
-    );
-  });
-
   return (
-    <div className="space-y-6 font-merriweather text-gray-800 w-full p-6">
-        <div className="mb-2">
-        <button onClick={() => navigate(-1)} className="flex items-center text-sm font-semibold text-gray-700 hover:text-gray-900 transition-colors">
+    <div className="space-y-6 font-merriweather text-gray-800 w-full p-0">
+      <div className="mb-2">
+        <button onClick={() => navigate("/menu-admin")} className="flex items-center text-sm font-semibold text-gray-700 hover:text-gray-900 transition-colors">
           <span className="font-merriweather text-[16px] mr-3">← Volver al menú</span>
         </button>
       </div>
@@ -112,13 +132,13 @@ export function BitacoraGeneral() {
               <tr>
                 <td colSpan={5} className="text-center py-6 text-gray-500">Cargando registros de bitácora...</td>
               </tr>
-            ) : bitacoraFiltrada.length === 0 ? (
+            ) : bitacora.length === 0 ? (
               <tr>
                 <td colSpan={5} className="text-center py-6 text-gray-500">No se encontraron movimientos registrados.</td>
               </tr>
             ) : (
-              bitacoraFiltrada.map((item, index) => (
-                <tr key={item.idBitacora || index} className="border-b border-gray-200 hover:bg-gray-50 text-sm">
+              bitacora.map((item, index) => (
+                <tr key={item.idBitacoraEvento || index} className="border-b border-gray-200 hover:bg-gray-50 text-sm">
                   <td className="py-3 px-4">{item.evento}</td>
                   <td className="py-3 px-4">{item.estado}</td>
                   <td className="py-3 px-4">{item.usuario}</td>
@@ -130,13 +150,14 @@ export function BitacoraGeneral() {
           </tbody>
         </table>
       </div>
-      <div className="text-center">          
-      <Modal mostrarModal={modalExito} cerrarModal={() => setModalExito(false)} titulo="Bitácora exportada correctamente" contenido="">
-        <div className="flex justify-end pt-4">
-          <Button text="Aceptar" type="button" variant="primary" onClick={() => setModalExito(false)} className="px-4 py-1.5 text-xs rounded-md shadow"/>
-        </div>
-      </Modal>
-      </div>      
+      
+      <div className="text-center">         
+        <Modal mostrarModal={modalExito} cerrarModal={() => setModalExito(false)} titulo="Bitácora exportada correctamente" contenido="">
+          <div className="flex justify-end pt-4">
+            <Button text="Aceptar" type="button" variant="primary" onClick={() => setModalExito(false)} className="px-4 py-1.5 text-xs rounded-md shadow"/>
+          </div>
+        </Modal>
+      </div>       
     </div>
   );
 }

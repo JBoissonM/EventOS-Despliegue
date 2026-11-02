@@ -42,17 +42,14 @@ export function Verificacion() {
 
     setLoading(true);
     try {
-      // Creamos un FormData para enviar archivos y texto por multipart/form-data
       const data = new FormData();
       data.append("tipoPerfil", tipoPerfil);
       data.append("informacionAdicional", formData.infoAdicional);
-      data.append("documentoPDF", formData.archivo); // Coincide exactamente con FileInterceptor('documentoPDF')
+      data.append("documentoPDF", formData.archivo);
 
       const response = await fetch("http://localhost:3000/api/usuarios/verificar", {
         method: "POST",
         headers: {
-          // Nota: No se especifica "Content-Type" cuando se usa FormData; 
-          // el navegador se encarga de poner el boundary correcto automáticamente.
           Authorization: `Bearer ${getToken()}`,
         },
         body: data,
@@ -76,8 +73,8 @@ export function Verificacion() {
     <div className="space-y-6 font-merriweather text-gray-800 w-full p-0">
       
       <div className="mb-2">
-        <button onClick={() => navigate(-1)} className="flex items-center text-sm font-semibold text-gray-700 hover:text-gray-900 transition-colors">
-          <span className="font-merriweather text-[16px] mr-3">← Volver al menú</span>
+        <button onClick={() => navigate("/perfil")} className="flex items-center text-sm font-semibold text-gray-700 hover:text-gray-900 transition-colors">
+          <span className="font-merriweather text-[16px] mr-3">← Volver al perfil</span>
         </button>
       </div>
 
@@ -107,7 +104,7 @@ export function Verificacion() {
               id="tipoPerfil"
               value={tipoPerfil}
               onChange={handleTipoPerfilChange}
-              className=" -mb-10 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500 font-merriweather"
+              className=" -mb-5 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500 font-merriweather"
             >
               <option value="Estudiante">Estudiante</option>
               <option value="Externo">Externo</option>
@@ -127,7 +124,7 @@ export function Verificacion() {
               {tipoPerfil === "Profesor" && "Sube tu número de empleado y tu credencial vigente del IPN en formato PDF. Asegúrate de que los datos sean legibles."}
             </p>
 
-            <div className=" -mb-15 grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
+            <div className=" -mb-6 grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
               {tipoPerfil === "Empresa" && (
                 <FormField label="Nombre de empresa o dependencia" htmlFor="infoAdicional">
                   <Input id="infoAdicional" type="text" placeholder="Indica el nombre de la empresa" value={formData.infoAdicional} onChange={(e) => setFormData({ ...formData, infoAdicional: e.target.value })}/>

@@ -23,6 +23,7 @@ export function Registro() {
     correo: "",
     nombre: "",
     apellidoPa: "",
+    apellidoMaterno: "",
     contrasena: "",
     confirmarContrasena: "",
     general: "",
@@ -68,6 +69,14 @@ export function Registro() {
       }
     }
 
+    if (name === "apellidoMaterno") {
+      if (!value.trim()) {
+        setErrors((prev) => ({ ...prev, apellidoMaterno: "El apellido materno es requerido." }));
+      } else {
+        setErrors((prev) => ({ ...prev, apellidoMaterno: "" }));
+      }
+    }
+
     if (name === "contrasena") {
       if (!value) {
         setErrors((prev) => ({ ...prev, contrasena: "La contraseña es requerida." }));
@@ -100,19 +109,21 @@ export function Registro() {
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    setErrors({ correo: "", nombre: "", apellidoPa: "", contrasena: "", confirmarContrasena: "", general: "" });
+    setErrors({ correo: "", nombre: "", apellidoPa: "",apellidoMaterno:"", contrasena: "", confirmarContrasena: "", general: "" });
 
     const isCorreoEmpty = !formData.correo.trim();
     const isNombreEmpty = !formData.nombre.trim();
     const isApellidoPaEmpty = !formData.apellidoPa.trim();
+    const isApellidoMaEmpty = !formData.apellidoMaterno.trim();
     const isContrasenaEmpty = !formData.contrasena;
     const isConfirmarEmpty = !formData.confirmarContrasena;
 
-    if (isCorreoEmpty && isNombreEmpty && isApellidoPaEmpty && isContrasenaEmpty && isConfirmarEmpty) {
+    if (isCorreoEmpty && isNombreEmpty && isApellidoPaEmpty && isApellidoMaEmpty && isContrasenaEmpty && isConfirmarEmpty) {
       setErrors({
         correo: "El correo electrónico es requerido.",
         nombre: "El nombre es requerido.",
         apellidoPa: "El apellido paterno es requerido.",
+        apellidoMaterno: "El apellido materno es requerido",
         contrasena: "La contraseña es requerida.",
         confirmarContrasena: "Confirma tu contraseña.",
         general: "",
@@ -124,6 +135,7 @@ export function Registro() {
     let newCorreoError = "";
     let newNombreError = "";
     let newApellidoPaError = "";
+    let newApellidoMaError = "";
     let newContrasenaError = "";
     let newConfirmarError = "";
     let hasError = false;
@@ -143,6 +155,11 @@ export function Registro() {
 
     if (isApellidoPaEmpty) {
       newApellidoPaError = "El apellido paterno es requerido.";
+      hasError = true;
+    }
+
+    if (isApellidoMaEmpty) {
+      newApellidoMaError = "El apellido materno es requerido.";
       hasError = true;
     }
 
@@ -167,6 +184,7 @@ export function Registro() {
         correo: newCorreoError,
         nombre: newNombreError,
         apellidoPa: newApellidoPaError,
+        apellidoMaterno: newApellidoMaError,
         contrasena: newContrasenaError,
         confirmarContrasena: newConfirmarError,
         general: "",
@@ -196,7 +214,15 @@ export function Registro() {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.message || "Error al registrar el usuario.");
+        let mensajeError = "Error al registrar el usuario.";
+        
+        if (Array.isArray(data.message)) {
+          mensajeError = data.message.join(". ");
+        } else if (typeof data.message === "string") {
+          mensajeError = data.message;
+        }
+
+        throw new Error(mensajeError);
       }
 
       setModalExitoAbierto(true);
@@ -233,7 +259,7 @@ export function Registro() {
               </h2>
             </div>
 
-            <div className="-mb-10 grid grid-cols-1 gap-6 md:grid-cols-2 items-start">
+            <div className="-mb-6 grid grid-cols-1 gap-6 md:grid-cols-2 items-start">
               <FormField label="Correo Electrónico" htmlFor="correo">
                 <Input id="correo" name="correo" type="email" placeholder="Ingresa tu correo electrónico"  value={formData.correo} onChange={handleChange} hasError={!!errors.correo} aria-describedby="email-error"/>
                 <div className="min-h-10.5 mt-1">
@@ -257,10 +283,10 @@ export function Registro() {
               </FormField>
             </div>
 
-            <div className="-mb-10 grid grid-cols-1 gap-6 md:grid-cols-2 items-start">
+            <div className="-mb-3 grid grid-cols-1 gap-6 md:grid-cols-2 items-start">
               <div>
                 <PasswordField id="contrasena" name="contrasena" label="Contraseña" placeholder="Ejemplo01!" value={formData.contrasena} onChange={handleChange} error={errors.contrasena}/>
-                <div className="min-h-16 mt-2">
+                <div className="mt-2">
                   {!errors.contrasena && (
                     <FieldMessage variant="helper">
                       Tu contraseña debe tener entre 8 y 64 caracteres, y contener al menos: una mayúscula, una minúscula, un número y un carácter especial (ej. @, $, !, %, *, ?, &, _, -).
@@ -279,10 +305,13 @@ export function Registro() {
               </FormField>
             </div>
 
-            <div className="-mb-12 grid grid-cols-1 gap-6 md:grid-cols-2 items-start">
+            <div className="-mb-4 grid grid-cols-1 gap-6 md:grid-cols-2 items-start">
               <PasswordField id="confirmarContrasena" name="confirmarContrasena" label="Confirmar contraseña" placeholder="Ejemplo01!" value={formData.confirmarContrasena} onChange={handleChange} error={errors.confirmarContrasena}/>
                 <FormField label="Apellido Materno" htmlFor="apellidoMaterno">
-                  <Input id="apellidoMaterno" name="apellidoMaterno" placeholder="Ingresa tu apellido materno" type="text" value={formData.apellidoMaterno} onChange={handleChange}/>
+                  <Input id="apellidoMaterno" name="apellidoMaterno" placeholder="Ingresa tu apellido materno" type="text" value={formData.apellidoMaterno} onChange={handleChange} hasError={!!errors.apellidoPa}/>
+                    {errors.apellidoMaterno && (
+                      <p className="text-eventos-error text-xs font-merriweather">{errors.apellidoMaterno}</p>
+                    )}
                 </FormField>
             </div>
           </div>

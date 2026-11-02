@@ -119,7 +119,13 @@ export function LoginForm() {
       const data = await response.json();
 
       if (!response.ok) {
-        const mensajeServidor = data.message || "";
+        let mensajeServidor = "";
+        if (Array.isArray(data.message)) {
+          mensajeServidor = data.message.join(", ");
+        } else {
+          mensajeServidor = data.message || "";
+        }
+
         if (
           mensajeServidor.toLowerCase().includes("bloqueado") ||
           mensajeServidor.toLowerCase().includes("intentos") ||
@@ -128,7 +134,7 @@ export function LoginForm() {
           setModalBloqueoAbierto(true);
           throw new Error("");
         } else {
-          throw new Error("Correo electrónico o contraseña incorrectos");
+          throw new Error(mensajeServidor || "Correo electrónico o contraseña incorrectos");
         }
       }
 
@@ -138,7 +144,7 @@ export function LoginForm() {
       const rol = data.usuario?.tipoCuenta;
 
       if (rol === "admin" || rol === "Administrador") {
-        navigate("/gestion-espacios");
+        navigate("/menu-admin");
       } else if (rol === "Subdirección") {
         navigate("/subdireccion/menu-principal"); 
       } else {
@@ -176,7 +182,7 @@ export function LoginForm() {
           </div>
         </FormField>
 
-        <div className="-mt-12">
+        <div className="-mt-8">
           <PasswordField id="contrasena" name="contrasena" label="Contraseña" placeholder="Ejemplo01!" value={formData.contrasena} onChange={handleChange} error={errors.contrasena}/>
         </div>    
         <CaptchaField recaptchaRef={recaptchaRef} onChange={handleCaptchaChange} error={captchaError}
