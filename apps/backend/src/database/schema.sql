@@ -162,6 +162,16 @@ CREATE TABLE "bitacoraEvento" (
   "fechaHoraCambio" timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
+-- 21. Solicitud Modificación
+CREATE TABLE "solicitudModificacion" (
+  "idSolicitudModificacion" integer GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  "idEvento" integer NOT NULL REFERENCES evento("idEvento") ON DELETE CASCADE,
+  "motivoModificacion" varchar(500) NOT NULL,
+  "subeventosPropuestos" jsonb NOT NULL,
+  estado varchar(50) NOT NULL DEFAULT 'Pendiente',
+  "motivoRechazo" text
+);
+
 -- =======================================================
 -- Catálogos y Datos Iniciales
 -- =======================================================

@@ -1,4 +1,6 @@
 import {
+  BadRequestException,
+  ConflictException,
   ForbiddenException,
   Injectable,
   NotFoundException,
@@ -7,6 +9,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
 import {
   EstadoBoleto,
+  EstadoEvento,
   type EventoOrganizadorDetalle,
   type EventoOrganizadorDetalleSubevento,
   type MisEventosItem,
@@ -15,6 +18,9 @@ import {
 } from '@eventos/shared';
 import { EventoEntity } from '../entities/evento.entity';
 import { PonenteEntity } from '../entities/ponente.entity';
+import { SolicitudModificacionEntity } from '../entities/solicitudModificacion.entity';
+import { SolicitudesService } from './solicitudes.service';
+import { ModificarLogisticaDto } from '../dto/modificarLogistica.dto';
 import { StorageService } from '../../../common/storage/storage.service';
 
 @Injectable()
@@ -24,6 +30,9 @@ export class OrganizadorService {
     private readonly eventoRepository: Repository<EventoEntity>,
     @InjectRepository(PonenteEntity)
     private readonly ponenteRepository: Repository<PonenteEntity>,
+    @InjectRepository(SolicitudModificacionEntity)
+    private readonly solicitudModificacionRepository: Repository<SolicitudModificacionEntity>,
+    private readonly solicitudesService: SolicitudesService,
     private readonly storageService: StorageService,
     private readonly dataSource: DataSource,
   ) {}
@@ -221,6 +230,11 @@ export class OrganizadorService {
     const primerSub = subeventos[0];
     const cupoMaximo = primerSub?.recinto?.aforo ?? 0;
 
+    const solicitudPendiente =
+      await this.solicitudModificacionRepository.findOne({
+        where: { idEvento, estado: 'Pendiente' },
+      });
+
     return {
       idEvento: evento.idEvento,
       nombre: evento.nombre,
@@ -235,6 +249,118 @@ export class OrganizadorService {
       cupoMaximo,
       boletosActivosCount,
       subEventos: subEventosDetallados,
+      solicitudModificacionPendiente: solicitudPendiente
+        ? {
+            idSolicitudModificacion: solicitudPendiente.idSolicitudModificacion,
+            motivoModificacion: solicitudPendiente.motivoModificacion,
+            subeventosPropuestos: solicitudPendiente.subeventosPropuestos,
+            estado: solicitudPendiente.estado,
+          }
+        : null,
+    };
+  }
+
+  async solicitarModificacionLogistica(
+    idEvento: number,
+    idUsuario: number,
+    dto: ModificarLogisticaDto,
+  ) {
+    const evento = await this.eventoRepository.findOne({
+      where: { idEvento },
+      relations: {
+        subEventos: {
+          fecha: true,
+          recinto: true,
+        },
+      },
+    });
+
+    if (!evento) {
+      throw new NotFoundException('No se encontró el evento solicitado.');
+    }
+
+    if (evento.idOrganizador !== idUsuario) {
+      throw new ForbiddenException(
+        'No tienes permisos para administrar este evento.',
+      );
+    }
+
+    if (
+      evento.idEstadoEvento === EstadoEvento.CANCELADO ||
+      evento.idEstadoEvento === EstadoEvento.FINALIZADO ||
+      evento.idEstadoEvento === EstadoEvento.RECHAZADO
+    ) {
+      throw new ConflictException('Evento finalizado o inactivo.');
+    }
+
+    if (evento.idEstadoEvento === EstadoEvento.ACEPTADO) {
+      const { fechaHoy } = this.solicitudesService.obtenerAhoraCDMX();
+      for (const sub of evento.subEventos || []) {
+        if (sub.fecha?.fecha) {
+          const dias = this.solicitudesService.calcularDiasDiferencia(
+            sub.fecha.fecha,
+            fechaHoy,
+          );
+          if (dias < 7) {
+            throw new BadRequestException(
+              'Las modificaciones logísticas deben solicitarse con al menos 7 días naturales de anticipación a la realización del evento.',
+            );
+          }
+        }
+      }
+
+      for (const sub of dto.subeventos) {
+        const dias = this.solicitudesService.calcularDiasDiferencia(
+          sub.fecha,
+          fechaHoy,
+        );
+        if (dias < 7) {
+          throw new BadRequestException(
+            'Las modificaciones logísticas deben solicitarse con al menos 7 días naturales de anticipación a la realización del evento.',
+          );
+        }
+      }
+    }
+
+    await this.solicitudesService.validarSubeventos(dto.subeventos, idEvento);
+
+    const solicitudExistente =
+      await this.solicitudModificacionRepository.findOne({
+        where: { idEvento, estado: 'Pendiente' },
+      });
+
+    if (solicitudExistente) {
+      solicitudExistente.subeventosPropuestos = dto.subeventos;
+      solicitudExistente.motivoModificacion = dto.motivoModificacion.trim();
+      const guardada =
+        await this.solicitudModificacionRepository.save(solicitudExistente);
+      return {
+        mensaje:
+          'Operación realizada con éxito. Evento en espera de revisión debido a cambio de duración.',
+        idSolicitudModificacion: guardada.idSolicitudModificacion,
+        idEvento,
+        estado: guardada.estado,
+        inFlightActualizada: true,
+      };
+    }
+
+    const nuevaSolicitud = this.solicitudModificacionRepository.create({
+      idEvento,
+      motivoModificacion: dto.motivoModificacion.trim(),
+      subeventosPropuestos: dto.subeventos,
+      estado: 'Pendiente',
+    });
+
+    const guardada =
+      await this.solicitudModificacionRepository.save(nuevaSolicitud);
+
+    return {
+      mensaje:
+        'Operación realizada con éxito. Evento en espera de revisión debido a cambio de duración.',
+      idSolicitudModificacion: guardada.idSolicitudModificacion,
+      idEvento,
+      estado: guardada.estado,
+      inFlightActualizada: false,
     };
   }
 }

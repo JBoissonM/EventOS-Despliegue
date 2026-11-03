@@ -52,7 +52,7 @@ export class SolicitudesService {
     return true;
   }
 
-  private obtenerAhoraCDMX(): { fechaHoy: string; horaActual: string } {
+  obtenerAhoraCDMX(): { fechaHoy: string; horaActual: string } {
     const ahora = new Date();
     const fechaHoy = new Intl.DateTimeFormat('en-CA', {
       timeZone: 'America/Mexico_City',
