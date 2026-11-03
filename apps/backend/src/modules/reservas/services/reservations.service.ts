@@ -266,27 +266,12 @@ export class ReservationsService {
             
             const boletoGuardado = await manager.save(BoletoEntity, boletoNuevoObj);
 
-            const reservaExistente = await manager.findOne(AsistenteEventoEntity, {
-                where: { idSubEvento: dto.idSubEvento, idUsuario: idUsuario }
-            });
-
-            if (reservaExistente) {
-                reservaExistente.idBoleto = boletoGuardado.idBoleto;
-                await manager.save(AsistenteEventoEntity, reservaExistente);
-            } else {
-                const intermedia = manager.create(AsistenteEventoEntity, {
-                    idSubEvento: dto.idSubEvento,
-                    idUsuario: idUsuario,
-                    idBoleto: boletoGuardado.idBoleto
-                });
-                await manager.save(AsistenteEventoEntity, intermedia);
-            }
-
-            await manager.insert(ReservaHistorialEntity, {
-                idBoleto: boletoGuardado.idBoleto,
+            const intermedia = manager.create(AsistenteEventoEntity, {
                 idSubEvento: dto.idSubEvento,
-                idUsuario,
+                idUsuario: idUsuario,
+                idBoleto: boletoGuardado.idBoleto
             });
+            await manager.save(AsistenteEventoEntity, intermedia);
 
             let qrBase64Data: string | undefined = undefined;
 
@@ -519,6 +504,4 @@ export class ReservationsService {
       boleto: boleto
     };
   }
-
-
 }

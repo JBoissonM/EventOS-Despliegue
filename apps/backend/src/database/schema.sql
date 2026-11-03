@@ -146,10 +146,10 @@ CREATE TABLE "eventoPersonalLogistica" (
 
 -- 19. Asistente Evento
 CREATE TABLE "asistenteEvento" (
+  "idAsistenteEvento" integer GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   "idSubEvento" integer NOT NULL REFERENCES "subEvento"("idSubEvento"),
   "idUsuario" integer NOT NULL REFERENCES usuario("idUsuario"),
-  "idBoleto" integer REFERENCES boleto("idBoleto"),
-  PRIMARY KEY ("idSubEvento", "idUsuario")
+  "idBoleto" integer REFERENCES boleto("idBoleto")
 );
 
 -- 20. Bitácora Evento
@@ -231,11 +231,26 @@ ON CONFLICT ("idRol") DO NOTHING;
 -- 6. Recintos Iniciales de ESCOM
 INSERT INTO recinto ("idRecinto", nombre, aforo, "idEstadoRecinto") OVERRIDING SYSTEM VALUE
 VALUES 
-  (1, 'Auditorio Principal', 250, 1),
+  (1, 'Auditorio Principal', 242, 1),
   (2, 'Laboratorio de Cómputo A', 36, 1),
   (3, 'Laboratorio de Cómputo B', 36, 1),
   (4, 'Sala 14', 50, 1)
 ON CONFLICT ("idRecinto") DO NOTHING;
+
+-- 7. Asientos Oficiales del Auditorio Principal (242 butacas)
+INSERT INTO asiento (fila, numero, "idRecinto")
+SELECT filas.fila, numeros.numero, 1
+FROM (VALUES ('A'),('B'),('C'),('D'),('E'),('F'),('G'),('H'),('I'),('J'),('K')) AS filas(fila)
+CROSS JOIN generate_series(1, 23) AS numeros(numero)
+WHERE (
+  (filas.fila = 'A' AND numeros.numero IN (4, 5, 6, 9, 10, 11, 12, 13, 14, 15, 16, 18, 19, 20))
+  OR (filas.fila = 'B' AND numeros.numero BETWEEN 2 AND 22)
+  OR filas.fila NOT IN ('A', 'B')
+)
+AND NOT EXISTS (
+  SELECT 1 FROM asiento a
+  WHERE a."idRecinto" = 1 AND a.fila = filas.fila AND a.numero = numeros.numero
+);
 
 -- Ajustar secuencias de identity para futuros INSERTs automáticos
 SELECT setval(pg_get_serial_sequence('"alcance"', 'idAlcance'), COALESCE(MAX("idAlcance"), 1)) FROM "alcance";
