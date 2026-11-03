@@ -40,7 +40,7 @@ tags:
 1. Selecciona una solicitud de evento específica desde la pantalla **UI11** "Panel de Solicitudes Pendientes", mediante el CU-06 "Consultar solicitudes de eventos".
 2. Consulta en la base de datos la información detallada de la solicitud de evento seleccionada mediante su identificador. [Trayectoria C]
 3. Verifica que la solicitud seleccionada conserve el estatus "Pendiente de aprobación". [Trayectoria D]
-4. Muestra la pantalla UI12 "Detalles del Evento para Evaluación", con la información registrada y las opciones [Aprobar], [Rechazar], [Solicitar Cambios] y [Regresar].
+4. Muestra la pantalla UI12 "Detalles del Evento para Evaluación", con la información registrada (destacando el indicador de Urgente y el motivo de urgencia o motivo de modificación cuando corresponda) y las opciones [Aprobar], [Rechazar], [Solicitar Cambios] y [Regresar].
 5. Revisa la información y elige [Aprobar] para autorizar el evento. También puede [Rechazar] (Trayectoria A) o [Solicitar Cambios] (Trayectoria E).
 6. Muestra el mensaje de confirmación **MSG-P-03** "¿Desea aprobar el evento?", con las opciones [Aceptar] y [Cancelar]. [Trayectoria B]
 7. Confirma la aprobación de la solicitud seleccionando el botón [Aceptar]. [Trayectoria B]

@@ -27,7 +27,7 @@ tags:
 | **Autor** | Jaimes Jaramillo Santiago |
 | **Actor** | Asistente y Subdirección de Servicios Educativos. |
 | **Propósito** | Permitir al Asistente o al personal de Subdirección de Servicios Educativos registrar solicitudes de eventos, garantizando la validación de la información proporcionada y la asignación del estado correspondiente según el rol del actor. |
-| **Entradas** | • ID del usuario autenticado, nombre, descripción, justificación y alcance del evento (obligatorios).<br>• Póster del evento (opcional) y modalidad de acceso con boleto.<br>• Recinto solicitado y uno o más bloques de fecha, hora de inicio y hora de finalización; cada bloque representa un subevento del mismo evento.<br>• Tipo de solicitante y documento correspondiente (obligatorios cuando el actor es Asistente). |
+| **Entradas** | • ID del usuario autenticado, nombre, descripción, justificación y alcance del evento (obligatorios).<br>• Motivo de urgencia (obligatorio si alguna fecha del evento se encuentra dentro de los próximos 7 días naturales, RN-14).<br>• Póster del evento (opcional) y modalidad de acceso con boleto.<br>• Recinto solicitado y uno o más bloques de fecha, hora de inicio y hora de finalización; cada bloque representa un subevento del mismo evento.<br>• Tipo de solicitante y documento correspondiente (obligatorios cuando el actor es Asistente). |
 | **Salidas** | • Pantalla **UI07** "Formulario de Solicitud de Evento".<br>• Registro de la solicitud y sus subeventos como una sola actividad.<br>• Mensaje **MSG-I-08** "Operación realizada con éxito.".<br>• Estado "Pendiente de aprobación" si registra el Asistente, o "Aprobado" si registra Subdirección (RN-13). |
 | **Precondiciones** | • El actor debe contar con una cuenta registrada y activa dentro de la plataforma.<br>• El actor debe haber iniciado sesión correctamente mediante el CU-01 "Iniciar Sesión".<br>• El actor debe tener asignado el rol de Asistente o Subdirección de Servicios Educativos.<br>• El usuario debe tener una cuenta activa con identidad verificada (esta_verificado == true) por la autoridad correspondiente antes de solicitar recintos institucionales. |
 | **Postcondiciones** | • La información de la solicitud queda registrada correctamente en la base de datos.<br>• Si el actor es Asistente, la solicitud queda "Pendiente de aprobación" y recibe privilegios de Organizador exclusivos para ese evento conforme a RN-02.<br>• Si el actor es Subdirección de Servicios Educativos, la solicitud se registra directamente con el estado "Aprobado", conforme a la regla de negocio RN-13.<br>• Las solicitudes pendientes quedan disponibles para su consulta mediante el CU-06 "Consultar solicitudes de eventos".<br>• Los eventos aprobados automáticamente por Subdirección quedan disponibles para su consulta mediante el CU-08 "Consultar eventos aprobados".<br>• Si el actor cancela el proceso antes de enviar la solicitud, no se registra información del evento.<br>• La sesión del actor permanece activa. |
@@ -42,9 +42,9 @@ tags:
 3. Identifica el rol del actor autenticado y configura los campos adicionales del formulario según corresponda. [Trayectoria A] [Trayectoria B]
 4. El actor captura los datos del evento y define su primer bloque horario; si la actividad incluye más fechas o sesiones, utiliza [Agregar nueva fecha]. [Trayectoria I]
 5. Verifica la información proporcionada y selecciona la opción [Enviar solicitud]. [Trayectoria H]
-6. Valida los campos obligatorios y las horas de todos los bloques, con fecha futura y finalización posterior al inicio. [Trayectoria C] [Trayectoria D] [Trayectoria E] [Trayectoria F]
+6. Valida los campos obligatorios y las horas de todos los bloques, con fecha futura y finalización posterior al inicio. Si alguna de las fechas tiene 7 días naturales o menos de antelación respecto a la fecha actual, evalúa la solicitud como urgente y valida la captura obligatoria del motivo de urgencia [Trayectoria J]. [Trayectoria C] [Trayectoria D] [Trayectoria E] [Trayectoria F]
 7. Comprueba que cada subevento respete la disponibilidad del mismo espacio para los horarios de su bloque y no exista traslape con eventos pendientes o aprobados ni entre sus propios bloques (RN-06). [Trayectoria I]
-8. Registra la solicitud y todos sus subeventos como un solo evento, asignando estado "Pendiente de aprobación" al Asistente o "Aprobado" a Subdirección (RN-13), y privilegios de Organizador del evento al solicitante (RN-02). [Trayectoria G]
+8. Registra la solicitud y todos sus subeventos como un solo evento (almacenando el motivo de urgencia y marcando esUrgente = true si aplicó), asignando estado "Pendiente de aprobación" al Asistente o "Aprobado" a Subdirección (RN-13), y privilegios de Organizador del evento al solicitante (RN-02). [Trayectoria G]
 9. Muestra el mensaje **MSG-I-08** "Operación realizada con éxito." en la pantalla **UI07** "Formulario de Solicitud de Evento", indicando además el estado asignado a la solicitud registrada.
 10. Visualiza la confirmación del registro y finaliza la operación.
 
@@ -163,5 +163,19 @@ tags:
 - **I-2.** El sistema considera cada fecha y horario como un bloque individual del mismo evento; permite varios bloques incluso el mismo día, sin superponer sus horarios.
 - **I-3.** Si existe una coincidencia con otros eventos pendientes o aprobados en el mismo recinto, muestra **MSG-E-47** "El espacio ya se encuentra solicitado o reservado para el horario seleccionado.".
 - **I-4.** El actor corrige los bloques afectados; se valida nuevamente y continúa con el registro conjunto de la solicitud.
+
+*Fin de la trayectoria.*
+
+
+### Trayectoria alternativa J: Solicitud con menos de 7 días de antelación (Evento Urgente)
+
+> **Condición:** Ocurre en el paso 6 de la trayectoria principal cuando al menos uno de los bloques de fecha seleccionados tiene una antelación menor o igual a 7 días naturales respecto a la fecha actual (RN-14).
+
+- **J-1.** El sistema calcula la diferencia de días y clasifica la solicitud como urgente (`esUrgente = true`).
+- **J-2.** Habilita en la pantalla **UI07** "Formulario de Solicitud de Evento" el campo obligatorio "Motivo de urgencia".
+- **J-3.** Si el campo se encuentra vacío al intentar enviar, resalta el campo y muestra el mensaje **MSG-E-11** "Por favor, completa todos los campos obligatorios resaltados para continuar.".
+- **J-4.** El actor captura la justificación de urgencia.
+- **J-5.** El sistema persiste el motivo de urgencia asociado al evento para su posterior consulta prioritaria por parte de Subdirección en **UI11** y **UI12**.
+- **J-6.** Continúa con el paso 7 de la trayectoria principal.
 
 *Fin de la trayectoria.*

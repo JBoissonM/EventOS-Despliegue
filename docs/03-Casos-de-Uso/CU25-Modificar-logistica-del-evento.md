@@ -19,7 +19,7 @@ tags:
 
 **Resumen:**
 
-Permite al Organizador reprogramar o reubicar un evento previamente creado, actualizando su fecha, horario o recinto, requiriendo obligatoriamente una justificación y notificando a los asistentes.
+Permite al Organizador reprogramar o reubicar un evento previamente creado, actualizando su fecha, horario o recinto, requiriendo obligatoriamente una justificación y notificando a los asistentes. Si la modificación involucra fechas dentro de los próximos 7 días naturales, se cataloga como modificación con prioridad urgente para dictamen de Subdirección (RN-23, RN-31).
 
 **Descripción:**
 
@@ -46,8 +46,8 @@ Permite al Organizador reprogramar o reubicar un evento previamente creado, actu
 3. Ingresa la nueva fecha, ajusta el recinto y/o horario y da click en el botón de guardar cambios. [Trayectoria A]
 4. Muestra el modal exigiendo un motivo para el cambio (**RN-25**).
 5. Escribe la justificación y confirma la acción. [Trayectoria B] [Trayectoria C]
-6. Verifica que se cumpla el tiempo de anticipación (**RN-23**, **RN-31**), valida la disponibilidad para evitar colisiones (**RN-06**, **RN-10**) [Trayectoria D] y comprueba si la duración total se mantiene igual a la original. [Trayectoria A]
-7. Guarda los cambios, mantiene el estado de “Aprobado”, genera notificaciones internas para los asistentes informando la reprogramación, y muestra el **MSG-I-08** de confirmación.
+6. Verifica el tiempo de anticipación (**RN-23**, **RN-31**); si la reprogramación ocurre con menos de 7 días naturales o propone fechas dentro de ese intervalo, cataloga la solicitud con prioridad urgente [Trayectoria E]. Valida la disponibilidad para evitar colisiones (**RN-06**, **RN-10**) [Trayectoria D] y comprueba si la duración total o recinto difiere de lo aprobado. [Trayectoria A]
+7. Guarda los cambios o actualiza la solicitud *in-flight*, mantiene vigentes las reservas y boletos de los asistentes notificando la reprogramación, y muestra el mensaje de confirmación correspondiente (**MSG-I-08** o **MSG-I-09**).
 
 *Fin de la trayectoria.*
 
@@ -92,5 +92,17 @@ Permite al Organizador reprogramar o reubicar un evento previamente creado, actu
 - **D-1.** Detecta una colisión de horarios o falta de disponibilidad en el recinto seleccionado (**RN-06**, **RN-10**).
 - **D-2.** Muestra en la pantalla **UI16** el mensaje **MSG-E-24**: "El lugar seleccionado ya no se encuentra disponible."
 - **D-3.** Permite al usuario seleccionar un recinto alternativo o ajustar el horario.
+
+*Fin de la trayectoria.*
+
+
+### Trayectoria alternativa E: Reprogramación con menos de 7 días naturales (Modificación Urgente)
+
+> **Condición:** Ocurre en el paso 6 cuando la fecha actual del evento o la nueva fecha propuesta cuenta con una antelación menor o igual a 7 días naturales (**RN-23**, **RN-31**).
+
+- **E-1.** El sistema detecta la proximidad de la fecha y clasifica la solicitud de modificación con prioridad urgente (`esUrgente = true`).
+- **E-2.** Registra o actualiza la solicitud *in-flight* en estado "Pendiente de Evaluación", conservando el motivo obligatorio capturado en el modal.
+- **E-3.** Conserva intactos los boletos y lugares ya reservados por los asistentes hasta el dictamen definitivo de Subdirección.
+- **E-4.** Envía aviso prioritario de reprogramación en revisión a los asistentes y muestra en pantalla el mensaje **MSG-I-09**: "Operación realizada con éxito. Evento en espera de revisión debido a cambio de duración." (o reprogramación logística urgente).
 
 *Fin de la trayectoria.*

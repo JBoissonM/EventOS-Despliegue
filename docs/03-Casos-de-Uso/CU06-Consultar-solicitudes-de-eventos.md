@@ -40,7 +40,7 @@ tags:
 1. Selecciona la opción "Consultar solicitudes de eventos" desde la pantalla UI36 "Menú Principal de Subdirección".
 2. Consulta en la base de datos las solicitudes de eventos que se encuentran registradas con el estatus "Pendiente de aprobación". [Trayectoria B]
 3. Verifica la existencia de solicitudes de eventos pendientes de aprobación. [Trayectoria A]
-4. Muestra la pantalla **UI11** "Panel de Solicitudes Pendientes", presentando el listado de solicitudes encontradas con su información general.
+4. Muestra la pantalla **UI11** "Panel de Solicitudes Pendientes", presentando el listado de solicitudes encontradas con su información general, destacando en primer lugar con un distintivo visual aquellas catalogadas con prioridad urgente (`esUrgente = true`).
 5. Visualiza el listado de solicitudes pendientes de aprobación y puede seleccionar una solicitud específica para consultar su información detallada. [Trayectoria D] [Trayectoria C]
 
 *Fin de la trayectoria.*
