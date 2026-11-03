@@ -18,8 +18,6 @@ import { RecintoEntity } from '../recintos/entities/recinto.entity';
 import { AsientoEntity } from './entities/asiento.entity';
 import { PonenteEntity } from '../eventos/entities/ponente.entity';
 import { UsuarioEntity } from '../auth/entities/usuario.entity';
-import { Mail } from 'nodemailer';
-
 
 @Module({
   imports: [
@@ -34,6 +32,7 @@ import { Mail } from 'nodemailer';
       RecintoEntity,
       AsientoEntity,
       PonenteEntity,
+      UsuarioEntity,
     ]),
     JwtModule.register({
       secret: process.env.JWT_SECRET || 'clave_secreta_desarrollo',
