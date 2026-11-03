@@ -1,15 +1,20 @@
 import {
+  Body,
   Controller,
   ForbiddenException,
   Get,
   Param,
   ParseIntPipe,
+  Patch,
   Req,
   UseGuards,
+  UsePipes,
+  ValidationPipe,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { RolesGuard } from '../../auth/roles.guard';
 import { OrganizadorService } from '../services/organizador.service';
+import { ModificarLogisticaDto } from '../dto/modificarLogistica.dto';
 
 @ApiTags('Organizador')
 @ApiBearerAuth()
@@ -49,6 +54,25 @@ export class OrganizadorController {
     return await this.organizadorService.obtenerDetalleOrganizador(
       idEvento,
       idUsuario,
+    );
+  }
+
+  @ApiOperation({
+    summary:
+      'Solicitar o actualizar in-flight la modificación logística de un evento',
+  })
+  @Patch(':idEvento/logistica')
+  @UsePipes(new ValidationPipe({ transform: true, whitelist: true }))
+  async solicitarModificacionLogistica(
+    @Param('idEvento', ParseIntPipe) idEvento: number,
+    @Body() dto: ModificarLogisticaDto,
+    @Req() req: any,
+  ) {
+    const idUsuario = this.obtenerIdUsuarioAutenticado(req);
+    return await this.organizadorService.solicitarModificacionLogistica(
+      idEvento,
+      idUsuario,
+      dto,
     );
   }
 }

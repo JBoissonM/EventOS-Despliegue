@@ -4,7 +4,6 @@ import { QrService } from './services/qr.service';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ReservationsController } from './controllers/reservations.controller';
 import { ReservationsService } from './services/reservations.service';
-import { TicketPdfService } from './services/ticket-pdf.service';
 import { MailService } from './services/mail.service';
 
 import { BoletoEntity } from './entities/boleto.entity';
@@ -42,6 +41,6 @@ import { Mail } from 'nodemailer';
     }),
   ],
   controllers: [ReservationsController],
-  providers: [QrService, ReservationsService, TicketPdfService, MailService],
+  providers: [QrService, ReservationsService, MailService],
 })
 export class ReservationsModule {}

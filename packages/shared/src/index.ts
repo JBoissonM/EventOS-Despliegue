@@ -219,6 +219,12 @@ export interface EventoOrganizadorDetalle {
   cupoMaximo: number;
   boletosActivosCount: number;
   subEventos: EventoOrganizadorDetalleSubevento[];
+  solicitudModificacionPendiente?: {
+    idSolicitudModificacion: number;
+    motivoModificacion: string;
+    subeventosPropuestos: SubEventoLogisticaPayload[];
+    estado: string;
+  } | null;
 }
 
 export interface SubEventoLogisticaPayload extends SubeventoPayload {

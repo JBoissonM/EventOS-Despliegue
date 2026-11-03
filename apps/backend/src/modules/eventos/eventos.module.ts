@@ -14,6 +14,7 @@ import { OrganizadorController } from './controllers/organizador.controller';
 import { PonenteEntity } from './entities/ponente.entity';
 import { EventosController } from './controllers/eventos.controller';
 import { AsientoEntity } from '../reservas/entities/asiento.entity';
+import { SolicitudModificacionEntity } from './entities/solicitudModificacion.entity';
 
 @Module({
   imports: [
@@ -25,6 +26,7 @@ import { AsientoEntity } from '../reservas/entities/asiento.entity';
       BitacoraEventoEntity,
       PonenteEntity,
       AsientoEntity,
+      SolicitudModificacionEntity,
     ]),
     RecintosModule,
   ],
