@@ -30,25 +30,42 @@ export function GestionUsuarios() {
   const cargarUsuarios = async () => {
     setLoading(true);
     try {
-      const response = await fetch("http://localhost:3000/api/usuarios", {
+      const params = new URLSearchParams();
+      if (busqueda.trim()) {
+        params.append("buscar", busqueda.trim());
+      }
+      if (filtroRol !== "Todos") {
+        params.append("rol", filtroRol);
+      }
+
+      const queryString = params.toString() ? `?${params.toString()}` : "";
+      const response = await fetch(`http://localhost:3000/api/usuarios/admin/cuentas${queryString}`, {
         headers: {
           Authorization: `Bearer ${getToken()}`,
         },
       });
+
       if (response.ok) {
         const data = await response.json();
         setUsuarios(data);
+      } else {
+        const errData = await response.json().catch(() => ({}));
+        console.error("Error al cargar usuarios:", errData.message || response.statusText);
       }
     } catch (err) {
-      console.error("Error al cargar usuarios", err);
+      console.error("Error de conexión al cargar usuarios", err);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    cargarUsuarios();
-  }, []);
+    const delayDebounceFn = setTimeout(() => {
+      cargarUsuarios();
+    }, 300);
+
+    return () => clearTimeout(delayDebounceFn);
+  }, [busqueda, filtroRol]);
 
   const abrirModalEliminar = (usuario: UsuarioSistema) => {
     setUsuarioSeleccionado(usuario);
@@ -59,53 +76,46 @@ export function GestionUsuarios() {
     if (!usuarioSeleccionado) return;
 
     try {
-      await fetch(`http://localhost:3000/api/usuarios/${usuarioSeleccionado.idUsuario}`, {
+      const response = await fetch(`http://localhost:3000/api/usuarios/admin/cuentas/${usuarioSeleccionado.idUsuario}`, {
         method: "DELETE",
         headers: {
           Authorization: `Bearer ${getToken()}`,
         },
       });
 
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        throw new Error(data.message || "No se pudo realizar la operación.");
+      }
+
       setUsuarios((prev) => prev.filter((u) => u.idUsuario !== usuarioSeleccionado.idUsuario));
       setModalConfirmacion(false);
-      setMensajeExito(`Se ha eliminado el usuario ${usuarioSeleccionado.nombre} exitosamente`);
+      setMensajeExito(`Se ha eliminado el usuario ${usuarioSeleccionado.nombre} exitosamente.`);
       setModalExito(true);
-    } catch (err) {
-      setUsuarios((prev) => prev.filter((u) => u.idUsuario !== usuarioSeleccionado.idUsuario));
+    } catch (err: any) {
       setModalConfirmacion(false);
-      setMensajeExito(`Se ha eliminado el usuario ${usuarioSeleccionado.nombre} exitosamente`);
-      setModalExito(true);
+      alert(err.message || "Ocurrió un error al intentar eliminar el usuario.");
     }
   };
 
-  const usuariosFiltrados = usuarios.filter((usuario) => {
-    const cumpleRol = filtroRol === "Todos" || usuario.rol.toLowerCase() === filtroRol.toLowerCase();
-    const termino = busqueda.trim().toLowerCase();
-    const cumpleBusqueda =
-      termino === "" ||
-      usuario.nombre.toLowerCase().includes(termino) ||
-      usuario.correo.toLowerCase().includes(termino);
-
-    return cumpleRol && cumpleBusqueda;
-  });
-
   return (
-    <div className="space-y-6 font-merriweather text-gray-800 w-full p-6">
+    <div className="space-y-6 font-merriweather text-gray-800 w-full p-0">
       <div className="mb-2">
-        <button onClick={() => navigate(-1)} className="flex items-center text-sm font-semibold text-gray-700 hover:text-gray-900 transition-colors">
+        <button onClick={() => navigate("/menu-admin")} className="flex items-center text-sm font-semibold text-gray-700 hover:text-gray-900 transition-colors">
           <span className="font-merriweather text-[16px] mr-3">← Volver al menú</span>
         </button>
       </div>
 
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-        <h1 className="text-[32px] font-bold text-gray-900 font-merriweather">
+        <h1 className="text-[28px] font-bold text-gray-900 font-merriweather">
           Cuentas del sistema
         </h1>
 
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
-          <div className="flex items-center border border-gray-300 rounded-md bg-white px-3 py-1.5 shadow-sm focus-within:ring-1 focus-within:ring-[#5c1d33]">
-            <Input type="text" placeholder="Buscar por nombre o correo..." value={busqueda} onChange={(e) => setBusqueda(e.target.value)} className="border-none p-0 focus:ring-0 text-sm w-full outline-none bg-transparent"/>
-            <span className="text-gray-500 ml-2 shrink-0">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+          <div className="flex items-center border border-gray-300 rounded-md bg-white px-2 py-1.5 shadow-sm w-full sm:w-80">
+            <Input type="text" placeholder="Buscar por nombre o correo..." value={busqueda} onChange={(e) => setBusqueda(e.target.value)} className="border-none p-0 focus:ring-0 outline-none bg-transparent"/>
+            <span className="text-gray-500">
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor" className="w-5 h-5">
                 <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607z"/>
               </svg>
@@ -113,13 +123,13 @@ export function GestionUsuarios() {
           </div>
 
           <div className="flex items-center space-x-2">
-            <span className="text-sm font-medium text-gray-700 hidden sm:inline">Filtrar por ▾</span>
+            <span className="text-sm font-medium text-gray-700 hidden sm:inline">Filtrar por</span>
             <select
               value={filtroRol}
               onChange={(e) => setFiltroRol(e.target.value)}
               className="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-900 focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500 font-merriweather shadow-sm"
             >
-              <option value="Todos">Criterio (Todos)</option>
+              <option value="Todos">Todos</option>
               <option value="Estudiante">Estudiante</option>
               <option value="Docente">Docente</option>
               <option value="Externo">Externo</option>
@@ -145,12 +155,12 @@ export function GestionUsuarios() {
               <tr>
                 <td colSpan={4} className="text-center py-6 text-gray-500">Cargando cuentas...</td>
               </tr>
-            ) : usuariosFiltrados.length === 0 ? (
+            ) : usuarios.length === 0 ? (
               <tr>
                 <td colSpan={4} className="text-center py-6 text-gray-500">No se encontraron registros con este criterio.</td>
               </tr>
             ) : (
-              usuariosFiltrados.map((usuario) => (
+              usuarios.map((usuario) => (
                 <tr key={usuario.idUsuario} className="border-b border-gray-200 hover:bg-gray-50 text-sm">
                   <td className="py-3 px-4">{usuario.nombre}</td>
                   <td className="py-3 px-4">{usuario.correo}</td>
