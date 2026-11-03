@@ -300,6 +300,7 @@ export class OrganizadorService {
       idAlcance: evento.idAlcance,
       idEstadoEvento: evento.idEstadoEvento,
       esUrgente: evento.esUrgente,
+      motivoUrgencia: evento.motivoUrgencia ?? null,
       idOrganizador: evento.idOrganizador,
       cupoMaximo,
       boletosActivosCount,
@@ -351,30 +352,36 @@ export class OrganizadorService {
 
     if (evento.idEstadoEvento === EstadoEvento.ACEPTADO) {
       const { fechaHoy } = this.solicitudesService.obtenerAhoraCDMX();
+      let esUrgente = false;
       for (const sub of evento.subEventos || []) {
         if (sub.fecha?.fecha) {
           const dias = this.solicitudesService.calcularDiasDiferencia(
             sub.fecha.fecha,
             fechaHoy,
           );
-          if (dias < 7) {
-            throw new BadRequestException(
-              'Las modificaciones logísticas deben solicitarse con al menos 7 días naturales de anticipación a la realización del evento.',
-            );
+          if (dias >= 0 && dias <= 7) {
+            esUrgente = true;
+            break;
           }
         }
       }
 
-      for (const sub of dto.subeventos) {
-        const dias = this.solicitudesService.calcularDiasDiferencia(
-          sub.fecha,
-          fechaHoy,
-        );
-        if (dias < 7) {
-          throw new BadRequestException(
-            'Las modificaciones logísticas deben solicitarse con al menos 7 días naturales de anticipación a la realización del evento.',
+      if (!esUrgente) {
+        for (const sub of dto.subeventos) {
+          const dias = this.solicitudesService.calcularDiasDiferencia(
+            sub.fecha,
+            fechaHoy,
           );
+          if (dias >= 0 && dias <= 7) {
+            esUrgente = true;
+            break;
+          }
         }
+      }
+
+      if (esUrgente && !evento.esUrgente) {
+        evento.esUrgente = true;
+        await this.eventoRepository.update(idEvento, { esUrgente: true });
       }
     }
 

@@ -101,6 +101,7 @@ CREATE TABLE evento (
   poster text NOT NULL,
   justificacion text,
   "esUrgente" boolean NOT NULL DEFAULT false,
+  "motivoUrgencia" text,
   "idAlcance" integer NOT NULL REFERENCES alcance("idAlcance"),
   "idEstadoEvento" integer NOT NULL REFERENCES "estadoEvento"("idEstadoEvento"),
   "idOrganizador" integer NOT NULL REFERENCES usuario("idUsuario")
