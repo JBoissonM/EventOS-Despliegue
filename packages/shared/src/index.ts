@@ -225,6 +225,21 @@ export interface EventoOrganizadorDetalle {
     subeventosPropuestos: SubEventoLogisticaPayload[];
     estado: string;
   } | null;
+  invitados?: InvitadoEventoItem[];
+}
+
+export interface InvitadoEventoItem {
+  idInvitacionEvento: number;
+  idUsuario: number;
+  nombreCompleto: string;
+  correo: string;
+  fechaUltimoEnvio: string;
+  puedeReenviar: boolean;
+  horasRestantesCooldown: number;
+}
+
+export interface AgregarInvitadoPayload {
+  correo: string;
 }
 
 export interface SubEventoLogisticaPayload extends SubeventoPayload {

@@ -7,11 +7,14 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, In, Repository } from 'typeorm';
+import { randomUUID } from 'crypto';
 import {
+  AlcanceEvento,
   EstadoBoleto,
   EstadoEvento,
   type EventoOrganizadorDetalle,
   type EventoOrganizadorDetalleSubevento,
+  type InvitadoEventoItem,
   type MisEventosItem,
   type Ponente,
   type PrimerSubeventoResumen,
@@ -20,9 +23,12 @@ import { EventoEntity } from '../entities/evento.entity';
 import { PonenteEntity } from '../entities/ponente.entity';
 import { SubEventoEntity } from '../entities/subevento.entity';
 import { SolicitudModificacionEntity } from '../entities/solicitudModificacion.entity';
+import { InvitacionEventoEntity } from '../entities/invitacionEvento.entity';
+import { UsuarioEntity } from '../../auth/entities/usuario.entity';
 import { SolicitudesService } from './solicitudes.service';
 import { ModificarLogisticaDto } from '../dto/modificarLogistica.dto';
 import { ActualizarInfoGeneralDto } from '../dto/actualizarInfoGeneral.dto';
+import { AgregarInvitadoDto } from '../dto/invitadoPrivado.dto';
 import { StorageService } from '../../../common/storage/storage.service';
 
 @Injectable()
@@ -36,6 +42,10 @@ export class OrganizadorService {
     private readonly subEventoRepository: Repository<SubEventoEntity>,
     @InjectRepository(SolicitudModificacionEntity)
     private readonly solicitudModificacionRepository: Repository<SolicitudModificacionEntity>,
+    @InjectRepository(InvitacionEventoEntity)
+    private readonly invitacionRepository: Repository<InvitacionEventoEntity>,
+    @InjectRepository(UsuarioEntity)
+    private readonly usuarioRepository: Repository<UsuarioEntity>,
     private readonly solicitudesService: SolicitudesService,
     private readonly storageService: StorageService,
     private readonly dataSource: DataSource,
@@ -239,6 +249,47 @@ export class OrganizadorService {
         where: { idEvento, estado: 'Pendiente' },
       });
 
+    let invitadosDetallados: InvitadoEventoItem[] | undefined = undefined;
+    if (evento.idAlcance === AlcanceEvento.PRIVADO) {
+      const invitaciones = await this.invitacionRepository.find({
+        where: { idEvento, estado: 'Activa' },
+        relations: { usuario: true },
+        order: { idInvitacionEvento: 'ASC' },
+      });
+
+      const ahora = Date.now();
+      const OCHO_HORAS_MS = 8 * 60 * 60 * 1000;
+
+      invitadosDetallados = invitaciones.map((inv) => {
+        const fechaEnvioMs = inv.fechaUltimoEnvio
+          ? new Date(inv.fechaUltimoEnvio).getTime()
+          : 0;
+        const tiempoTranscurrido = ahora - fechaEnvioMs;
+        const puedeReenviar = tiempoTranscurrido >= OCHO_HORAS_MS;
+        const msRestantes = Math.max(0, OCHO_HORAS_MS - tiempoTranscurrido);
+        const horasRestantesCooldown = puedeReenviar
+          ? 0
+          : Math.ceil(msRestantes / (60 * 60 * 1000));
+
+        const usr = inv.usuario;
+        const nombreCompleto = usr
+          ? `${usr.nombre} ${usr.apellidoPa}${usr.apellidoMa ? ' ' + usr.apellidoMa : ''}`
+          : 'Invitado';
+
+        return {
+          idInvitacionEvento: inv.idInvitacionEvento,
+          idUsuario: inv.idUsuario,
+          nombreCompleto,
+          correo: usr?.correo ?? '',
+          fechaUltimoEnvio: inv.fechaUltimoEnvio
+            ? new Date(inv.fechaUltimoEnvio).toISOString()
+            : '',
+          puedeReenviar,
+          horasRestantesCooldown,
+        };
+      });
+    }
+
     return {
       idEvento: evento.idEvento,
       nombre: evento.nombre,
@@ -261,6 +312,7 @@ export class OrganizadorService {
             estado: solicitudPendiente.estado,
           }
         : null,
+      invitados: invitadosDetallados,
     };
   }
 
@@ -498,6 +550,211 @@ export class OrganizadorService {
       idAlcance: eventoGuardado.idAlcance,
       poster: eventoGuardado.poster,
       posterUrl: this.obtenerPosterUrl(eventoGuardado.poster),
+    };
+  }
+
+  async agregarInvitadoPrivado(
+    idEvento: number,
+    idUsuario: number,
+    dto: AgregarInvitadoDto,
+  ) {
+    const evento = await this.eventoRepository.findOne({
+      where: { idEvento },
+      relations: { subEventos: { recinto: true } },
+    });
+
+    if (!evento) {
+      throw new NotFoundException('No se encontró el evento solicitado.');
+    }
+
+    if (evento.idOrganizador !== idUsuario) {
+      throw new ForbiddenException(
+        'No tienes permisos para administrar este evento.',
+      );
+    }
+
+    if (
+      evento.idEstadoEvento === EstadoEvento.CANCELADO ||
+      evento.idEstadoEvento === EstadoEvento.FINALIZADO ||
+      evento.idEstadoEvento === EstadoEvento.RECHAZADO
+    ) {
+      throw new ConflictException('Evento finalizado o inactivo.');
+    }
+
+    if (evento.idAlcance !== AlcanceEvento.PRIVADO) {
+      throw new BadRequestException('El evento no cuenta con alcance privado.');
+    }
+
+    const correoBuscado = dto.correo.trim().toLowerCase();
+    const usuarioDestinatario = await this.usuarioRepository.findOne({
+      where: { correo: correoBuscado, estatus: true },
+    });
+
+    if (!usuarioDestinatario) {
+      throw new NotFoundException(
+        'No se encontró una cuenta activa para el destinatario del boleto directo.',
+      );
+    }
+
+    const invitacionPrevia = await this.invitacionRepository.findOne({
+      where: {
+        idEvento,
+        idUsuario: usuarioDestinatario.idUsuario,
+        estado: 'Activa',
+      },
+    });
+
+    if (invitacionPrevia) {
+      throw new ConflictException(
+        'El destinatario ya cuenta con un boleto activo para este evento.',
+      );
+    }
+
+    const cupoMaximo = evento.subEventos?.[0]?.recinto?.aforo ?? 0;
+    if (cupoMaximo > 0) {
+      const totalInvitadosActivos = await this.invitacionRepository.count({
+        where: { idEvento, estado: 'Activa' },
+      });
+      if (totalInvitadosActivos >= cupoMaximo) {
+        throw new ConflictException(
+          'La cantidad solicitada excede el límite disponible.',
+        );
+      }
+    }
+
+    const tokenInvitacion = randomUUID();
+    const nuevaInvitacion = this.invitacionRepository.create({
+      idEvento,
+      idUsuario: usuarioDestinatario.idUsuario,
+      tokenInvitacion,
+      estado: 'Activa',
+      fechaUltimoEnvio: new Date(),
+    });
+
+    const guardada = await this.invitacionRepository.save(nuevaInvitacion);
+
+    const nombreCompleto = `${usuarioDestinatario.nombre} ${usuarioDestinatario.apellidoPa}${usuarioDestinatario.apellidoMa ? ' ' + usuarioDestinatario.apellidoMa : ''}`;
+
+    return {
+      mensaje: 'Operación realizada con éxito.',
+      invitado: {
+        idInvitacionEvento: guardada.idInvitacionEvento,
+        idUsuario: guardada.idUsuario,
+        nombreCompleto,
+        correo: usuarioDestinatario.correo,
+        tokenInvitacion: guardada.tokenInvitacion,
+        fechaUltimoEnvio: guardada.fechaUltimoEnvio.toISOString(),
+        puedeReenviar: false,
+        horasRestantesCooldown: 8,
+      },
+    };
+  }
+
+  async reenviarInvitacionPrivada(
+    idEvento: number,
+    idInvitacion: number,
+    idUsuario: number,
+  ) {
+    const evento = await this.eventoRepository.findOne({
+      where: { idEvento },
+    });
+
+    if (!evento) {
+      throw new NotFoundException('No se encontró el evento solicitado.');
+    }
+
+    if (evento.idOrganizador !== idUsuario) {
+      throw new ForbiddenException(
+        'No tienes permisos para administrar este evento.',
+      );
+    }
+
+    if (
+      evento.idEstadoEvento === EstadoEvento.CANCELADO ||
+      evento.idEstadoEvento === EstadoEvento.FINALIZADO ||
+      evento.idEstadoEvento === EstadoEvento.RECHAZADO
+    ) {
+      throw new ConflictException('Evento finalizado o inactivo.');
+    }
+
+    const invitacion = await this.invitacionRepository.findOne({
+      where: {
+        idInvitacionEvento: idInvitacion,
+        idEvento,
+        estado: 'Activa',
+      },
+      relations: { usuario: true },
+    });
+
+    if (!invitacion) {
+      throw new NotFoundException('No se encontró la invitación solicitada.');
+    }
+
+    const ahora = Date.now();
+    const fechaEnvioMs = new Date(invitacion.fechaUltimoEnvio).getTime();
+    const transcurrido = ahora - fechaEnvioMs;
+    const OCHO_HORAS_MS = 8 * 60 * 60 * 1000;
+
+    if (transcurrido < OCHO_HORAS_MS) {
+      const horasRestantes = Math.ceil(
+        (OCHO_HORAS_MS - transcurrido) / (60 * 60 * 1000),
+      );
+      throw new ConflictException(
+        `La invitación ya fue enviada recientemente. Disponible en ${horasRestantes} ${horasRestantes === 1 ? 'hora' : 'horas'}.`,
+      );
+    }
+
+    invitacion.tokenInvitacion = randomUUID();
+    invitacion.fechaUltimoEnvio = new Date();
+    await this.invitacionRepository.save(invitacion);
+
+    return {
+      mensaje: 'Operación realizada con éxito.',
+      idInvitacionEvento: invitacion.idInvitacionEvento,
+      tokenInvitacion: invitacion.tokenInvitacion,
+      fechaUltimoEnvio: invitacion.fechaUltimoEnvio.toISOString(),
+      horasRestantesCooldown: 8,
+      puedeReenviar: false,
+    };
+  }
+
+  async revocarInvitacionPrivada(
+    idEvento: number,
+    idInvitacion: number,
+    idUsuario: number,
+  ) {
+    const evento = await this.eventoRepository.findOne({
+      where: { idEvento },
+    });
+
+    if (!evento) {
+      throw new NotFoundException('No se encontró el evento solicitado.');
+    }
+
+    if (evento.idOrganizador !== idUsuario) {
+      throw new ForbiddenException(
+        'No tienes permisos para administrar este evento.',
+      );
+    }
+
+    const invitacion = await this.invitacionRepository.findOne({
+      where: {
+        idInvitacionEvento: idInvitacion,
+        idEvento,
+      },
+    });
+
+    if (!invitacion) {
+      throw new NotFoundException('No se encontró la invitación solicitada.');
+    }
+
+    invitacion.estado = 'Revocada';
+    await this.invitacionRepository.save(invitacion);
+
+    return {
+      mensaje: 'Operación realizada con éxito.',
+      idInvitacionEvento: invitacion.idInvitacionEvento,
+      estado: 'Revocada',
     };
   }
 }
