@@ -1,11 +1,13 @@
 import {
   Body,
   Controller,
+  Delete,
   ForbiddenException,
   Get,
   Param,
   ParseIntPipe,
   Patch,
+  Post,
   Req,
   UploadedFiles,
   UseGuards,
@@ -19,6 +21,7 @@ import { RolesGuard } from '../../auth/roles.guard';
 import { OrganizadorService } from '../services/organizador.service';
 import { ModificarLogisticaDto } from '../dto/modificarLogistica.dto';
 import { ActualizarInfoGeneralDto } from '../dto/actualizarInfoGeneral.dto';
+import { AgregarInvitadoDto } from '../dto/invitadoPrivado.dto';
 import { posterOptions } from '../../../common/upload/upload.options';
 
 @ApiTags('Organizador')
@@ -112,6 +115,60 @@ export class OrganizadorController {
       idUsuario,
       dto,
       posterFile,
+    );
+  }
+
+  @ApiOperation({
+    summary:
+      'Agregar un invitado con cuenta activa al padrón de un evento privado',
+  })
+  @Post(':idEvento/invitados')
+  @UsePipes(new ValidationPipe({ transform: true, whitelist: true }))
+  async agregarInvitadoPrivado(
+    @Param('idEvento', ParseIntPipe) idEvento: number,
+    @Body() dto: AgregarInvitadoDto,
+    @Req() req: any,
+  ) {
+    const idUsuario = this.obtenerIdUsuarioAutenticado(req);
+    return await this.organizadorService.agregarInvitadoPrivado(
+      idEvento,
+      idUsuario,
+      dto,
+    );
+  }
+
+  @ApiOperation({
+    summary:
+      'Reenviar invitación de evento privado respetando cooldown de 8 horas',
+  })
+  @Post(':idEvento/invitados/:idInvitacion/reenviar')
+  async reenviarInvitacionPrivada(
+    @Param('idEvento', ParseIntPipe) idEvento: number,
+    @Param('idInvitacion', ParseIntPipe) idInvitacion: number,
+    @Req() req: any,
+  ) {
+    const idUsuario = this.obtenerIdUsuarioAutenticado(req);
+    return await this.organizadorService.reenviarInvitacionPrivada(
+      idEvento,
+      idInvitacion,
+      idUsuario,
+    );
+  }
+
+  @ApiOperation({
+    summary: 'Revocar la invitación de un invitado en un evento privado',
+  })
+  @Delete(':idEvento/invitados/:idInvitacion')
+  async revocarInvitacionPrivada(
+    @Param('idEvento', ParseIntPipe) idEvento: number,
+    @Param('idInvitacion', ParseIntPipe) idInvitacion: number,
+    @Req() req: any,
+  ) {
+    const idUsuario = this.obtenerIdUsuarioAutenticado(req);
+    return await this.organizadorService.revocarInvitacionPrivada(
+      idEvento,
+      idInvitacion,
+      idUsuario,
     );
   }
 }
