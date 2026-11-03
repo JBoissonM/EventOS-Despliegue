@@ -64,6 +64,9 @@ Este actor cuenta con privilegios de gestión sobre las cuentas de usuario, la i
 
 ## 3. Catálogo Oficial de Pantallas (`UI01` – `UI37`)
 
+> [!TIP] Guía de Estilo, Wireframes y Mockups en Figma
+> Para consultar la tipografía (`Merriweather`), paleta institucional (`#5F1B36` / `#1B585F`), tabla de correspondencia con los nombres de frames en Figma y capturas de **Wireframes** y **Mockups** (Desktop y Móvil), revisa [04-Diseno-UI](./04-Diseno-UI.md).
+
 | Actor / Rol | ID | Nombre de la Pantalla / Componente |
 | :--- | :---: | :--- |
 | Todos | `UI01` | Pantalla de Inicio de Sesión |
@@ -71,13 +74,13 @@ Este actor cuenta con privilegios de gestión sobre las cuentas de usuario, la i
 | Asistente | `UI02` | Pantalla de Registro de Usuario |
 | Asistente | `UI03` | Menú Principal del Asistente |
 | Todos / Público General | `UI04` | Cartelera de Eventos |
-| Todos / Público General | `UI05` | Detalles del Evento |
+| Todos / Público General | `UI05` | Detalles del Evento *(incluye subvista `UI05.1` Detalles del subevento)* |
 | Asistente | `UI06` | Mapa de Asientos y Disponibilidad del Recinto |
 | Asistente | `UI07` | Formulario de Solicitud de Evento |
 | Asistente | `UI08` | Consultar Mis Eventos |
 | Asistente | `UI09` | Boleto Digital y Código QR |
 | Asistente | `UI10` | Bitácora de Eventos Realizados |
-| Asistente / Usuario Externo | `UI24` | Pantalla de Verificación de Identidad |
+| Asistente / Usuario Externo | `UI24` | Pantalla de Verificación de Identidad *(vigencia trimestral, PDF máx. 5 MB)* |
 | Jefe de Área / Directivo | `UI31` | Panel de Supervisión y Calendario Institucional |
 | Subdirección de Servicios Educativos | `UI07` | Formulario de Solicitud de Evento |
 | Subdirección de Servicios Educativos | `UI11` | Panel de Solicitudes Pendientes |
