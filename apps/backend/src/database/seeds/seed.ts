@@ -97,7 +97,7 @@ export async function runSeed() {
     // 2. Recintos Iniciales de ESCOM (Actualizado sin computadoras disponibles)
     console.log('Creando recintos iniciales...');
     const recintos = [
-      { id: 1, nombre: 'Auditorio Principal', aforo: 250, idEstadoRecinto: 1 },
+      { id: 1, nombre: 'Auditorio Principal', aforo: 242, idEstadoRecinto: 1 },
       { id: 2, nombre: 'Laboratorio de Cómputo A', aforo: 36, idEstadoRecinto: 1 },
       { id: 3, nombre: 'Laboratorio de Cómputo B', aforo: 36, idEstadoRecinto: 1 },
       { id: 4, nombre: 'Sala 14', aforo: 50, idEstadoRecinto: 1 },
@@ -113,6 +113,23 @@ export async function runSeed() {
         [r.id, r.nombre, r.aforo, r.idEstadoRecinto],
       );
     }
+
+    console.log('Poblando asientos del Auditorio Principal (242 butacas)...');
+    await client.query(`
+      INSERT INTO asiento (fila, numero, "idRecinto")
+      SELECT filas.fila, numeros.numero, 1
+      FROM (VALUES ('A'),('B'),('C'),('D'),('E'),('F'),('G'),('H'),('I'),('J'),('K')) AS filas(fila)
+      CROSS JOIN generate_series(1, 23) AS numeros(numero)
+      WHERE (
+        (filas.fila = 'A' AND numeros.numero IN (4, 5, 6, 9, 10, 11, 12, 13, 14, 15, 16, 18, 19, 20))
+        OR (filas.fila = 'B' AND numeros.numero BETWEEN 2 AND 22)
+        OR filas.fila NOT IN ('A', 'B')
+      )
+      AND NOT EXISTS (
+        SELECT 1 FROM asiento a
+        WHERE a."idRecinto" = 1 AND a.fila = filas.fila AND a.numero = numeros.numero
+      );
+    `);
 
     console.log('Poblando equipos/computadoras en estadoEquipo...');
     const laboratoriosIds = [2, 3];

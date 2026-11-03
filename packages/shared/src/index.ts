@@ -54,6 +54,7 @@ export interface Boleto {
 }
 
 export interface AsistenteEvento {
+  idAsistenteEvento?: number;
   idSubEvento: number;
   idUsuario: number;
   idBoleto?: number | null;
