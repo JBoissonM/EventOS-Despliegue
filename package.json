@@ -18,7 +18,13 @@
     "docs:preview": "vitepress preview docs"
   },
   "devDependencies": {
+    "@types/nodemailer": "^8.0.2",
+    "@types/pdfkit": "^0.17.7",
     "typescript": "^7.0.2",
     "vitepress": "^1.6.4"
+  },
+  "dependencies": {
+    "nodemailer": "^10.3.1",
+    "pdfkit": "^0.20.2"
   }
 }

@@ -1,5 +1,6 @@
-import { Injectable, NotFoundException, ConflictException, ForbiddenException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, ConflictException, ForbiddenException, BadRequestException, Logger } from '@nestjs/common';
 import { QrService } from './qr.service';
+import { MailService } from './mail.service';
 import { CreateReservationDto } from '../dto/createReservation.dto';
 import { Repository, In, DataSource } from 'typeorm';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -16,14 +17,19 @@ import { FechaEntity } from '../../eventos/entities/fecha.entity';
 import { EventoEntity } from '../../eventos/entities/evento.entity';
 import { EventoPersonalLogisticaEntity } from '../../eventos/entities/eventoPersonalLogistica.entity';
 import { PonenteEntity } from '../../eventos/entities/ponente.entity';
+import { UsuarioEntity } from '../../auth/entities/usuario.entity';
+import { Mail } from 'nodemailer';
 
 @Injectable()
 export class ReservationsService {
 
+    private readonly logger = new Logger(ReservationsService.name);
   
     constructor(
         private dataSource: DataSource,
-        private readonly qrService: QrService, 
+        private readonly qrService: QrService,
+        private readonly mailService : MailService, 
+        @InjectRepository(UsuarioEntity) private usuarioRepo: Repository<UsuarioEntity>,
         @InjectRepository(EventoEntity) private eventoRepo: Repository<EventoEntity>,
         @InjectRepository(SubEventoEntity) private subEventoRepo: Repository<SubEventoEntity>,
         @InjectRepository(RecintoEntity) private recintoRepo: Repository<RecintoEntity>,
@@ -135,11 +141,16 @@ export class ReservationsService {
     //logica de negocio para crear reserva
 
     async crearReserva(idUsuario: number, dto: CreateReservationDto): Promise<{ mensaje: string, boleto: any, qr?: string }>{
-        
-        // Transaccion
-        return await this.dataSource.transaction(async (manager) => {
+        // Obtener datos del usuario
+        const usuario = await this.usuarioRepo.findOne({ where: { idUsuario } });
+        if (!usuario) {
+            throw new NotFoundException('El usuario especificado no existe.');
+        }
+
+        // Transaccion atómica
+        const resultado = await this.dataSource.transaction(async (manager) => {
             
-            // Verificar existencia y cierre de registro agreagndo el bloqueo de fila
+            // Verificar existencia y cierre de registro 
             const subEvento = await manager.findOne(SubEventoEntity, { 
                 where: { idSubEvento: dto.idSubEvento },
                 lock: { mode: 'pessimistic_write' } 
@@ -217,7 +228,6 @@ export class ReservationsService {
             if (!recinto || recinto.idEstadoRecinto !== EstadoRecinto.HABILITADO) {
                 throw new ConflictException('El recinto del evento no está disponible.');
             }
-
             
             const asientosDelRecinto = await manager.find(AsientoEntity, {
                 where: { idRecinto: recinto.idRecinto }
@@ -232,9 +242,11 @@ export class ReservationsService {
                 throw new BadRequestException('Esta actividad es de entrada general y no utiliza asientos numerados.');
             }
 
+            
+            let asientoSeleccionado = null;
             if (dto.idAsiento) {
-                const asientoPerteneceAlRecinto = asientosDelRecinto.some(a => a.idAsiento === dto.idAsiento);
-                if (!asientoPerteneceAlRecinto) {
+                asientoSeleccionado = asientosDelRecinto.find(a => a.idAsiento === dto.idAsiento);
+                if (!asientoSeleccionado) {
                     throw new BadRequestException('El asiento seleccionado no pertenece al recinto asignado a este subevento.');
                 }
             }
@@ -267,8 +279,7 @@ export class ReservationsService {
                 throw new ConflictException('El aforo para este evento se ha agotado.');
             }
 
-            //GENERACION DE QR
-
+            // GENERACION DE QR Y GUARDADO
             const fechaFinEvento = new Date(`${fechaEvento.fecha}T${fechaEvento.horaFin}`);
 
             const boletoNuevoObj = manager.create(BoletoEntity, {
@@ -301,6 +312,8 @@ export class ReservationsService {
                 idUsuario,
             });
 
+            let qrBase64Data: string | undefined = undefined;
+
             if (subEvento.accesoQR) {
                 const infoBoleto = {
                     idBoleto: boletoGuardado.idBoleto,
@@ -312,20 +325,52 @@ export class ReservationsService {
 
                 boletoGuardado.tokenQr = token;
                 await manager.save(BoletoEntity, boletoGuardado);
-
-                return {
-                    mensaje: 'Reserva creada exitosamente',
-                    boleto: boletoGuardado,
-                    qr: qrBase64 //imagen del boleto para el front
-                };
+                qrBase64Data = qrBase64;
             }
 
+            // Empaquetado de la información requerida por Nodemailer y el controlador
             return {
-                mensaje: 'Reserva creada exitosamente sin necesidad de QR',
                 boleto: boletoGuardado,
+                qrBase64: qrBase64Data,
+                datosCorreo: {
+                    idBoleto: boletoGuardado.idBoleto,
+                    nombreEvento: eventoPrincipal.nombre,
+                    nombreSubEvento: subEvento.nombre,
+                    fecha: String(fechaEvento.fecha),
+                    horaInicio: fechaEvento.horaInicio,
+                    horaFin: fechaEvento.horaFin,
+                    nombreRecinto: recinto.nombre,
+                    asiento: asientoSeleccionado ? { fila: asientoSeleccionado.fila, numero: asientoSeleccionado.numero } : null,
+                    qrBase64: qrBase64Data
+                }
             };
-
         }); 
+
+        // Envío del correo
+        try {
+            const nombreCompleto = `${usuario.nombre} ${usuario.apellidoPa}${usuario.apellidoMa ? ' ' + usuario.apellidoMa : ''}`;
+            await this.mailService.enviarCorreoConfirmacionReserva({
+                destinatario: usuario.correo,
+                nombreAsistente: nombreCompleto,
+                ...resultado.datosCorreo
+            });
+        } catch (error) {
+            this.logger.error(`La reserva #${resultado.boleto.idBoleto} se guardó, pero falló el envío del correo:`, error);
+        }
+
+        // Retorno HTTP original para el Frontend
+        if (resultado.qrBase64) {
+            return {
+                mensaje: 'Reserva creada exitosamente',
+                boleto: resultado.boleto,
+                qr: resultado.qrBase64 
+            };
+        }
+
+        return {
+            mensaje: 'Reserva creada exitosamente sin necesidad de QR',
+            boleto: resultado.boleto,
+        };
     }
 
     //CONSULTAR MIS EVENTOS

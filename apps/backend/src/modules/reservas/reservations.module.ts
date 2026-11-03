@@ -5,6 +5,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { ReservationsController } from './controllers/reservations.controller';
 import { ReservationsService } from './services/reservations.service';
 import { TicketPdfService } from './services/ticket-pdf.service';
+import { MailService } from './services/mail.service';
 
 import { BoletoEntity } from './entities/boleto.entity';
 import { EstadoBoletoEntity } from './entities/estadoBoleto.entity';
@@ -19,6 +20,7 @@ import { RecintoEntity } from '../recintos/entities/recinto.entity';
 import { AsientoEntity } from './entities/asiento.entity';
 import { PonenteEntity } from '../eventos/entities/ponente.entity';
 import { UsuarioEntity } from '../auth/entities/usuario.entity';
+import { Mail } from 'nodemailer';
 
 
 @Module({
@@ -43,6 +45,6 @@ import { UsuarioEntity } from '../auth/entities/usuario.entity';
     }),
   ],
   controllers: [ReservationsController],
-  providers: [QrService, ReservationsService, TicketPdfService],
+  providers: [QrService, ReservationsService, TicketPdfService, MailService],
 })
 export class ReservationsModule {}
