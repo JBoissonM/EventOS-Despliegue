@@ -87,7 +87,7 @@ export function ReservationSuccessDialog({
         <div className="flex flex-wrap justify-center gap-3">
           {onViewTicket && (
             <Button
-              text="Ver boleto digital"
+              text="Ver código QR"
               variant="outline"
               onClick={onViewTicket}
             />

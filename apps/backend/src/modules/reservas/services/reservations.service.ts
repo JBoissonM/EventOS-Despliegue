@@ -5,11 +5,10 @@ import { CreateReservationDto } from '../dto/createReservation.dto';
 import { Repository, In, DataSource } from 'typeorm';
 import { InjectRepository } from '@nestjs/typeorm';
 
-import { DisponibilidadSubEvento, AsientoDisponible, EstadoRecinto, EstadoBoleto, EstadoSubEvento, ModalidadAcceso, AlcanceEvento } from '@eventos/shared';
+import { DisponibilidadSubEvento, AsientoDisponible, EstadoRecinto, EstadoBoleto, EstadoSubEvento } from '@eventos/shared';
 
 import { BoletoEntity } from '../entities/boleto.entity';
 import { AsistenteEventoEntity } from '../entities/asistenteEvento.entity';
-import { ReservaHistorialEntity } from '../entities/reservaHistorial.entity';
 import { SubEventoEntity } from '../../eventos/entities/subevento.entity';
 import { RecintoEntity } from '../../recintos/entities/recinto.entity';
 import { AsientoEntity } from '../entities/asiento.entity';
@@ -36,9 +35,7 @@ export class ReservationsService {
         @InjectRepository(AsientoEntity) private asientoRepo: Repository<AsientoEntity>,
         @InjectRepository(BoletoEntity) private boletoRepo: Repository<BoletoEntity>,
         @InjectRepository(AsistenteEventoEntity) private asistenteRepo: Repository<AsistenteEventoEntity>,
-        @InjectRepository(ReservaHistorialEntity) private historialRepo: Repository<ReservaHistorialEntity>,
         @InjectRepository(FechaEntity) private fechaRepo: Repository<FechaEntity>,
-        @InjectRepository(PonenteEntity) private ponenteRepo: Repository<PonenteEntity>,
         @InjectRepository(EventoPersonalLogisticaEntity) private logisticaRepo: Repository<EventoPersonalLogisticaEntity>,
     ) {}
 
@@ -56,10 +53,6 @@ export class ReservationsService {
         const evento = await this.eventoRepo.findOne({
             where: { idEvento: subEvento.idEvento }
         });
-
-        if (!evento || evento.idAlcance === AlcanceEvento.PRIVADO) {
-            throw new NotFoundException('El subevento solicitado no existe.');
-        }
 
         const fechaEvento = await this.fechaRepo.findOne({
             where: { idFecha: subEvento.idFecha }
@@ -103,20 +96,11 @@ export class ReservationsService {
         const limiteReserva = fechaEvento ? new Date(`${fechaEvento.fecha}T${fechaEvento.horaInicio}`) : new Date(0);
         const eventoActivo = evento && evento.idEstadoEvento === 2 && subEvento.estado === EstadoSubEvento.ACEPTADO && new Date() <= limiteReserva;
 
-        const asientosBD = await this.asientoRepo.find({
-            where: { idRecinto: recinto.idRecinto }
-        });
+        const lugaresDisponibles = eventoActivo ? Math.max(0, recinto.aforo - lugaresOcupados) : 0;
 
-        const requiereSeleccionAsiento = asientosBD.length > 0;
-        const cuposPorAforo = Math.max(0, recinto.aforo - lugaresOcupados);
-        const asientosLibres = asientosBD.filter(
-            (asiento) => !idsAsientosOcupados.has(asiento.idAsiento),
-        ).length;
-        const lugaresDisponibles = eventoActivo
-            ? requiereSeleccionAsiento
-                ? Math.min(cuposPorAforo, asientosLibres)
-                : cuposPorAforo
-            : 0;
+        const asientosBD = await this.asientoRepo.find({ 
+            where: { idRecinto: recinto.idRecinto } 
+        });
 
         const asientos: AsientoDisponible[] = asientosBD.map(a => ({
             idAsiento: a.idAsiento,
@@ -129,8 +113,8 @@ export class ReservationsService {
             idSubEvento: subEvento.idSubEvento,
             recinto: recinto,
             lugaresDisponibles,
-            permiteReservar: Boolean(eventoActivo && lugaresDisponibles > 0 && subEvento.modalidadAcceso === ModalidadAcceso.CON_RESERVACION),
-            requiereSeleccionAsiento,
+            permiteReservar: Boolean(eventoActivo && lugaresDisponibles > 0),
+            requiereSeleccionAsiento: asientos.length > 0,
             asientos,
         };
     }
@@ -159,10 +143,7 @@ export class ReservationsService {
             if (!subEvento) {
                 throw new NotFoundException('El subevento no existe');
             }
-
-            if (subEvento.modalidadAcceso === ModalidadAcceso.ENTRADA_LIBRE) {
-                throw new ConflictException('Esta actividad es de entrada libre y no necesita reservación.');
-            }
+            
 
             if (subEvento.estado !== EstadoSubEvento.ACEPTADO) {
                 throw new ConflictException('El registro para este evento se encuentra cerrado o cancelado');
@@ -174,10 +155,6 @@ export class ReservationsService {
 
             if (!eventoPrincipal || eventoPrincipal.idEstadoEvento !== 2) {
                 throw new ConflictException('El evento principal no se encuentra autorizado o activo para reservaciones.');
-            }
-
-            if (eventoPrincipal.idAlcance === AlcanceEvento.PRIVADO) {
-                throw new ForbiddenException('Este evento requiere una invitación válida para reservar.');
             }
 
             const fechaEvento = await manager.findOne(FechaEntity, { 
@@ -376,24 +353,10 @@ export class ReservationsService {
     //CONSULTAR MIS EVENTOS
 
     async obtenerMisBoletos(idUsuario: number) {
-        const reservas = await this.historialRepo.find({
-            where: { idUsuario },
-            order: { idBoleto: 'DESC' },
+        const reservas = await this.asistenteRepo.find({
+            where: { idUsuario: idUsuario }
         });
 
-        const idsSubEventos = [...new Set(reservas.map((reserva) => reserva.idSubEvento))];
-        const ponentes = idsSubEventos.length > 0
-            ? await this.ponenteRepo.find({ where: { idSubEvento: In(idsSubEventos) } })
-            : [];
-        const ponentesPorActividad = new Map<number, string[]>();
-        for (const ponente of ponentes) {
-            const nombreCompleto = [ponente.nombre, ponente.apellidoPa, ponente.apellidoMa]
-                .filter(Boolean)
-                .join(' ');
-            const lista = ponentesPorActividad.get(ponente.idSubEvento) ?? [];
-            lista.push(nombreCompleto);
-            ponentesPorActividad.set(ponente.idSubEvento, lista);
-        }
         const misBoletos = [];
 
         for (const reserva of reservas) {
@@ -423,11 +386,7 @@ export class ReservationsService {
                 idSubEvento: subEvento.idSubEvento,
                 idEvento: subEvento.idEvento,
                 nombreEvento: evento ? evento.nombre : '',
-                poster: evento?.poster ?? null,
-                idAlcance: evento?.idAlcance ?? null,
                 nombreSubEvento: subEvento.nombre,
-                ponentes: ponentesPorActividad.get(subEvento.idSubEvento) ?? [],
-                accesoQR: subEvento.accesoQR,
                 estadoBoleto: boleto.idEstadoBoleto,
                 fecha: fechaEvento.fecha,
                 horaInicio: fechaEvento.horaInicio,
@@ -442,8 +401,8 @@ export class ReservationsService {
     //DETALLE DEL BOLETO Y QR
 
     async obtenerDetalleBoleto(idUsuario: number, idBoleto: number) {
-        const reserva = await this.historialRepo.findOne({
-            where: { idUsuario, idBoleto },
+        const reserva = await this.asistenteRepo.findOne({
+            where: { idUsuario: idUsuario, idBoleto: idBoleto }
         });
 
         if (!reserva) {
@@ -512,63 +471,55 @@ export class ReservationsService {
     //CANCELACION LOGICA Y LIBERACION DEL LUGAR
 
     async cancelarReserva(idUsuario: number, idBoleto: number) {
-        return this.dataSource.transaction(async (manager) => {
-            const reservaReferencia = await manager.findOne(ReservaHistorialEntity, {
-                where: { idUsuario, idBoleto },
-            });
+    //Validar que la reserva existe y le pertenece al usuario
+    const reserva = await this.asistenteRepo.findOne({
+        where: { idUsuario: idUsuario, idBoleto: idBoleto }
+    });
 
-            if (!reservaReferencia) {
-                throw new NotFoundException('No se encontró la reserva o no pertenece al usuario actual.');
-            }
+    if (!reserva) {
+        throw new NotFoundException('No se encontró la reserva o no pertenece al usuario actual.');
+    }
 
-            const subEvento = await manager.findOne(SubEventoEntity, {
-                where: { idSubEvento: reservaReferencia.idSubEvento },
-                lock: { mode: 'pessimistic_write' },
-            });
+    const boleto = await this.boletoRepo.findOne({ where: { idBoleto: idBoleto } });
+    if (!boleto) {
+        throw new NotFoundException('El boleto no existe.');
+    }
 
-            if (!subEvento) {
-                throw new NotFoundException('No se encontró la actividad asociada al boleto.');
-            }
+    //Validar que el boleto sea elegible para cancelacion
+    if (boleto.idEstadoBoleto === EstadoBoleto.CANCELADO) {
+        throw new ConflictException('Esta reserva ya se encontraba cancelada.');
+    }
+    if (boleto.idEstadoBoleto === EstadoBoleto.UTILIZADO) {
+        throw new ConflictException('No puedes cancelar un boleto que ya fue escaneado en la entrada.');
+    }
 
-            const boleto = await manager.findOne(BoletoEntity, {
-                where: { idBoleto },
-                lock: { mode: 'pessimistic_write' },
-            });
+    //Esta parte es por si se usa el estado de boleto Expirado
 
-            if (!boleto) {
-                throw new NotFoundException('El boleto no existe.');
-            }
+    // if (boleto.idEstadoBoleto === EstadoBoleto.EXPIRADO) {
+    //     throw new ConflictException('No puedes cancelar un boleto de un evento que ya terminó.');
+    // }
 
-            if (boleto.idEstadoBoleto === EstadoBoleto.CANCELADO) {
-                throw new ConflictException('Esta reserva ya se encontraba cancelada.');
-            }
-
-            if (boleto.idEstadoBoleto === EstadoBoleto.UTILIZADO) {
-                throw new ConflictException('No puedes cancelar un boleto que ya fue escaneado en la entrada.');
-            }
-
-            const fechaEvento = await manager.findOne(FechaEntity, {
-                where: { idFecha: subEvento.idFecha },
-            });
-
-            if (!fechaEvento) {
-                throw new ConflictException('No se encontró la fecha de la actividad.');
-            }
-
+    //Validar que el evento no haya comenzado
+    const subEvento = await this.subEventoRepo.findOne({ where: { idSubEvento: reserva.idSubEvento } });
+    if (subEvento) {
+        const fechaEvento = await this.fechaRepo.findOne({ where: { idFecha: subEvento.idFecha } });
+        if (fechaEvento) {
             const limiteCancelacion = new Date(`${fechaEvento.fecha}T${fechaEvento.horaInicio}`);
             if (new Date() > limiteCancelacion) {
                 throw new ConflictException('El evento ya comenzó, el periodo de cancelación ha finalizado.');
             }
-
-            boleto.idEstadoBoleto = EstadoBoleto.CANCELADO;
-            await manager.save(BoletoEntity, boleto);
-
-            return {
-                mensaje: 'Reserva cancelada exitosamente. Tu lugar ha sido liberado.',
-                boleto,
-            };
-        });
+        }
     }
+
+    // Aplicar Cancelacion Logica
+    boleto.idEstadoBoleto = EstadoBoleto.CANCELADO;
+    await this.boletoRepo.save(boleto); //boleto cancelado
+
+    return {
+      mensaje: 'Reserva cancelada exitosamente. Tu lugar ha sido liberado.',
+      boleto: boleto
+    };
+  }
 
 
 }

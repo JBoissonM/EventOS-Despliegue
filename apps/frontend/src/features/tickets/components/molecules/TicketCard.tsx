@@ -7,7 +7,7 @@ export type TicketStatus =
   | "cancelled"
   | "expired";
 
-export type TicketVisibility = "public" | "internal" | "private";
+export type TicketVisibility = "public" | "private";
 
 export interface TicketCardProps {
   eventName: string;
@@ -19,7 +19,6 @@ export interface TicketCardProps {
   status: TicketStatus;
   visibility: TicketVisibility;
   posterUrl?: string;
-  hasQr?: boolean;
 
   onViewQr?: () => void;
   onCancel?: () => void;
@@ -42,7 +41,6 @@ const statusVariants = {
 
 const visibilityLabels: Record<TicketVisibility, string> = {
   public: "Público",
-  internal: "Interno",
   private: "Privado",
 };
 
@@ -56,7 +54,6 @@ export function TicketCard({
                              status,
                              visibility,
                              posterUrl,
-                             hasQr,
                              onViewQr,
                              onCancel,
                              onViewDetails,
@@ -144,7 +141,7 @@ export function TicketCard({
 
           {isActive && onViewQr && (
             <Button
-              text={hasQr === false ? "Ver boleto" : "Ver QR"}
+              text="Ver QR"
               size="sm"
               onClick={onViewQr}
             />

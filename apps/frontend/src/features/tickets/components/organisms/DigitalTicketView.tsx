@@ -1,9 +1,7 @@
-import { ArrowLeft } from "lucide-react";
 import { Badge } from "../../../../components/atoms/Badge/Badge";
 import { Button } from "../../../../components/atoms/Button/Button";
 
 import { QRDisplay } from "../molecules/QRDisplay";
-import { TicketPdfPreviewDialog } from "../molecules/TicketPdfPreviewDialog";
 import type { TicketStatus } from "../molecules/TicketCard";
 
 export type TicketAssignment =
@@ -22,15 +20,8 @@ export interface DigitalTicketViewProps {
   status: TicketStatus;
   assignment?: TicketAssignment;
   qrImageUrl?: string | null;
-  hasQr?: boolean;
   onBack: () => void;
   onDownloadPdf?: () => void;
-  onPreviewPdf?: () => void;
-  onClosePreview?: () => void;
-  previewUrl?: string | null;
-  isLoadingPreview?: boolean;
-  isDownloadingPdf?: boolean;
-  downloadError?: string | null;
 }
 
 const statusLabels: Record<TicketStatus, string> = {
@@ -58,15 +49,8 @@ export function DigitalTicketView({
                                     status,
                                     assignment,
                                     qrImageUrl,
-                                    hasQr = true,
                                     onBack,
                                     onDownloadPdf,
-                                    onPreviewPdf,
-                                    onClosePreview,
-                                    previewUrl,
-                                    isLoadingPreview = false,
-                                    isDownloadingPdf = false,
-                                    downloadError,
                                   }: DigitalTicketViewProps) {
   const isActive = status === "active";
 
@@ -79,34 +63,30 @@ export function DigitalTicketView({
           ? "Acceso general"
           : null;
 
-  const qrUnavailableMessage = !hasQr
-    ? "Esta actividad no utiliza QR. El PDF es un comprobante de reservación."
-    : isActive
-      ? "El código QR de este boleto aún no está disponible."
-      : "Este boleto no tiene un código QR de acceso activo.";
+  const qrUnavailableMessage = isActive
+    ? "El código QR de este boleto aún no está disponible."
+    : "Este boleto no tiene un código QR de acceso activo.";
 
   return (
-    <section className="mx-auto min-w-0 max-w-6xl space-y-8">
+    <section className="mx-auto max-w-6xl space-y-8">
       <header className="space-y-4">
-        <button
-          type="button"
+        <Button
+          text="Volver"
+          variant="outline"
+          size="sm"
           onClick={onBack}
-          className="inline-flex items-center gap-2 font-semibold text-eventos-body-text transition-colors hover:text-eventos-primary focus-visible:outline-2 focus-visible:outline-eventos-primary"
-        >
-          <ArrowLeft size={20} aria-hidden="true" />
-          Volver
-        </button>
+        />
 
         <h1 className="font-merriweather text-3xl font-bold">
           Boleto Digital
         </h1>
       </header>
 
-      <div className="grid min-w-0 grid-cols-1 items-center gap-6 rounded-xl border border-eventos-neutral bg-white p-4 sm:p-6 md:grid-cols-2 md:gap-10 md:p-10">
+      <div className="grid grid-cols-1 items-center gap-10 rounded-xl border border-eventos-neutral bg-white p-6 md:grid-cols-2 md:p-10">
         {/* Ticket information */}
-        <div className="min-w-0 space-y-6">
+        <div className="space-y-6">
           <div className="space-y-2">
-            <h2 className="break-words font-merriweather text-2xl font-bold text-secondary">
+            <h2 className="font-merriweather text-2xl font-bold text-secondary">
               {eventName}
             </h2>
 
@@ -154,68 +134,27 @@ export function DigitalTicketView({
         </div>
 
         {/* QR code */}
-        {hasQr ? (
-          <QRDisplay
-            imageUrl={qrImageUrl}
-            isUsable={isActive}
-            unavailableMessage={qrUnavailableMessage}
-          />
-        ) : (
-          <p
-            role="status"
-            className="rounded-lg border border-eventos-divider bg-eventos-muted-surface px-4 py-3 text-center text-sm text-eventos-muted-text"
-          >
-            {qrUnavailableMessage}
-          </p>
-        )}
+        <QRDisplay
+          imageUrl={qrImageUrl}
+          isUsable={isActive}
+          unavailableMessage={qrUnavailableMessage}
+        />
       </div>
 
-      <div className="grid grid-cols-2 gap-3 sm:flex sm:flex-wrap">
+      <div className="flex flex-wrap gap-3">
         {isActive && onDownloadPdf && (
           <Button
             text="Descargar PDF"
-            fullWidth
-            className="min-w-0 whitespace-normal sm:w-auto"
-            loading={isDownloadingPdf}
-            loadingText="Generando PDF..."
             onClick={onDownloadPdf}
-          />
-        )}
-
-        {isActive && onPreviewPdf && (
-          <Button
-            text="Vista previa"
-            fullWidth
-            className="min-w-0 whitespace-normal sm:w-auto"
-            variant="outline"
-            loading={isLoadingPreview}
-            loadingText="Abriendo PDF..."
-            onClick={onPreviewPdf}
           />
         )}
 
         <Button
           text="Volver"
-          fullWidth
-          className="col-span-2 sm:w-auto"
           variant="outline"
           onClick={onBack}
         />
       </div>
-      {downloadError && !previewUrl && (
-        <p role="alert" className="text-sm text-eventos-error-strong">
-          {downloadError}
-        </p>
-      )}
-      {previewUrl && onClosePreview && onDownloadPdf && (
-        <TicketPdfPreviewDialog
-          url={previewUrl}
-          onClose={onClosePreview}
-          onDownload={onDownloadPdf}
-          isDownloading={isDownloadingPdf}
-          error={downloadError}
-        />
-      )}
     </section>
   );
 }

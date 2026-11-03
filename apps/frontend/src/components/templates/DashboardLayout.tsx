@@ -1,9 +1,9 @@
 import { Outlet } from "react-router";
 import { Navbar } from "../organisms/NavBar/NavBar";
-import { getCurrentUserRole } from "../../lib/userNavigation";
 
 export function DashboardLayout() {
-  const rolBackend = getCurrentUserRole();
+  const usuarioGuardado = JSON.parse(localStorage.getItem("usuario") || "{}");
+  const rolBackend = usuarioGuardado.tipoCuenta;
 
   let rolNavbar: "asistente" | "subdireccion" | "admin";
 

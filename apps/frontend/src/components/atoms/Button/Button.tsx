@@ -18,7 +18,7 @@ const variantStyles = {
   secondary: "bg-secondary text-white hover:bg-secondary/90",
   outline: "border-2 border-eventos-primary bg-white text-eventos-primary hover:bg-eventos-primary-light",
   success: "bg-eventos-success text-white hover:bg-eventos-success/90",
-  danger: "bg-eventos-cancel text-white hover:bg-eventos-error/90",
+  danger: "bg-eventos-error text-white hover:bg-eventos-error/90",
 };
 
 const sizeStyles = {

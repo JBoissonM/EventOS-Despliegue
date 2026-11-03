@@ -21,9 +21,9 @@ export function QRDisplay({
   return (
     <section
       aria-label="Código QR del boleto"
-      className="flex min-w-0 flex-col items-center gap-3"
+      className="flex flex-col items-center gap-3"
     >
-      <div className="flex aspect-square w-full max-w-64 items-center justify-center rounded-lg border border-secondary bg-white p-4">
+      <div className="flex h-64 w-64 items-center justify-center rounded-lg border border-secondary bg-white p-4">
         {showQr ? (
           <img
             src={imageUrl!}

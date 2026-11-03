@@ -5,10 +5,9 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, In, Repository } from 'typeorm';
+import { DataSource, Repository } from 'typeorm';
 import {
   AlcanceEvento,
-  ModalidadAcceso,
   EstadoEvento,
   EstadoSubEvento,
   TipoCuentaUsuario,
@@ -63,9 +62,15 @@ export class EventosService {
     tipoCuenta?: TipoCuentaUsuario;
   }) {
     const { fechaHoy } = this.obtenerAhoraCDMX();
+
     const eventos = await this.eventoRepository.find({
       where: { idEstadoEvento: EstadoEvento.ACEPTADO },
-      relations: { subEventos: { fecha: true, recinto: true } },
+      relations: {
+        subEventos: {
+          fecha: true,
+          recinto: true,
+        },
+      },
       order: { idEvento: 'DESC' },
     });
 
@@ -76,41 +81,41 @@ export class EventosService {
         usuarioActual?.tipoCuenta === TipoCuentaUsuario.SUBDIRECCION ||
         usuarioActual?.tipoCuenta === TipoCuentaUsuario.ADMINISTRADOR);
 
-    const idsSubEventos = eventos.flatMap((evento) =>
-      (evento.subEventos ?? []).map((sub) => sub.idSubEvento),
-    );
-    const ponentes = idsSubEventos.length
-      ? await this.ponenteRepository.find({ where: { idSubEvento: In(idsSubEventos) } })
-      : [];
-    const ponentesPorActividad = new Map<number, PonenteEntity[]>();
-    for (const ponente of ponentes) {
-      const grupo = ponentesPorActividad.get(ponente.idSubEvento) ?? [];
-      grupo.push(ponente);
-      ponentesPorActividad.set(ponente.idSubEvento, grupo);
-    }
-
     const cartelera = [];
+
     for (const evento of eventos) {
-      if (evento.idAlcance === AlcanceEvento.PRIVADO) continue;
-      if (!tieneSesion && evento.idAlcance !== AlcanceEvento.PUBLICO) continue;
-      if (evento.idAlcance === AlcanceEvento.INTERNO && !esUsuarioInterno) continue;
+      if (evento.idAlcance === AlcanceEvento.PRIVADO) {
+        continue;
+      }
 
-      const subEventosProximos = (evento.subEventos ?? []).filter(
-        (sub) =>
-          sub.estado !== EstadoSubEvento.CANCELADO &&
-          Boolean(sub.fecha?.fecha) &&
-          sub.fecha!.fecha >= fechaHoy,
-      );
-      if (!subEventosProximos.length) continue;
-      subEventosProximos.sort((a, b) => a.fecha!.fecha.localeCompare(b.fecha!.fecha));
+      if (!tieneSesion && evento.idAlcance !== AlcanceEvento.PUBLICO) {
+        continue;
+      }
 
-      const esAccesoLibre =
-        evento.idAlcance === AlcanceEvento.PUBLICO &&
-        subEventosProximos.every((sub) => sub.modalidadAcceso === ModalidadAcceso.ENTRADA_LIBRE);
-      const requiereCuenta = subEventosProximos.some(
-        (sub) => sub.modalidadAcceso === ModalidadAcceso.CON_RESERVACION,
+      if (evento.idAlcance === AlcanceEvento.INTERNO && !esUsuarioInterno) {
+        continue;
+      }
+
+      const subeventosVigentes = (evento.subEventos || []).filter((sub) => {
+        if (sub.estado === EstadoSubEvento.CANCELADO) return false;
+        if (!sub.fecha || sub.fecha.fecha < fechaHoy) return false;
+
+        if (!tieneSesion && sub.accesoQR) {
+          return false;
+        }
+        return true;
+      });
+
+      if (subeventosVigentes.length === 0) {
+        continue;
+      }
+
+      subeventosVigentes.sort((a, b) =>
+        a.fecha!.fecha.localeCompare(b.fecha!.fecha),
       );
-      const primerSub = subEventosProximos[0];
+      const primerSub = subeventosVigentes[0];
+
+      const esAccesoLibre = subeventosVigentes.some((s) => !s.accesoQR);
 
       cartelera.push({
         idEvento: evento.idEvento,
@@ -119,7 +124,7 @@ export class EventosService {
         poster: evento.poster,
         idAlcance: evento.idAlcance,
         esAccesoLibre,
-        requiereCuenta,
+        requiereCuenta: !esAccesoLibre,
         fechaProxima: primerSub.fecha?.fecha ?? null,
         horaInicio: primerSub.fecha?.horaInicio ?? null,
         horaFin: primerSub.fecha?.horaFin ?? null,
@@ -130,18 +135,10 @@ export class EventosService {
               aforo: primerSub.recinto.aforo,
             }
           : null,
-        totalSubeventos: subEventosProximos.length,
-        subEventos: subEventosProximos.map((sub) => ({
-          ...sub,
-          ponentes: (ponentesPorActividad.get(sub.idSubEvento) ?? []).map((ponente) => ({
-            idPonente: ponente.idPonente,
-            nombre: ponente.nombre,
-            apellidoPa: ponente.apellidoPa,
-            apellidoMa: ponente.apellidoMa,
-          })),
-        })),
+        totalSubeventos: subeventosVigentes.length,
       });
     }
+
     return cartelera;
   }
 
@@ -156,7 +153,7 @@ export class EventosService {
       where: { idEvento, idEstadoEvento: EstadoEvento.ACEPTADO },
     });
 
-    if (!evento || evento.idAlcance === AlcanceEvento.PRIVADO) {
+    if (!evento) {
       throw new NotFoundException(
         'El evento no existe o no se encuentra disponible.',
       );
@@ -173,21 +170,23 @@ export class EventosService {
         usuarioActual?.tipoCuenta === TipoCuentaUsuario.SUBDIRECCION ||
         usuarioActual?.tipoCuenta === TipoCuentaUsuario.ADMINISTRADOR);
 
-    if (!tieneSesion && evento.idAlcance !== AlcanceEvento.PUBLICO) {
-      throw new ForbiddenException('Debes iniciar sesión para consultar este evento.');
-    }
-    if (evento.idAlcance === AlcanceEvento.INTERNO && !esUsuarioInterno) {
-      throw new ForbiddenException('Este evento es exclusivo para la comunidad interna del IPN.');
-    }
-
-    const actividadesVigentes = subEventos.filter((sub) => sub.estado !== EstadoSubEvento.CANCELADO);
     const esAccesoLibre =
       evento.idAlcance === AlcanceEvento.PUBLICO &&
-      actividadesVigentes.length > 0 &&
-      actividadesVigentes.every((sub) => sub.modalidadAcceso === ModalidadAcceso.ENTRADA_LIBRE);
-    const requiereCuenta = actividadesVigentes.some(
-      (sub) => sub.modalidadAcceso === ModalidadAcceso.CON_RESERVACION,
-    );
+      subEventos.some(
+        (sub) => sub.estado !== EstadoSubEvento.CANCELADO && !sub.accesoQR,
+      );
+
+    if (!tieneSesion && !esAccesoLibre) {
+      throw new ForbiddenException(
+        'Debes iniciar sesión o registrarte para consultar eventos que requieren cuenta.',
+      );
+    }
+
+    if (evento.idAlcance === AlcanceEvento.INTERNO && !esUsuarioInterno) {
+      throw new ForbiddenException(
+        'Este evento es exclusivo para la comunidad interna del IPN.',
+      );
+    }
 
     const subEventosDetallados = [];
     const fechaRepository = this.dataSource.getRepository(FechaEntity);
@@ -210,7 +209,6 @@ export class EventosService {
         descripcion: sub.descripcion,
         estado: sub.estado,
         accesoQR: sub.accesoQR,
-        modalidadAcceso: sub.modalidadAcceso,
         requiereSeleccionAsiento: totalAsientosRecinto > 0,
         fecha: fecha
           ? {
@@ -243,7 +241,7 @@ export class EventosService {
       poster: evento.poster,
       idAlcance: evento.idAlcance,
       esAccesoLibre,
-      requiereCuenta,
+      requiereCuenta: !esAccesoLibre,
       subEventos: subEventosDetallados,
     };
   }

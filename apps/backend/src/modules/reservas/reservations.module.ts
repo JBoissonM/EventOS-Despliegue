@@ -10,7 +10,6 @@ import { MailService } from './services/mail.service';
 import { BoletoEntity } from './entities/boleto.entity';
 import { EstadoBoletoEntity } from './entities/estadoBoleto.entity';
 import { AsistenteEventoEntity } from './entities/asistenteEvento.entity';
-import { ReservaHistorialEntity } from './entities/reservaHistorial.entity';
 
 import { EventoEntity } from '../eventos/entities/evento.entity';
 import { SubEventoEntity } from '../eventos/entities/subevento.entity';
@@ -29,7 +28,6 @@ import { Mail } from 'nodemailer';
       BoletoEntity,
       EstadoBoletoEntity,
       AsistenteEventoEntity,
-      ReservaHistorialEntity,
       EventoEntity,
       SubEventoEntity,
       FechaEntity,
@@ -37,7 +35,6 @@ import { Mail } from 'nodemailer';
       RecintoEntity,
       AsientoEntity,
       PonenteEntity,
-      UsuarioEntity,
     ]),
     JwtModule.register({
       secret: process.env.JWT_SECRET || 'clave_secreta_desarrollo',
