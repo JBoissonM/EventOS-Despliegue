@@ -5,7 +5,7 @@ import { CreateReservationDto } from '../dto/createReservation.dto';
 import { Repository, In, DataSource } from 'typeorm';
 import { InjectRepository } from '@nestjs/typeorm';
 
-import { DisponibilidadSubEvento, AsientoDisponible, EstadoRecinto, EstadoBoleto, EstadoSubEvento } from '@eventos/shared';
+import { DisponibilidadSubEvento, AsientoDisponible, EstadoRecinto, EstadoBoleto, EstadoSubEvento, AlcanceEvento } from '@eventos/shared';
 
 import { BoletoEntity } from '../entities/boleto.entity';
 import { AsistenteEventoEntity } from '../entities/asistenteEvento.entity';
@@ -123,17 +123,17 @@ export class ReservationsService {
 
     //logica de negocio para crear reserva
 
-    async crearReserva(idUsuario: number, dto: CreateReservationDto): Promise<{ mensaje: string, boleto: any, qr?: string }>{
-        // Obtener datos del usuario
+    async crearReserva(idUsuario: number, dto: CreateReservationDto): Promise<{ mensaje: string, boleto: any, qr?: string }> {
+        // Obtener datos del usuario antes de bloquear filas en la BD
         const usuario = await this.usuarioRepo.findOne({ where: { idUsuario } });
         if (!usuario) {
             throw new NotFoundException('El usuario especificado no existe.');
         }
 
-        // Transaccion atómica
+        // Transacción atómica
         const resultado = await this.dataSource.transaction(async (manager) => {
             
-            // Verificar existencia y cierre de registro 
+            // Verificar existencia y cierre de registro agregando el bloqueo de fila
             const subEvento = await manager.findOne(SubEventoEntity, { 
                 where: { idSubEvento: dto.idSubEvento },
                 lock: { mode: 'pessimistic_write' } 
@@ -142,7 +142,6 @@ export class ReservationsService {
             if (!subEvento) {
                 throw new NotFoundException('El subevento no existe');
             }
-            
 
             if (subEvento.estado !== EstadoSubEvento.ACEPTADO) {
                 throw new ConflictException('El registro para este evento se encuentra cerrado o cancelado');
@@ -154,6 +153,10 @@ export class ReservationsService {
 
             if (!eventoPrincipal || eventoPrincipal.idEstadoEvento !== 2) {
                 throw new ConflictException('El evento principal no se encuentra autorizado o activo para reservaciones.');
+            }
+
+            if (eventoPrincipal.idAlcance === AlcanceEvento.PRIVADO) {
+                throw new ForbiddenException('Este evento requiere una invitación válida para reservar.');
             }
 
             const fechaEvento = await manager.findOne(FechaEntity, { 
@@ -170,7 +173,7 @@ export class ReservationsService {
                 throw new ConflictException('El tiempo límite para registrarse a este evento ha terminado.');
             }
 
-            // Verificar que el usuario no sea Personal de Logistica
+            // Verificar que el usuario no sea Personal de Logística
             const esLogistica = await manager.findOne(EventoPersonalLogisticaEntity, {
                 where: { idEvento: subEvento.idEvento, idUsuario: idUsuario }
             });
@@ -179,7 +182,7 @@ export class ReservationsService {
                 throw new ForbiddenException('El personal de logística asignado no puede reservar boletos como asistente.');
             }
 
-            // Verificar que no exista reserva activa previa
+            // Verificar que no exista reserva activa previa 
             const reservasEvento = await manager.find(AsistenteEventoEntity, {
                 where: { idSubEvento: dto.idSubEvento, idUsuario: idUsuario }
             });
@@ -218,7 +221,6 @@ export class ReservationsService {
                 throw new BadRequestException('Esta actividad es de entrada general y no utiliza asientos numerados.');
             }
 
-            
             let asientoSeleccionado = null;
             if (dto.idAsiento) {
                 asientoSeleccionado = asientosDelRecinto.find(a => a.idAsiento === dto.idAsiento);
@@ -243,7 +245,6 @@ export class ReservationsService {
                 for (const b of boletos) {
                     if (b.idEstadoBoleto === EstadoBoleto.VALIDO || b.idEstadoBoleto === EstadoBoleto.UTILIZADO) {
                         lugaresOcupados++;
-                        // Comprobación de asiento por subevento considerando VALIDO y UTILIZADO
                         if (dto.idAsiento && b.idAsiento === dto.idAsiento) {
                             throw new ConflictException('El asiento seleccionado ya se encuentra ocupado en esta actividad.');
                         }
@@ -255,7 +256,7 @@ export class ReservationsService {
                 throw new ConflictException('El aforo para este evento se ha agotado.');
             }
 
-            // GENERACION DE QR Y GUARDADO
+            // GENERACIÓN DE QR Y GUARDADO
             const fechaFinEvento = new Date(`${fechaEvento.fecha}T${fechaEvento.horaFin}`);
 
             const boletoNuevoObj = manager.create(BoletoEntity, {
@@ -266,10 +267,11 @@ export class ReservationsService {
             
             const boletoGuardado = await manager.save(BoletoEntity, boletoNuevoObj);
 
+            // Ajuste insertamos una nueva fila en AsistenteEventoEntity
             const intermedia = manager.create(AsistenteEventoEntity, {
                 idSubEvento: dto.idSubEvento,
                 idUsuario: idUsuario,
-                idBoleto: boletoGuardado.idBoleto
+                idBoleto: boletoGuardado.idBoleto,
             });
             await manager.save(AsistenteEventoEntity, intermedia);
 
@@ -289,7 +291,6 @@ export class ReservationsService {
                 qrBase64Data = qrBase64;
             }
 
-            // Empaquetado de la información requerida por Nodemailer y el controlador
             return {
                 boleto: boletoGuardado,
                 qrBase64: qrBase64Data,
@@ -307,7 +308,7 @@ export class ReservationsService {
             };
         }); 
 
-        // Envío del correo
+        // 3. Fuera de la transacción: Envío del correo con QR y PDF
         try {
             const nombreCompleto = `${usuario.nombre} ${usuario.apellidoPa}${usuario.apellidoMa ? ' ' + usuario.apellidoMa : ''}`;
             await this.mailService.enviarCorreoConfirmacionReserva({
@@ -319,7 +320,7 @@ export class ReservationsService {
             this.logger.error(`La reserva #${resultado.boleto.idBoleto} se guardó, pero falló el envío del correo:`, error);
         }
 
-        // Retorno HTTP original para el Frontend
+        // 4. Retorno HTTP para el Frontend
         if (resultado.qrBase64) {
             return {
                 mensaje: 'Reserva creada exitosamente',
