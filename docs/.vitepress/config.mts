@@ -3,6 +3,7 @@ import { defineConfig } from 'vitepress'
 export default defineConfig({
   title: 'EventOS Docs',
   description: 'Documentación Oficial de Análisis y Diseño de Sistemas (v2.0) — Sinergia Ágil (ESCOM - IPN)',
+  base: process.env.VITEPRESS_BASE || '/',
   lang: 'es-MX',
   cleanUrls: true,
   ignoreDeadLinks: true,

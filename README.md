@@ -1044,7 +1044,7 @@ La documentación completa de **Análisis y Diseño de Sistemas (ADS)** del proy
   - 45 Reglas de Negocio críticas del dominio ESCOM/IPN (`RN-01` – `RN-45`)
 - **Actores, Diagramas y Catálogos (`docs/02-Actores-y-Catalogos.md`):** Perfiles de los 5 actores, diagramas UML de Casos de Uso, Catálogo de 34 Pantallas (`UI01`–`UI37`), Mensajes de Error (`MSG-E-01`–`MSG-E-55`), Mensajes Informativos (`MSG-I-01`–`MSG-I-25`), Mensajes de Pantalla (`MSG-P-01`–`MSG-P-07`) y Notas de Consolidación v2.0.
 - **Casos de Uso Detallados (`docs/03-Casos-de-Uso/`):** 38 fichas individuales (`CU-01` a `CU-38`) con tabla de atributos y trayectorias principal y alternativas paso a paso.
-- **Diseño de Interfaces UI (`docs/04-Diseno-UI.md`):** Mockups visuales de las pantallas principales.
+- **Diseño de Interfaces UI (`docs/04-Diseno-UI.md`):** Guía de Estilo oficial (`Merriweather` y paleta institucional), correspondencia con el archivo de Figma (`DISEÑO-ADS`) y galería completa de Wireframes y Mockups en Desktop y Móvil.
 - **Planeación y Sprints (`docs/05-Planeacion-y-Sprints.md`):** Organización en Subequipos (`A`, `B`, `C`) y cronograma de Sprints.
 
 ### Cómo consultar la documentación localmente

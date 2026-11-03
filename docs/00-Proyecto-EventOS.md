@@ -36,8 +36,8 @@ tags:
    - Catálogo normativo de 34 Pantallas (`UI01`–`UI37`), Mensajes de Error (`MSG-E-01`–`MSG-E-55`), Mensajes Informativos (`MSG-I-01`–`MSG-I-25`), Mensajes de Pantalla (`MSG-P-01`–`MSG-P-07`) y Notas de Consolidación
 3. **[Índice de Casos de Uso (`CU-01` – `CU-38`)](./03-Casos-de-Uso/00-Indice-Casos-de-Uso.md)**
    - 38 fichas individuales con resumen, tabla de atributos (Autor, Actor, Propósito, Entradas, Salidas, Precondiciones, Postcondiciones, Errores, Tipo) y trayectorias principal y alternativas paso a paso.
-4. **[Diseño de Interfaces de Usuario (Mockups UI)](./04-Diseno-UI.md)**
-   - Diseños visuales de las pantallas principales de EventOS.
+4. **[Diseño de Interfaces de Usuario (Guía de Estilo, Wireframes y Mockups)](./04-Diseno-UI.md)**
+   - Guía de estilo oficial (`Merriweather`, paleta `#5F1B36` / `#1B585F` y tokens semánticos), correspondencia `Catálogo v2.0` ↔ `Figma` y galería completa de **Wireframes** y **Mockups** (Desktop `1512×982` y Móvil `430×932`).
 5. **[Planeación y Sprints (Scrum)](./05-Planeacion-y-Sprints.md)**
    - División en Subequipos (`A`, `B`, `C`) y seguimiento de `Sprint 1` a `Sprint 10`.
 
