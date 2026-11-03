@@ -10,7 +10,7 @@ import {
   MaxLength,
   ValidateNested,
 } from 'class-validator';
-import { Transform, Type } from 'class-transformer';
+import { plainToInstance, Transform, Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
   AlcanceEvento,
@@ -113,6 +113,11 @@ export class ActualizarInfoGeneralDto implements ActualizarInfoGeneralPayload {
   })
   justificacion?: string;
 
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString({ message: 'La ruta del póster debe ser una cadena de texto.' })
+  poster?: string;
+
   @ApiPropertyOptional({ enum: AlcanceEvento })
   @IsOptional()
   @Transform(({ value }: { value: unknown }) =>
@@ -125,6 +130,24 @@ export class ActualizarInfoGeneralDto implements ActualizarInfoGeneralPayload {
 
   @ApiPropertyOptional({ type: () => [PonenteItemDto] })
   @IsOptional()
+  @Transform(({ value }: { value: unknown }) => {
+    let parsed = value;
+    if (typeof value === 'string') {
+      try {
+        parsed = JSON.parse(value);
+      } catch {
+        parsed = value;
+      }
+    }
+    if (Array.isArray(parsed)) {
+      return parsed.map((item) =>
+        item instanceof PonenteItemDto
+          ? item
+          : plainToInstance(PonenteItemDto, item),
+      );
+    }
+    return parsed;
+  })
   @IsArray({ message: 'La lista de ponentes debe ser un arreglo.' })
   @ValidateNested({ each: true })
   @Type(() => PonenteItemDto)

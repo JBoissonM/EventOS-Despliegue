@@ -6,7 +6,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, Repository } from 'typeorm';
+import { DataSource, In, Repository } from 'typeorm';
 import {
   EstadoBoleto,
   EstadoEvento,
@@ -18,9 +18,11 @@ import {
 } from '@eventos/shared';
 import { EventoEntity } from '../entities/evento.entity';
 import { PonenteEntity } from '../entities/ponente.entity';
+import { SubEventoEntity } from '../entities/subevento.entity';
 import { SolicitudModificacionEntity } from '../entities/solicitudModificacion.entity';
 import { SolicitudesService } from './solicitudes.service';
 import { ModificarLogisticaDto } from '../dto/modificarLogistica.dto';
+import { ActualizarInfoGeneralDto } from '../dto/actualizarInfoGeneral.dto';
 import { StorageService } from '../../../common/storage/storage.service';
 
 @Injectable()
@@ -30,6 +32,8 @@ export class OrganizadorService {
     private readonly eventoRepository: Repository<EventoEntity>,
     @InjectRepository(PonenteEntity)
     private readonly ponenteRepository: Repository<PonenteEntity>,
+    @InjectRepository(SubEventoEntity)
+    private readonly subEventoRepository: Repository<SubEventoEntity>,
     @InjectRepository(SolicitudModificacionEntity)
     private readonly solicitudModificacionRepository: Repository<SolicitudModificacionEntity>,
     private readonly solicitudesService: SolicitudesService,
@@ -361,6 +365,139 @@ export class OrganizadorService {
       idEvento,
       estado: guardada.estado,
       inFlightActualizada: false,
+    };
+  }
+
+  async actualizarInfoGeneral(
+    idEvento: number,
+    idUsuario: number,
+    dto: ActualizarInfoGeneralDto,
+    posterFile?: Express.Multer.File,
+  ) {
+    const evento = await this.eventoRepository.findOne({
+      where: { idEvento },
+    });
+
+    if (!evento) {
+      throw new NotFoundException('No se encontró el evento solicitado.');
+    }
+
+    if (evento.idOrganizador !== idUsuario) {
+      throw new ForbiddenException(
+        'No tienes permisos para administrar este evento.',
+      );
+    }
+
+    if (
+      evento.idEstadoEvento === EstadoEvento.CANCELADO ||
+      evento.idEstadoEvento === EstadoEvento.FINALIZADO ||
+      evento.idEstadoEvento === EstadoEvento.RECHAZADO
+    ) {
+      throw new ConflictException('Evento finalizado o inactivo.');
+    }
+
+    if (posterFile) {
+      const posterKey = await this.storageService.upload(
+        posterFile,
+        'posters',
+        'public',
+      );
+      evento.poster = posterKey;
+    } else if (
+      dto.poster &&
+      typeof dto.poster === 'string' &&
+      dto.poster.trim() !== ''
+    ) {
+      evento.poster = dto.poster.trim();
+    }
+
+    if (dto.nombre !== undefined) {
+      evento.nombre = dto.nombre.trim();
+    }
+    if (dto.descripcion !== undefined) {
+      evento.descripcion = dto.descripcion.trim();
+    }
+    if (dto.justificacion !== undefined) {
+      evento.justificacion = dto.justificacion.trim();
+    }
+    if (dto.idAlcance !== undefined) {
+      evento.idAlcance = dto.idAlcance;
+    }
+
+    if (dto.ponentes !== undefined) {
+      const subeventos = await this.subEventoRepository.find({
+        where: { idEvento },
+        order: { idSubEvento: 'ASC' },
+      });
+
+      if (subeventos.length === 0 && dto.ponentes.length > 0) {
+        throw new BadRequestException(
+          'El evento no cuenta con subeventos registrados para asociar ponentes.',
+        );
+      }
+
+      const subEventosIdsValidos = new Set(
+        subeventos.map((s) => s.idSubEvento),
+      );
+      const primerSubEventoId = subeventos[0]?.idSubEvento;
+
+      const correosPorSubEvento = new Map<number, Set<string>>();
+
+      for (const ponenteDto of dto.ponentes) {
+        const idSub = ponenteDto.idSubEvento ?? primerSubEventoId;
+        if (!subEventosIdsValidos.has(idSub)) {
+          throw new BadRequestException(
+            'El subevento asignado al ponente no pertenece a este evento.',
+          );
+        }
+
+        const correoNormalizado = ponenteDto.correo.trim().toLowerCase();
+        let correosSet = correosPorSubEvento.get(idSub);
+        if (!correosSet) {
+          correosSet = new Set<string>();
+          correosPorSubEvento.set(idSub, correosSet);
+        }
+
+        if (correosSet.has(correoNormalizado)) {
+          throw new ConflictException(
+            'El ponente ya se encuentra registrado en el evento seleccionado.',
+          );
+        }
+        correosSet.add(correoNormalizado);
+      }
+
+      const subEventoIdsArray = [...subEventosIdsValidos];
+      if (subEventoIdsArray.length > 0) {
+        await this.ponenteRepository.delete({
+          idSubEvento: In(subEventoIdsArray),
+        });
+      }
+
+      if (dto.ponentes.length > 0) {
+        const nuevosPonentes = dto.ponentes.map((p) =>
+          this.ponenteRepository.create({
+            nombre: p.nombre.trim(),
+            apellidoPa: p.apellidoPa.trim(),
+            apellidoMa: p.apellidoMa ? p.apellidoMa.trim() : null,
+            correo: p.correo.trim().toLowerCase(),
+            idSubEvento: p.idSubEvento ?? primerSubEventoId,
+          }),
+        );
+        await this.ponenteRepository.save(nuevosPonentes);
+      }
+    }
+
+    const eventoGuardado = await this.eventoRepository.save(evento);
+
+    return {
+      mensaje: 'Operación realizada con éxito.',
+      idEvento: eventoGuardado.idEvento,
+      nombre: eventoGuardado.nombre,
+      descripcion: eventoGuardado.descripcion,
+      justificacion: eventoGuardado.justificacion,
+      idAlcance: eventoGuardado.idAlcance,
+      poster: eventoGuardado.poster,
+      posterUrl: this.obtenerPosterUrl(eventoGuardado.poster),
     };
   }
 }

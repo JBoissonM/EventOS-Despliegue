@@ -7,14 +7,19 @@ import {
   ParseIntPipe,
   Patch,
   Req,
+  UploadedFiles,
   UseGuards,
+  UseInterceptors,
   UsePipes,
   ValidationPipe,
 } from '@nestjs/common';
+import { FileFieldsInterceptor } from '@nestjs/platform-express';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { RolesGuard } from '../../auth/roles.guard';
 import { OrganizadorService } from '../services/organizador.service';
 import { ModificarLogisticaDto } from '../dto/modificarLogistica.dto';
+import { ActualizarInfoGeneralDto } from '../dto/actualizarInfoGeneral.dto';
+import { posterOptions } from '../../../common/upload/upload.options';
 
 @ApiTags('Organizador')
 @ApiBearerAuth()
@@ -73,6 +78,40 @@ export class OrganizadorController {
       idEvento,
       idUsuario,
       dto,
+    );
+  }
+
+  @ApiOperation({
+    summary:
+      'Actualizar información general, alcance, póster y ponentes de un evento con aprobación automática',
+  })
+  @Patch(':idEvento/info-general')
+  @UseInterceptors(
+    FileFieldsInterceptor(
+      [
+        { name: 'file', maxCount: 1 },
+        { name: 'poster', maxCount: 1 },
+      ],
+      posterOptions,
+    ),
+  )
+  @UsePipes(new ValidationPipe({ transform: true, whitelist: true }))
+  async actualizarInfoGeneral(
+    @Param('idEvento', ParseIntPipe) idEvento: number,
+    @Body() dto: ActualizarInfoGeneralDto,
+    @UploadedFiles()
+    files:
+      | { file?: Express.Multer.File[]; poster?: Express.Multer.File[] }
+      | undefined,
+    @Req() req: any,
+  ) {
+    const idUsuario = this.obtenerIdUsuarioAutenticado(req);
+    const posterFile = files?.file?.[0] ?? files?.poster?.[0];
+    return await this.organizadorService.actualizarInfoGeneral(
+      idEvento,
+      idUsuario,
+      dto,
+      posterFile,
     );
   }
 }

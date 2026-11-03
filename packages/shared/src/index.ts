@@ -249,6 +249,7 @@ export interface ActualizarInfoGeneralPayload {
   nombre?: string;
   descripcion?: string;
   justificacion?: string;
+  poster?: string;
   idAlcance?: AlcanceEvento;
   ponentes?: PonentePayload[];
 }
