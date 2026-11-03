@@ -53,7 +53,7 @@ export function AgendaRecinto({titulo} : AgendaRecintoProps) {
   ];
 
   return (
-    <div className={`relative w-sm rounded-md border ${mostrar ? "z-10" : ""}`}>
+    <div className={`cursor-pointer relative w-sm rounded-md border ${mostrar ? "z-10" : ""}`}>
       <div className="relative w-full">
         <span className="block text-center text-merriweather font-medium text-2xl">
           {titulo}

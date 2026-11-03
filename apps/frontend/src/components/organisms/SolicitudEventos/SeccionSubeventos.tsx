@@ -38,7 +38,7 @@ export function SeccionSubeventos({
   };
 
   return (
-    <section className="space-y-5 sm:space-y-6">
+    <section className="space-y-5 sm:space-y-6 rounded-xl border border-gray-200 shadow-md p-5 bg-white">
       <FormHeader
         titulo="Fecha y lugar del evento"
         descripcion="Selecciona el recinto, la fecha, el horario y la modalidad de acceso. El sistema validará que el espacio no esté ocupado en ese horario. Si tu evento dura varios días o tiene varias sesiones, usa el botón [Agregar nueva fecha] para registrar cada bloque."

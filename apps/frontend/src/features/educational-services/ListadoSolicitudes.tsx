@@ -171,35 +171,35 @@ export function ListadoSolicitudes() {
       id: "nombre",
       encabezado: "Nombre del evento",
       render: (solicitud) => solicitud.nombre,
-      className: "min-w-[12rem] px-4",
+      className: "min-w-[12rem] max-w-[18rem] px-4",
     },
     {
       id: "solicitante",
-      encabezado: "Solicitante",
+      encabezado: "Nombre del solicitante",
       render: (solicitud) => solicitud.nombreSolicitante,
-      resaltar: true,
+      className: "min-w-[12rem] max-w-[10rem] px-4",
     },
     {
       id: "fechaInicio",
       encabezado: "Fecha inicio",
       render: (solicitud) => mostrarFecha(solicitud.fechaInicio),
-      className: "min-w-[12rem] px-4",
+      className: "min-w-[8rem] px-4",
     },
     {
       id: "fechaCierre",
       encabezado: "Fecha fin",
       render: (solicitud) => mostrarFecha(solicitud.fechaCierre),
-      className: "min-w-[12rem] px-4",
+      className: "min-w-[8rem] px-4",
     },
     {
       id: "acciones",
-      encabezado: "Detalles",
+      encabezado: "Acciones",
       render: (solicitud) => (
         <Button
           text="Ver detalles"
           type="button"
           onClick={() => navigate(`/detalles-solicitud/${solicitud.idEvento}`)}
-        />
+          />
       ),
     },
   ];
@@ -211,44 +211,46 @@ export function ListadoSolicitudes() {
           Solicitudes pendientes
         </h1>
       </div>
-        {cargando && <p role="status">Cargando solicitudes...</p>}
-        {error && <p role="alert">{error}</p>}
-        {!cargando && !error && solicitudes.length === 0 && (
-          <div
-            id="contenederIcono"
-            className="flex min-h-[50vh] flex-col items-center justify-center text-center space-y-2">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="60"
-              height="60"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              className="lucide lucide-calendar preview-icon">
-              <path d="M8 2v3" />
-              <path d="M16 2v3" />
-              <rect x="3" y="3" width="18" height="18" rx="2" />
-              <path d="M3 9h18" />
-            </svg>
-            <p className="merriweather text-[24px] font-semibold">
-              Sin solicitudes pendientes.
-            </p>
-            <p></p>
-          </div>
-        )}
-        {!cargando && !error && solicitudes.length > 0 && (
-          <div id="contenedorTabla" className="mx-auto w-full max-w-7xl overflow-x-auto">
+      {cargando && <p role="status">Cargando solicitudes...</p>}
+      {error && <p role="alert">{error}</p>}
+      {!cargando && !error && solicitudes.length === 0 && (
+        <div
+          id="contenederIcono"
+          className="flex min-h-[50vh] flex-col items-center justify-center text-center space-y-2">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="60"
+            height="60"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            className="lucide lucide-calendar preview-icon">
+            <path d="M8 2v3" />
+            <path d="M16 2v3" />
+            <rect x="3" y="3" width="18" height="18" rx="2" />
+            <path d="M3 9h18" />
+          </svg>
+          <p className="merriweather text-[24px] font-semibold">
+            Sin solicitudes pendientes.
+          </p>
+          <p></p>
+        </div>
+      )}
+      {!cargando && !error && solicitudes.length > 0 && (
+        <div
+          id="contenedorTabla"
+          className="mx-auto w-full max-w-7xl overflow-x-auto shadow-md p-5 border border-gray-200 bg-white">
           <Table
             columnas={columnas}
             filas={solicitudes}
             obtenerClave={(solicitud) => solicitud.idEvento}
-            className="table-auto min-w-full text-center [&_tbody_tr]:h-20 [&_thead_tr]:h-[80px]"
+            className="table-auto min-w-full text-left [&_tbody_tr]:h-20 [&_thead_tr]:h-[80px]"
           />
-          </div>
-        )}
+        </div>
+      )}
     </section>
   );
 }

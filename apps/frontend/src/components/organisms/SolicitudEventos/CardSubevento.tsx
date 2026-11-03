@@ -192,6 +192,31 @@ export function CardSubevento(props: CardSubeventoProps) {
       </FormField>
 
       <FormField
+        label="Espacio deseado"
+        htmlFor={`selectRecinto-${index}`}
+        readOnly={readOnly}
+        required
+        errorMessage={touched.idRecinto ? errors.idRecinto : undefined}>
+        <Select
+          id={`selectRecinto-${index}`}
+          placeholder="Selecciona un espacio"
+          options={RECINTOS}
+          value={subevento.idRecinto ? String(subevento.idRecinto) : ""}
+          disabled={readOnly}
+          hasError={Boolean(touched.idRecinto && errors.idRecinto)}
+          onChange={
+            readOnly
+              ? undefined
+              : (e) => props.updateSubevento(index, "idRecinto", e.target.value)
+          }
+          onBlur={
+            readOnly
+              ? undefined
+              : () => props.markSubeventoTouched(index, "idRecinto")
+          }
+        />
+      </FormField>
+      <FormField
         label="Hora inicio"
         htmlFor={`selectHoraInicio-${index}`}
         readOnly={readOnly}
@@ -250,42 +275,16 @@ export function CardSubevento(props: CardSubeventoProps) {
       </FormField>
 
       <FormField
-        label="Espacio deseado"
-        htmlFor={`selectRecinto-${index}`}
-        readOnly={readOnly}
-        required
-        errorMessage={touched.idRecinto ? errors.idRecinto : undefined}>
-        <Select
-          id={`selectRecinto-${index}`}
-          placeholder="Selecciona un espacio"
-          options={RECINTOS}
-          value={subevento.idRecinto ? String(subevento.idRecinto) : ""}
-          disabled={readOnly}
-          hasError={Boolean(touched.idRecinto && errors.idRecinto)}
-          onChange={
-            readOnly
-              ? undefined
-              : (e) => props.updateSubevento(index, "idRecinto", e.target.value)
-          }
-          onBlur={
-            readOnly
-              ? undefined
-              : () => props.markSubeventoTouched(index, "idRecinto")
-          }
-        />
-      </FormField>
-
-      <FormField
         label="Acceso con boleto"
         htmlFor={`selectBoleto-${index}`}
         readOnly={readOnly}
         required={subevento.idRecinto !== RecintoId.SALA_14}
         errorMessage={touched.accesoQR ? errors.accesoQR : undefined}
         mensajeAyuda={
-          subevento.idRecinto === RecintoId.SALA_14
+          subevento.idRecinto === RecintoId.SALA_14 
             ? "Al elegir la sala 14 automáticamente el acceso es libre"
-            : subevento.idRecinto !== RecintoId.AUDITORIO &&
-                subevento.idRecinto !== RecintoId.SALA_14
+            : subevento.idRecinto === RecintoId.LABORATORIO_A ||
+                subevento.idRecinto === RecintoId.LABORATORIO_B 
               ? "Al elegir un laboratorio el cupo pasa a ser limitado"
               : ""
         }>

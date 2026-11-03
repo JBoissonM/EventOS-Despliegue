@@ -2,6 +2,7 @@ import { SeccionDatosEvento } from "../../components/organisms/SolicitudEventos/
 import { useState, type FormEvent } from "react";
 import { SeccionSubeventos } from "../../components/organisms/SolicitudEventos/SeccionSubeventos";
 import Button from "../../components/atoms/Button/Button";
+import { useNavigate } from "react-router";
 import { Modal } from "../../components/molecules/Modal";
 import {
   EstadoVerificacion,
@@ -201,6 +202,7 @@ export function SolicitudEvento() {
   const [mensajeError, setMensajeError] = useState("");
   const errors = validarFormulario(form);
   const subeventErrors = validarSubeventos(form.subEventos);
+  const navigate = useNavigate();
 
   const updateField = (field: CampoTextoFormulario, value: string) =>
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -250,8 +252,9 @@ export function SolicitudEvento() {
             idRecinto === RecintoId.LABORATORIO_B
           ) {
             updated.accesoQR = true;
-          }
-          if (idRecinto === RecintoId.SALA_14) {
+          } else if (idRecinto === RecintoId.SALA_14) {
+            updated.accesoQR = false;
+          } else {
             updated.accesoQR = undefined;
           }
           return updated;
@@ -388,11 +391,42 @@ export function SolicitudEvento() {
       return;
     }
 
+    setForm({
+      nombre: "",
+      idAlcance: "",
+      justificacion: "",
+      descripcion: "",
+      rutaPoster: null,
+      subEventos: [crearSubevento()],
+    });
+    setTouched({});
+    setSubeventTouched([{}]);
+    setMensajeError("");
     setModal("exito");
   };
 
   return (
-    <section className="mx-auto w-full max-w-7xl space-y-6 px-4 sm:px-6 lg:px-8">
+    <section className="mx-auto w-full max-w-8xl space-y-6 px-4 sm:px-6 lg:px-8">
+      <div
+        id="contenedorReturn"
+        className="flex gap-2 cursor-pointer"
+        onClick={() => navigate(`/subdireccion/menu-principal`)}>
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          width="24"
+          height="24"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          className="lucide lucide-undo-2 preview-icon">
+          <path d="M9 14 4 9l5-5" />
+          <path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5a5.5 5.5 0 0 1-5.5 5.5H11" />
+        </svg>
+        <span>Volver</span>
+      </div>
       <h1 className="font-merriweather text-2xl font-bold sm:text-[36px]">
         Solicitud de evento
       </h1>
