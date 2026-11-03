@@ -20,6 +20,8 @@ import { UsuarioEntity } from '../../auth/entities/usuario.entity';
 import { SubEventoEntity } from '../entities/subevento.entity';
 import { FechaEntity } from '../entities/fecha.entity';
 import { BitacoraEventoEntity } from '../entities/bitacoraEvento.entity';
+import { SolicitudModificacionEntity } from '../entities/solicitudModificacion.entity';
+import { RecintoEntity } from '../../recintos/entities/recinto.entity';
 import { RecintoService } from '../../recintos/services/recinto.service';
 import { StorageService } from '../../../common/storage/storage.service';
 import type { CrearSolicitudDto } from '../dto/crearSolicitud.dto';
@@ -35,6 +37,8 @@ export class SolicitudesService {
     private readonly subEventoRepository: Repository<SubEventoEntity>,
     @InjectRepository(BitacoraEventoEntity)
     private readonly bitacoraEventoRepository: Repository<BitacoraEventoEntity>,
+    @InjectRepository(SolicitudModificacionEntity)
+    private readonly solicitudModificacionRepository: Repository<SolicitudModificacionEntity>,
     private readonly recintoService: RecintoService,
     private readonly storageService: StorageService,
     private readonly dataSource: DataSource,
@@ -305,6 +309,41 @@ export class SolicitudesService {
       order: { esUrgente: 'DESC', idEvento: 'DESC' },
     });
 
+    const modificacionesPendientes =
+      await this.solicitudModificacionRepository.find({
+        where: { estado: 'Pendiente' },
+      });
+    const mapaModPorEvento = new Map(
+      modificacionesPendientes.map((m) => [m.idEvento, m]),
+    );
+
+    if (
+      (where.idEstadoEvento === EstadoEvento.ENPROCESO ||
+        where.idEstadoEvento === undefined) &&
+      mapaModPorEvento.size > 0
+    ) {
+      const idsExistentes = new Set(eventos.map((e) => e.idEvento));
+      const idsFaltantes = [...mapaModPorEvento.keys()].filter(
+        (id) => !idsExistentes.has(id),
+      );
+      if (idsFaltantes.length > 0) {
+        const eventosConModificacion = await this.eventoRepository.find({
+          where: {
+            idEvento: In(idsFaltantes),
+            idEstadoEvento: EstadoEvento.ACEPTADO,
+          },
+          relations: {
+            subEventos: {
+              fecha: true,
+              recinto: true,
+            },
+          },
+          order: { esUrgente: 'DESC', idEvento: 'DESC' },
+        });
+        eventos.push(...eventosConModificacion);
+      }
+    }
+
     const idsOrganizadores = [
       ...new Set(eventos.map((evento) => evento.idOrganizador)),
     ];
@@ -333,11 +372,23 @@ export class SolicitudesService {
       ]),
     );
 
-    return eventos.map((evento) => ({
-      ...evento,
-      posterUrl: this.resolverPosterUrl(evento.poster),
-      solicitante: mapaSolicitantes.get(evento.idOrganizador) ?? null,
-    }));
+    return eventos.map((evento) => {
+      const modPendiente = mapaModPorEvento.get(evento.idEvento) ?? null;
+      return {
+        ...evento,
+        posterUrl: this.resolverPosterUrl(evento.poster),
+        solicitante: mapaSolicitantes.get(evento.idOrganizador) ?? null,
+        esModificacion: Boolean(modPendiente),
+        solicitudModificacion: modPendiente
+          ? {
+              idSolicitudModificacion: modPendiente.idSolicitudModificacion,
+              motivoModificacion: modPendiente.motivoModificacion,
+              subeventosPropuestos: modPendiente.subeventosPropuestos,
+              estado: modPendiente.estado,
+            }
+          : null,
+      };
+    });
   }
 
   async obtenerDetalleSolicitud(idEvento: number) {
@@ -371,6 +422,35 @@ export class SolicitudesService {
       },
     });
 
+    const solicitudPendiente =
+      await this.solicitudModificacionRepository.findOne({
+        where: { idEvento, estado: 'Pendiente' },
+      });
+
+    let subeventosPropuestosDetallados = null;
+    if (solicitudPendiente) {
+      const recintos = await this.dataSource
+        .getRepository(RecintoEntity)
+        .find();
+      const mapaRecintos = new Map(recintos.map((r) => [r.idRecinto, r]));
+      subeventosPropuestosDetallados = (
+        solicitudPendiente.subeventosPropuestos || []
+      ).map((prop) => {
+        const rec = mapaRecintos.get(prop.idRecinto);
+        return {
+          ...prop,
+          espacio: rec
+            ? {
+                idRecinto: rec.idRecinto,
+                nombre: rec.nombre,
+                aforo: rec.aforo,
+                idEstadoRecinto: rec.idEstadoRecinto,
+              }
+            : null,
+        };
+      });
+    }
+
     const posterUrl = this.resolverPosterUrl(evento.poster);
 
     return {
@@ -385,6 +465,15 @@ export class SolicitudesService {
       poster_url: posterUrl,
       posterUrl: posterUrl,
       solicitante: solicitante ? this.formatearSolicitante(solicitante) : null,
+      esModificacion: Boolean(solicitudPendiente),
+      solicitudModificacion: solicitudPendiente
+        ? {
+            idSolicitudModificacion: solicitudPendiente.idSolicitudModificacion,
+            motivoModificacion: solicitudPendiente.motivoModificacion,
+            estado: solicitudPendiente.estado,
+            subeventosPropuestos: subeventosPropuestosDetallados,
+          }
+        : null,
       subeventos: (evento.subEventos || []).map((sub) => ({
         idSubEvento: sub.idSubEvento,
         nombre: sub.nombre,
@@ -420,9 +509,120 @@ export class SolicitudesService {
         `No se encontró la solicitud con ID ${idEvento}.`,
       );
     }
+
+    const solicitudPendiente =
+      await this.solicitudModificacionRepository.findOne({
+        where: { idEvento, estado: 'Pendiente' },
+      });
+
+    if (solicitudPendiente) {
+      await this.validarSubeventos(
+        solicitudPendiente.subeventosPropuestos,
+        idEvento,
+      );
+      const nuevoEsUrgente = this.calcularEsUrgente(
+        solicitudPendiente.subeventosPropuestos,
+      );
+
+      await this.dataSource.transaction(async (manager) => {
+        const subeventosExistentes = await manager.find(SubEventoEntity, {
+          where: { idEvento },
+        });
+        const idsConservados = new Set<number>();
+
+        for (const propuesto of solicitudPendiente.subeventosPropuestos) {
+          const existente = propuesto.idSubEvento
+            ? subeventosExistentes.find(
+                (s) => s.idSubEvento === propuesto.idSubEvento,
+              )
+            : undefined;
+
+          let idSubEventoAfectado: number;
+
+          if (existente) {
+            idsConservados.add(existente.idSubEvento);
+            if (existente.idFecha) {
+              await manager.update(FechaEntity, existente.idFecha, {
+                fecha: propuesto.fecha,
+                horaInicio: propuesto.horaInicio,
+                horaFin: propuesto.horaFin,
+              });
+            }
+            await manager.update(SubEventoEntity, existente.idSubEvento, {
+              nombre: propuesto.nombre,
+              descripcion: propuesto.descripcion,
+              idRecinto: propuesto.idRecinto,
+              accesoQR: propuesto.accesoQR ?? existente.accesoQR,
+              estado: EstadoSubEvento.ACEPTADO,
+            });
+            idSubEventoAfectado = existente.idSubEvento;
+          } else {
+            const nuevaFecha = await manager.save(FechaEntity, {
+              fecha: propuesto.fecha,
+              horaInicio: propuesto.horaInicio,
+              horaFin: propuesto.horaFin,
+            });
+            const nuevoSub = await manager.save(SubEventoEntity, {
+              nombre: propuesto.nombre,
+              descripcion: propuesto.descripcion,
+              idEvento,
+              idRecinto: propuesto.idRecinto,
+              idFecha: nuevaFecha.idFecha,
+              accesoQR: propuesto.accesoQR ?? false,
+              estado: EstadoSubEvento.ACEPTADO,
+            });
+            idsConservados.add(nuevoSub.idSubEvento);
+            idSubEventoAfectado = nuevoSub.idSubEvento;
+          }
+
+          await manager.save(BitacoraEventoEntity, {
+            idEvento,
+            idSubEvento: idSubEventoAfectado,
+            idUsuarioActor: idUsuarioActor ?? evento.idOrganizador,
+            idEstadoEvento: EstadoEvento.ACEPTADO,
+          });
+        }
+
+        for (const anterior of subeventosExistentes) {
+          if (
+            !idsConservados.has(anterior.idSubEvento) &&
+            anterior.estado !== EstadoSubEvento.CANCELADO
+          ) {
+            await manager.update(SubEventoEntity, anterior.idSubEvento, {
+              estado: EstadoSubEvento.CANCELADO,
+            });
+            await manager.save(BitacoraEventoEntity, {
+              idEvento,
+              idSubEvento: anterior.idSubEvento,
+              idUsuarioActor: idUsuarioActor ?? evento.idOrganizador,
+              idEstadoEvento: EstadoEvento.CANCELADO,
+            });
+          }
+        }
+
+        await manager.update(EventoEntity, idEvento, {
+          idEstadoEvento: EstadoEvento.ACEPTADO,
+          esUrgente: nuevoEsUrgente,
+        });
+
+        await manager.update(
+          SolicitudModificacionEntity,
+          solicitudPendiente.idSolicitudModificacion,
+          { estado: 'Aprobado' },
+        );
+      });
+
+      return {
+        mensaje: 'La solicitud fue aprobada exitosamente.',
+        idEvento,
+        idEstadoEvento: EstadoEvento.ACEPTADO,
+        idSolicitudModificacion: solicitudPendiente.idSolicitudModificacion,
+      };
+    }
+
     if (evento.idEstadoEvento !== EstadoEvento.ENPROCESO) {
       throw new ConflictException(
-        'Solo se pueden aprobar solicitudes en estado Pendiente.',
+        'La solicitud seleccionada ya no se encuentra pendiente de aprobación. Actualice el listado para continuar.',
       );
     }
 
@@ -445,22 +645,79 @@ export class SolicitudesService {
     }
 
     return {
-      mensaje: 'Solicitud aprobada con éxito.',
+      mensaje: 'La solicitud fue aprobada exitosamente.',
       idEvento,
       idEstadoEvento: EstadoEvento.ACEPTADO,
     };
   }
 
-  async rechazarSolicitud(idEvento: number, idUsuarioActor?: number) {
+  async rechazarSolicitud(
+    idEvento: number,
+    idUsuarioActor?: number,
+    motivo?: string,
+  ) {
     const evento = await this.eventoRepository.findOneBy({ idEvento });
     if (!evento) {
       throw new NotFoundException(
         `No se encontró la solicitud con ID ${idEvento}.`,
       );
     }
+
+    const solicitudPendiente =
+      await this.solicitudModificacionRepository.findOne({
+        where: { idEvento, estado: 'Pendiente' },
+      });
+
+    if (solicitudPendiente) {
+      if (!motivo || motivo.trim() === '') {
+        throw new BadRequestException(
+          'Dato requerido faltante. La justificación no puede estar vacía.',
+        );
+      }
+      if (motivo.trim().length > 500) {
+        throw new BadRequestException(
+          'La descripción excede el límite máximo de caracteres permitidos.',
+        );
+      }
+
+      const motivoLimpio = motivo.trim();
+
+      await this.dataSource.transaction(async (manager) => {
+        await manager.update(
+          SolicitudModificacionEntity,
+          solicitudPendiente.idSolicitudModificacion,
+          {
+            estado: 'Rechazado',
+            motivoRechazo: motivoLimpio,
+          },
+        );
+
+        const primerSub = await manager.findOne(SubEventoEntity, {
+          where: { idEvento },
+        });
+        if (primerSub) {
+          await manager.save(BitacoraEventoEntity, {
+            idEvento,
+            idSubEvento: primerSub.idSubEvento,
+            idUsuarioActor: idUsuarioActor ?? evento.idOrganizador,
+            idEstadoEvento:
+              evento.idEstadoEvento ?? EstadoEvento.ACEPTADO,
+          });
+        }
+      });
+
+      return {
+        mensaje: 'La solicitud fue rechazada exitosamente.',
+        idEvento,
+        idEstadoEvento: evento.idEstadoEvento,
+        idSolicitudModificacion: solicitudPendiente.idSolicitudModificacion,
+        motivoRechazo: motivoLimpio,
+      };
+    }
+
     if (evento.idEstadoEvento !== EstadoEvento.ENPROCESO) {
       throw new ConflictException(
-        'Solo se pueden rechazar solicitudes en estado Pendiente.',
+        'La solicitud seleccionada ya no se encuentra pendiente de aprobación. Actualice el listado para continuar.',
       );
     }
 
@@ -483,7 +740,7 @@ export class SolicitudesService {
     }
 
     return {
-      mensaje: 'Solicitud rechazada con éxito.',
+      mensaje: 'La solicitud fue rechazada exitosamente.',
       idEvento,
       idEstadoEvento: EstadoEvento.RECHAZADO,
     };

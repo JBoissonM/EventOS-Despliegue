@@ -59,26 +59,46 @@ export class SolicitudesController {
     return await this.eventosService.obtenerDetalleSolicitud(id);
   }
 
-  // Aprueba una solicitud Pendiente. Solo Subdirección.
   @ApiOperation({
-    summary: 'Aprobar solicitud de evento pendiente',
+    summary: 'Aprobar solicitud de evento o modificación logística pendiente',
   })
   @Patch(':id/aprobar')
   @UseGuards(RolesGuard)
   @Roles(TipoCuentaUsuario.SUBDIRECCION)
-  async aprobarSolicitud(@Param('id', ParseIntPipe) id: number) {
-    return await this.eventosService.aprobarSolicitud(id);
+  async aprobarSolicitud(
+    @Param('id', ParseIntPipe) id: number,
+    @Req() req: any,
+  ) {
+    const idUsuarioActor = req.user?.sub ?? req.user?.idUsuario;
+    return await this.eventosService.aprobarSolicitud(
+      id,
+      idUsuarioActor ? Number(idUsuarioActor) : undefined,
+    );
   }
 
-  // Rechaza una solicitud Pendiente y libera horarios/recintos de sus subeventos. Solo Subdirección.
   @ApiOperation({
-    summary: 'Rechazar solicitud de evento pendiente y liberar espacios',
+    summary: 'Rechazar solicitud de evento o modificación logística pendiente',
   })
   @Patch(':id/rechazar')
   @UseGuards(RolesGuard)
   @Roles(TipoCuentaUsuario.SUBDIRECCION)
-  async rechazarSolicitud(@Param('id', ParseIntPipe) id: number) {
-    return await this.eventosService.rechazarSolicitud(id);
+  async rechazarSolicitud(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() body: any,
+    @Req() req: any,
+  ) {
+    const idUsuarioActor = req.user?.sub ?? req.user?.idUsuario;
+    const motivo =
+      typeof body?.motivo === 'string'
+        ? body.motivo
+        : typeof body?.motivoRechazo === 'string'
+          ? body.motivoRechazo
+          : undefined;
+    return await this.eventosService.rechazarSolicitud(
+      id,
+      idUsuarioActor ? Number(idUsuarioActor) : undefined,
+      motivo,
+    );
   }
 
   // Cancela un evento Aprobado exigiendo motivo (RN-25), liberando subeventos (RN-22) y registrando en bitácora (RNF-26). Solo Subdirección.
