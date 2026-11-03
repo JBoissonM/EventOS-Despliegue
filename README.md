@@ -1037,12 +1037,15 @@ bun run dev:frontend
 La documentación completa de **Análisis y Diseño de Sistemas (ADS)** del proyecto reside en la carpeta `docs/` bajo el enfoque **Docs-as-Code** (compatible con Obsidian y navegable como sitio web interactivo con **VitePress**).
 
 ### ¿Qué incluye la documentación?
-- **Hub del Proyecto:** `docs/00-Proyecto-EventOS.md`
-- **Requerimientos y Reglas de Negocio:** `docs/01-Requerimientos-y-Reglas-de-Negocio.md` (`RF-01` a `RF-28`, `RNF-01` a `RNF-27`, `RN-01` a `RN-45`).
-- **Actores y Catálogos Oficiales:** `docs/02-Actores-y-Catalogos.md` (Pantallas `UI0`–`UI32`, Mensajes de Error `MSG-E-01`–`49`, Mensajes Informativos `MSG-I-01`–`23` y Mensajes de Pantalla `MSG-P-01`–`07`).
-- **Casos de Uso Oficiales (`CU01` a `CU37`):** `docs/03-Casos-de-Uso/` con fichas detalladas, precondiciones, postcondiciones y trayectorias paso a paso (`Actor` / `Sistema`).
-- **Diseño de Interfaces (Mockups UI):** `docs/04-Diseno-UI.md`.
-- **Planeación y Sprints (Scrum):** `docs/05-Planeacion-y-Sprints.md` con avance de Subequipos A, B y C.
+- **Hub del Proyecto (`docs/00-Proyecto-EventOS.md`):** Visión general y arquitectura del sistema EventOS (Versión 2.0).
+- **Requerimientos y Reglas de Negocio (`docs/01-Requerimientos-y-Reglas-de-Negocio.md`):**
+  - 28 Requerimientos Funcionales (`RF-01` – `RF-28`)
+  - 27 Requerimientos No Funcionales (`RNF-01` – `RNF-27`)
+  - 45 Reglas de Negocio críticas del dominio ESCOM/IPN (`RN-01` – `RN-45`)
+- **Actores, Diagramas y Catálogos (`docs/02-Actores-y-Catalogos.md`):** Perfiles de los 5 actores, diagramas UML de Casos de Uso, Catálogo de 34 Pantallas (`UI01`–`UI37`), Mensajes de Error (`MSG-E-01`–`MSG-E-55`), Mensajes Informativos (`MSG-I-01`–`MSG-I-25`), Mensajes de Pantalla (`MSG-P-01`–`MSG-P-07`) y Notas de Consolidación v2.0.
+- **Casos de Uso Detallados (`docs/03-Casos-de-Uso/`):** 38 fichas individuales (`CU-01` a `CU-38`) con tabla de atributos y trayectorias principal y alternativas paso a paso.
+- **Diseño de Interfaces UI (`docs/04-Diseno-UI.md`):** Mockups visuales de las pantallas principales.
+- **Planeación y Sprints (`docs/05-Planeacion-y-Sprints.md`):** Organización en Subequipos (`A`, `B`, `C`) y cronograma de Sprints.
 
 ### Cómo consultar la documentación localmente
 
