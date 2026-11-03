@@ -101,7 +101,6 @@ export class SolicitudesController {
     );
   }
 
-  // Cancela un evento Aprobado exigiendo motivo (RN-25), liberando subeventos (RN-22) y registrando en bitácora (RNF-26). Solo Subdirección.
   @ApiOperation({
     summary: 'Cancelar evento aprobado con motivo obligatorio',
   })
@@ -113,11 +112,13 @@ export class SolicitudesController {
     @Body() dto: CancelarSolicitudDto,
     @Req() req: any,
   ) {
-    const idUsuarioActor = req.user?.sub;
+    const idUsuarioActor = req.user?.sub ?? req.user?.idUsuario;
+    const rolActor = req.user?.tipoCuenta;
     return await this.eventosService.cancelarSolicitud(
       id,
       dto.motivo,
-      idUsuarioActor,
+      idUsuarioActor ? Number(idUsuarioActor) : undefined,
+      rolActor,
     );
   }
 

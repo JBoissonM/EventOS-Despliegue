@@ -8,6 +8,7 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, In, Repository } from 'typeorm';
 import {
+  EstadoBoleto,
   EstadoEvento,
   EstadoSubEvento,
   EstadoVerificacion,
@@ -750,53 +751,83 @@ export class SolicitudesService {
     idEvento: number,
     motivo: string,
     idUsuarioActor?: number,
+    rolActor?: string,
   ) {
-    if (!motivo || motivo.trim() === '') {
-      throw new BadRequestException('El motivo de cancelación es obligatorio.');
+    const motivoLimpio = motivo?.trim() ?? '';
+    if (!motivoLimpio) {
+      throw new BadRequestException(
+        'Dato requerido faltante. La justificación no puede estar vacía.',
+      );
     }
-
-    const evento = await this.eventoRepository.findOneBy({ idEvento });
-    if (!evento) {
-      throw new NotFoundException(
-        `No se encontró la solicitud con ID ${idEvento}.`,
+    if (motivoLimpio.length > 500) {
+      throw new BadRequestException(
+        'La descripción excede el límite máximo de caracteres permitidos.',
       );
     }
 
-    if (evento.idEstadoEvento === EstadoEvento.CANCELADO) {
-      throw new ConflictException('El evento ya se encuentra cancelado.');
+    const evento = await this.eventoRepository.findOneBy({ idEvento });
+    if (!evento || evento.idEstadoEvento === EstadoEvento.CANCELADO) {
+      throw new ConflictException('Evento no encontrado o cancelado.');
     }
     if (evento.idEstadoEvento === EstadoEvento.FINALIZADO) {
       throw new ConflictException('El evento ya ha concluido.');
     }
-    if (evento.idEstadoEvento !== EstadoEvento.ACEPTADO) {
-      throw new ConflictException(
-        'Solo se pueden cancelar eventos en estado Aprobado.',
+    if (evento.idEstadoEvento === EstadoEvento.RECHAZADO) {
+      throw new ConflictException('Evento finalizado o inactivo.');
+    }
+
+    const esSubdireccion = rolActor === TipoCuentaUsuario.SUBDIRECCION;
+    if (
+      !esSubdireccion &&
+      idUsuarioActor !== undefined &&
+      evento.idOrganizador !== idUsuarioActor
+    ) {
+      throw new ForbiddenException(
+        'No tienes permisos para administrar este evento.',
       );
     }
 
-    await this.eventoRepository.update(idEvento, {
-      idEstadoEvento: EstadoEvento.CANCELADO,
-    });
-    await this.subEventoRepository.update(
-      { idEvento },
-      { estado: EstadoSubEvento.CANCELADO },
-    );
+    await this.dataSource.transaction(async (manager) => {
+      await manager.update(
+        EventoEntity,
+        { idEvento },
+        { idEstadoEvento: EstadoEvento.CANCELADO },
+      );
 
-    const subeventos = await this.subEventoRepository.findBy({ idEvento });
-    for (const sub of subeventos) {
-      await this.bitacoraEventoRepository.save({
-        idEvento,
-        idSubEvento: sub.idSubEvento,
-        idUsuarioActor: idUsuarioActor ?? null,
-        idEstadoEvento: EstadoEvento.CANCELADO,
-      });
-    }
+      await manager.update(
+        SubEventoEntity,
+        { idEvento },
+        { estado: EstadoSubEvento.CANCELADO },
+      );
+
+      await manager.query(
+        `UPDATE "boleto"
+         SET "idEstadoBoleto" = $1
+         WHERE "idBoleto" IN (
+           SELECT ae."idBoleto"
+           FROM "asistenteEvento" ae
+           INNER JOIN "subEvento" se ON ae."idSubEvento" = se."idSubEvento"
+           WHERE se."idEvento" = $2 AND ae."idBoleto" IS NOT NULL
+         )`,
+        [EstadoBoleto.CANCELADO, idEvento],
+      );
+
+      const subeventos = await manager.findBy(SubEventoEntity, { idEvento });
+      for (const sub of subeventos) {
+        await manager.save(BitacoraEventoEntity, {
+          idEvento,
+          idSubEvento: sub.idSubEvento,
+          idUsuarioActor: idUsuarioActor ?? evento.idOrganizador,
+          idEstadoEvento: EstadoEvento.CANCELADO,
+        });
+      }
+    });
 
     return {
       mensaje: 'El evento se ha cancelado exitosamente.',
       idEvento,
       idEstadoEvento: EstadoEvento.CANCELADO,
-      motivo: motivo.trim(),
+      motivo: motivoLimpio,
     };
   }
 
