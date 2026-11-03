@@ -308,7 +308,7 @@ export class ReservationsService {
             };
         }); 
 
-        // 3. Fuera de la transacción: Envío del correo con QR y PDF
+        //Envío del correo con QR y PDF
         try {
             const nombreCompleto = `${usuario.nombre} ${usuario.apellidoPa}${usuario.apellidoMa ? ' ' + usuario.apellidoMa : ''}`;
             await this.mailService.enviarCorreoConfirmacionReserva({
@@ -320,7 +320,7 @@ export class ReservationsService {
             this.logger.error(`La reserva #${resultado.boleto.idBoleto} se guardó, pero falló el envío del correo:`, error);
         }
 
-        // 4. Retorno HTTP para el Frontend
+        // Retorno HTTP para el Frontend
         if (resultado.qrBase64) {
             return {
                 mensaje: 'Reserva creada exitosamente',
@@ -344,6 +344,24 @@ export class ReservationsService {
 
         const misBoletos = [];
 
+        const mapaAlcance: Record<number, string> = {
+            [AlcanceEvento.PUBLICO]: 'Público',
+            [AlcanceEvento.INTERNO]: 'Interno',
+            [AlcanceEvento.PRIVADO]: 'Privado',
+        };
+
+        const mapaEstadoTexto: Record<number, string> = {
+            [EstadoBoleto.VALIDO]: 'Válido',
+            [EstadoBoleto.UTILIZADO]: 'Utilizado',
+            [EstadoBoleto.CANCELADO]: 'Cancelado',
+        };
+
+        const mapaEtiquetaUI: Record<number, string> = {
+            [EstadoBoleto.VALIDO]: 'Activo',
+            [EstadoBoleto.UTILIZADO]: 'Ingresado',
+            [EstadoBoleto.CANCELADO]: 'Cancelado',
+        };
+
         for (const reserva of reservas) {
             if (!reserva.idBoleto) continue;
 
@@ -351,13 +369,14 @@ export class ReservationsService {
             if (!boleto) continue;
 
             const subEvento = await this.subEventoRepo.findOne({ where: { idSubEvento: reserva.idSubEvento } });
-            if (!subEvento) continue; 
+            if (!subEvento) continue;
 
             const fechaEvento = await this.fechaRepo.findOne({ where: { idFecha: subEvento.idFecha } });
-            if (!fechaEvento) continue; 
-            
+            if (!fechaEvento) continue;
+
             const limiteTerminoEvento = new Date(`${fechaEvento.fecha}T${fechaEvento.horaFin}`);
-            
+
+            // Si el evento ya terminó y el boleto seguía válido (no asistió), pasa a Cancelado
             if (new Date() > limiteTerminoEvento && boleto.idEstadoBoleto === EstadoBoleto.VALIDO) {
                 boleto.idEstadoBoleto = EstadoBoleto.CANCELADO;
                 await this.boletoRepo.save(boleto);
@@ -366,19 +385,79 @@ export class ReservationsService {
             const evento = await this.eventoRepo.findOne({ where: { idEvento: subEvento.idEvento } });
             const recinto = await this.recintoRepo.findOne({ where: { idRecinto: subEvento.idRecinto } });
 
+            // Obtener asiento si el boleto tiene uno asignado
+            let filaAsiento: string | null = null;
+            let numeroAsiento: number | null = null;
+            if (boleto.idAsiento) {
+                const asiento = await this.asientoRepo.findOne({ where: { idAsiento: boleto.idAsiento } });
+                if (asiento) {
+                    filaAsiento = asiento.fila;
+                    numeroAsiento = asiento.numero;
+                }
+            }
+
+            // Obtener ponentes 
+            const ponentesRaw = await this.dataSource.query(
+                `SELECT "idPonente", nombre, "apellidoPa", "apellidoMa", correo
+                 FROM ponente
+                 WHERE "idSubEvento" = $1`,
+                [subEvento.idSubEvento]
+            );
+
+            const ponentes = ponentesRaw.map((p: any) => ({
+                idPonente: p.idPonente,
+                nombreCompleto: `${p.nombre} ${p.apellidoPa}${p.apellidoMa ? ' ' + p.apellidoMa : ''}`.trim(),
+                correo: p.correo,
+            }));
+
+            
+            let qrImagenBase64: string | null = null;
+            if (subEvento.accesoQR && boleto.idEstadoBoleto === EstadoBoleto.VALIDO) {
+                const infoBoleto = {
+                    idBoleto: boleto.idBoleto,
+                    idEvento: subEvento.idEvento,
+                    idUsuario: idUsuario,
+                };
+                const { qrBase64 } = await this.qrService.generateQrCode(infoBoleto, limiteTerminoEvento);
+                qrImagenBase64 = qrBase64;
+            }
+
             misBoletos.push({
+                // campos solicitados por el miguelon
                 idBoleto: boleto.idBoleto,
-                idSubEvento: subEvento.idSubEvento,
                 idEvento: subEvento.idEvento,
+                idSubEvento: subEvento.idSubEvento,
                 nombreEvento: evento ? evento.nombre : '',
                 nombreSubEvento: subEvento.nombre,
-                estadoBoleto: boleto.idEstadoBoleto,
+                estadoBoleto: boleto.idEstadoBoleto, // 1 = Válido, 2 = Utilizado, 3 = Cancelado
                 fecha: fechaEvento.fecha,
                 horaInicio: fechaEvento.horaInicio,
                 horaFin: fechaEvento.horaFin,
                 recinto: recinto ? recinto.nombre : '',
+                fechaGeneracion: boleto.fechaGeneracion,
+
+                // Campos adicionales 
+                estadoBoletoTexto: mapaEstadoTexto[boleto.idEstadoBoleto] ?? 'Desconocido',
+                etiquetaEstado: mapaEtiquetaUI[boleto.idEstadoBoleto] ?? 'Cancelado',
+                poster: evento ? evento.poster : null,
+                alcance: evento?.idAlcance ? mapaAlcance[evento.idAlcance] : 'Público',
+                accesoQR: subEvento.accesoQR,
+                filaAsiento,
+                numeroAsiento,
+                ponentes,
+                qrImagenBase64,
             });
         }
+
+        // Ordenar el historial por fechaGeneracion
+        misBoletos.sort((a, b) => {
+            const tiempoA = new Date(a.fechaGeneracion).getTime();
+            const tiempoB = new Date(b.fechaGeneracion).getTime();
+            if (tiempoB !== tiempoA) {
+                return tiempoB - tiempoA;
+            }
+            return b.idBoleto - a.idBoleto;
+        });
 
         return misBoletos;
     }
