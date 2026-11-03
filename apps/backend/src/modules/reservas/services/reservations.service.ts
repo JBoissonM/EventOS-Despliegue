@@ -17,7 +17,6 @@ import { EventoEntity } from '../../eventos/entities/evento.entity';
 import { EventoPersonalLogisticaEntity } from '../../eventos/entities/eventoPersonalLogistica.entity';
 import { PonenteEntity } from '../../eventos/entities/ponente.entity';
 import { UsuarioEntity } from '../../auth/entities/usuario.entity';
-import { Mail } from 'nodemailer';
 
 @Injectable()
 export class ReservationsService {
