@@ -757,5 +757,17 @@ export class OrganizadorService {
       estado: 'Revocada',
     };
   }
+
+  async cancelarEventoPropio(
+    idEvento: number,
+    idUsuario: number,
+    motivo: string,
+  ) {
+    return await this.solicitudesService.cancelarSolicitud(
+      idEvento,
+      motivo,
+      idUsuario,
+    );
+  }
 }
 

@@ -22,6 +22,7 @@ import { OrganizadorService } from '../services/organizador.service';
 import { ModificarLogisticaDto } from '../dto/modificarLogistica.dto';
 import { ActualizarInfoGeneralDto } from '../dto/actualizarInfoGeneral.dto';
 import { AgregarInvitadoDto } from '../dto/invitadoPrivado.dto';
+import { CancelarSolicitudDto } from '../dto/cancelarSolicitud.dto';
 import { posterOptions } from '../../../common/upload/upload.options';
 
 @ApiTags('Organizador')
@@ -169,6 +170,25 @@ export class OrganizadorController {
       idEvento,
       idInvitacion,
       idUsuario,
+    );
+  }
+
+  @ApiOperation({
+    summary:
+      'Cancelar un evento propio con justificación obligatoria y anulación de boletos',
+  })
+  @Patch(':idEvento/cancelar')
+  @UsePipes(new ValidationPipe({ transform: true, whitelist: true }))
+  async cancelarEventoPropio(
+    @Param('idEvento', ParseIntPipe) idEvento: number,
+    @Body() dto: CancelarSolicitudDto,
+    @Req() req: any,
+  ) {
+    const idUsuario = this.obtenerIdUsuarioAutenticado(req);
+    return await this.organizadorService.cancelarEventoPropio(
+      idEvento,
+      idUsuario,
+      dto.motivo,
     );
   }
 }
