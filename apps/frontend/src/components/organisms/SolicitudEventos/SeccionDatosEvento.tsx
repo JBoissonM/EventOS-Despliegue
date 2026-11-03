@@ -32,14 +32,14 @@
     esTocado: markTouched,
   }: SeccionDatosEventoProps) {
     return (
-      <section className="space-y-5">
+      <section className="space-y-5 rounded-xl border border-gray-200 shadow-md p-5 bg-white">
         <FormHeader
           titulo="Datos del evento"
           descripcion="Ingresa la información principal de tu evento, la visibilidad que tendrá en la cartelera y el beneficio que aporta a la comunidad politécnica para que Subdirección evalúe tu solicitud."
         />
         <div
           id="camposEvento"
-          className="grid min-w-0 grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
+          className="grid min-w-0 grid-cols-1 gap-6 md:grid-cols-3 xl:grid-cols-3">
           <div
             id="camposIzquierda"
             className="flex min-w-0 flex-1 flex-col gap-1">
