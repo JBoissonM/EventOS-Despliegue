@@ -6,12 +6,12 @@ import { Modal } from "../../components/molecules/Modal";
 import { TextArea } from "../../components/atoms/TextArea/TextArea";
 import { FormField } from "../../components/molecules/FormField";
 import { useNavigate } from "react-router";
-
+import { SearchBar } from "../../components/molecules/SearchBar";
 
 type SolicitudesAprobadas = {
   idEvento: number;
   nombre: string;
-  idOrganizador: number;
+  nombreSolicitante: string;
   fechaInicio: string | null;
   fechaFin: string | null;
 };
@@ -81,10 +81,20 @@ function convertirSolicitud(valor: unknown): SolicitudesAprobadas {
     .filter((fecha: string | null): fecha is string => fecha !== null)
     .sort();
 
+  const solicitante = valor.solicitante;
+  let nombreSolicitante = "No disponible";
+
+  if (solicitante !== null && solicitante !== undefined) {
+    if (!esRegistro(solicitante)) {
+      throw new Error("La respuesta contiene datos de solicitante inválidos.");
+    }
+    nombreSolicitante = obtenerTexto(solicitante, "nombreCompleto");
+  }
+
   return {
     idEvento: obtenerNumero(valor, "idEvento"),
     nombre: obtenerTexto(valor, "nombre"),
-    idOrganizador: obtenerNumero(valor, "idOrganizador"),
+    nombreSolicitante,
     fechaInicio: fechas[0] ?? null,
     fechaFin: fechas[fechas.length - 1] ?? null,
   };
@@ -106,6 +116,13 @@ function mostrarFecha(fecha: string | null): string {
   return new Date(`${fecha}T00:00:00`).toLocaleDateString("es-MX");
 }
 
+function normalizarTexto(texto: string): string {
+  return texto
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLocaleLowerCase("es-MX");
+}
+
 export function SolicitudesAprobadas() {
   const [solicitudes, setSolicitudes] = useState<SolicitudesAprobadas[]>([]);
   const [cargando, setCargando] = useState(true);
@@ -119,8 +136,18 @@ export function SolicitudesAprobadas() {
   const [mostrarModalCancelacion, setMostrarModalCancelacion] = useState(false);
   const [mostrarModalConfirmacion, setModalConfirmacion] = useState(false);
   const [mostrarModalExito, setModalExito] = useState(false);
+  const [busqueda, setBusqueda] = useState("");
   const navigate = useNavigate();
+  const busquedaNormalizada = normalizarTexto(busqueda.trim());
+  const solicitudesFiltradas = solicitudes.filter((solicitud) => {
+    if (!busquedaNormalizada) {
+      return true;
+    }
 
+    return [solicitud.nombre, solicitud.nombreSolicitante].some((texto) =>
+      normalizarTexto(texto).includes(busquedaNormalizada),
+    );
+  });
 
   useEffect(() => {
     const controller = new AbortController();
@@ -267,35 +294,43 @@ export function SolicitudesAprobadas() {
       id: "nombre",
       encabezado: "Nombre del evento",
       render: (solicitud) => solicitud.nombre,
-      className: "min-w-[10rem] px-4",
+      className: "min-w-[12rem] max-w-[18rem] px-4",
     },
     {
       id: "solicitante",
-      encabezado: "ID del organizador",
-      render: (solicitud) => solicitud.idOrganizador,
-      className: "min-w-[10rem] px-4",
+      encabezado: "Nombre del solicitante",
+      render: (solicitud) => solicitud.nombreSolicitante,
+      className: "min-w-[12rem] max-w-[12rem] px-4",
     },
     {
       id: "fechaInicio",
       encabezado: "Fecha inicio",
       render: (solicitud) => mostrarFecha(solicitud.fechaInicio),
-      className: "min-w-[10rem] px-4",
+      className: "min-w-[8rem] px-4 text-center",
     },
     {
       id: "fechaFin",
       encabezado: "Fecha Fin",
       render: (solicitud) => mostrarFecha(solicitud.fechaFin),
-      className: "min-w-[10rem] px-4",
+      className: "min-w-[8rem] px-4 text-center",
     },
     {
       id: "acciones",
       encabezado: "Acciones",
+      className: "text-center",
       render: (solicitud) => {
         return (
           <div
             id="contenedorCeldaBotones"
             className="flex gap-2 justify-center">
-            <Button text="Ver detalles" variant="primary" type="button" onClick={() => navigate(`/detalles-solicitud/${solicitud.idEvento}`) } />
+            <Button
+              text="Detalles"
+              variant="primary"
+              type="button"
+              onClick={() =>
+                navigate(`/detalles-solicitud/${solicitud.idEvento}`)
+              }
+            />
             <Button
               text="Cancelar"
               variant="danger"
@@ -316,28 +351,85 @@ export function SolicitudesAprobadas() {
   return (
     <>
       <section className="space-y-5">
-        <div id="contenedorSuperior">
+        <div id="contenedorSuperior" className="mx-auto flex justify-between">
           <div id="contenedorTitulo">
             <h1 className="font-merriweather text-[36px] font-bold">
               Solicitudes aprobadas
             </h1>
           </div>
-          <div id="contenedor Filtrado"></div>
+          <div id="contenedor Filtrado">
+            <SearchBar
+              value={busqueda}
+              texto="Buscar por nombre o solicitante"
+              onChangeEvent={(e) => setBusqueda(e.target.value)}
+              handle={(event) => event.preventDefault()}
+            />
+          </div>
         </div>
         {cargando && <p role="status">Cargando solicitudes...</p>}
         {error && <p role="alert">{error}</p>}
         {!cargando && !error && solicitudes.length === 0 && (
-          <p>No hay solicitudes aprobadas.</p>
+          <div
+            id="contenederIcono"
+            className="flex min-h-[50vh] flex-col items-center justify-center text-center space-y-2">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="60"
+              height="60"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              className="lucide lucide-calendar preview-icon">
+              <path d="M8 2v3" />
+              <path d="M16 2v3" />
+              <rect x="3" y="3" width="18" height="18" rx="2" />
+              <path d="M3 9h18" />
+            </svg>
+            <p className="merriweather text-[24px] font-semibold">
+              Sin eventos aprobados
+            </p>
+            <p></p>
+          </div>
         )}
-        {!cargando && !error && solicitudes.length > 0 && (
+        {!cargando &&
+          !error &&
+          solicitudes.length > 0 &&
+          solicitudesFiltradas.length === 0 && (
+            <div
+              id="contenederIcono"
+              className="flex min-h-[50vh] flex-col items-center justify-center text-center space-y-2">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="60"
+                height="60"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                className="lucide lucide-x preview-icon">
+                <path d="M18 6 6 18" />
+                <path d="m6 6 12 12" />
+              </svg>
+              <p className="merriweather text-[24px] font-semibold">
+                Parece que no hay coincidencias
+              </p>
+              <p></p>
+            </div>
+          )}
+        {!cargando && !error && solicitudesFiltradas.length > 0 && (
           <div
             id="contenedorTabla"
-            className="mx-auto w-full max-w-7xl overflow-x-auto">
+            className="rounded-md mx-auto w-full max-w-7xl overflow-x-auto shadow-md p-5 border border-gray-200 bg-white">
             <Table
               columnas={columnas}
-              filas={solicitudes}
+              filas={solicitudesFiltradas}
               obtenerClave={(solicitud) => solicitud.idEvento}
-              className="table-auto min-w-full text-center [&_tbody_tr]:h-20 [&_thead_tr]:h-[80px]"
+              className="table-auto min-w-full text-left [&_tbody_tr]:h-20 [&_thead_tr]:h-[80px]"
             />
           </div>
         )}
@@ -352,7 +444,7 @@ export function SolicitudesAprobadas() {
               errorMessage={
                 longitudMotivo >= 500
                   ? "El motivo no debe ser mayor a 500 caracteres"
-                  : longitudMotivo < 10
+                  : longitudMotivo < 10 && longitudMotivo > 0
                     ? "El motivo de cancelación es muy corto"
                     : ""
               }>
