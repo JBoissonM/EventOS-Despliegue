@@ -31,6 +31,14 @@ export class CrearSolicitudDto {
   @IsString({ message: 'La justificación debe ser una cadena de texto.' })
   justificacion: string;
 
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString({ message: 'El motivo de urgencia debe ser una cadena de texto.' })
+  @MaxLength(500, {
+    message: 'La justificación excede el límite máximo de caracteres permitidos.',
+  })
+  motivoUrgencia?: string;
+
   @ApiProperty({ enum: AlcanceEvento })
   @IsNotEmpty({ message: 'Debe seleccionar un tipo de alcance válido para continuar.' }) // MSG-E-15
   @Transform(({ value }: { value: unknown }) => (value !== undefined ? Number(value) : value))

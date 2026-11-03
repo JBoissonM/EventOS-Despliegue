@@ -88,7 +88,7 @@ export class SolicitudesService {
     return hora.length === 5 ? `${hora}:00` : hora;
   }
 
-  calcularEsUrgente(subeventos: SubeventoPayload[]): boolean {
+  calcularEsUrgente(subeventos: Array<{ fecha: string }>): boolean {
     const { fechaHoy } = this.obtenerAhoraCDMX();
     return subeventos.some((sub) => {
       const dias = this.calcularDiasDiferencia(sub.fecha, fechaHoy);
@@ -207,6 +207,30 @@ export class SolicitudesService {
       evento.esUrgente = this.calcularEsUrgente(subeventos);
     } else {
       evento.esUrgente = false;
+    }
+
+    if (evento.esUrgente) {
+      const solicitante = await this.usuarioRepository.findOneBy({
+        idUsuario: evento.idOrganizador,
+      });
+      const esSubdireccion =
+        solicitante?.tipoCuenta === TipoCuentaUsuario.SUBDIRECCION ||
+        solicitante?.esJefeAcademia;
+
+      const motivo = evento.motivoUrgencia?.trim();
+      if (!esSubdireccion && !motivo) {
+        throw new BadRequestException(
+          'Por favor, completa todos los campos obligatorios resaltados para continuar.',
+        );
+      }
+      if (motivo && motivo.length > 500) {
+        throw new BadRequestException(
+          'La justificación excede el límite máximo de caracteres permitidos.',
+        );
+      }
+      evento.motivoUrgencia = motivo || null;
+    } else {
+      evento.motivoUrgencia = null;
     }
 
     return await this.dataSource.transaction(async (manager) => {
@@ -462,6 +486,7 @@ export class SolicitudesService {
       idAlcance: evento.idAlcance,
       idEstadoEvento: evento.idEstadoEvento,
       esUrgente: evento.esUrgente,
+      motivoUrgencia: evento.motivoUrgencia ?? null,
       poster: evento.poster,
       poster_url: posterUrl,
       posterUrl: posterUrl,
@@ -693,9 +718,27 @@ export class SolicitudesService {
           },
         );
 
-        const primerSub = await manager.findOne(SubEventoEntity, {
+        const subeventosOriginales = await manager.find(SubEventoEntity, {
           where: { idEvento },
+          relations: { fecha: true },
         });
+        const payloads: SubeventoPayload[] = subeventosOriginales
+          .filter((s) => s.fecha && s.estado !== EstadoSubEvento.CANCELADO)
+          .map((s) => ({
+            idRecinto: s.idRecinto,
+            fecha: s.fecha!.fecha,
+            horaInicio: s.fecha!.horaInicio,
+            horaFin: s.fecha!.horaFin,
+            nombre: s.nombre,
+            descripcion: s.descripcion,
+            accesoQR: s.accesoQR,
+          }));
+        const urgenciaOriginal = this.calcularEsUrgente(payloads);
+        await manager.update(EventoEntity, idEvento, {
+          esUrgente: urgenciaOriginal,
+        });
+
+        const primerSub = subeventosOriginales[0];
         if (primerSub) {
           await manager.save(BitacoraEventoEntity, {
             idEvento,
@@ -848,6 +891,7 @@ export class SolicitudesService {
       idAlcance: dto.idAlcance,
       poster: rutaPoster,
       idOrganizador,
+      motivoUrgencia: dto.motivoUrgencia?.trim() || null,
     });
 
     const solicitante = await this.usuarioRepository.findOneBy({
