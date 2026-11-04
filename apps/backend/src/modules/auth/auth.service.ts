@@ -12,6 +12,7 @@ import { TipoCuentaUsuario, EstadoVerificacion, EstadoEvento } from '@eventos/sh
 import { JwtService } from '@nestjs/jwt';
 import { TOKEN_BLACKLIST } from './roles.guard';
 import { ActivarCuentaLogisticaDto } from './dto/activarCuentaLogistica.dto';
+import { MailService } from '../reservas/services/mail.service';
 
 @Injectable()
 export class AuthService {
@@ -22,6 +23,7 @@ export class AuthService {
     private readonly usuarioRepository: Repository<UsuarioEntity>,
     private readonly jwtService: JwtService,
     private readonly dataSource: DataSource,
+    private readonly mailService: MailService,
   ) {}
 
   async registrar(dto: {
@@ -339,6 +341,32 @@ export class AuthService {
         [idEvento, usuario.idUsuario],
       );
     }
+
+    const organizadorRaw = await this.dataSource.query(
+      `SELECT u.correo, u.nombre, u."apellidoPa"
+       FROM evento e
+       INNER JOIN usuario u ON e."idOrganizador" = u."idUsuario"
+       WHERE e."idEvento" = $1 LIMIT 1`,
+      [idEvento],
+    );
+
+    if (organizadorRaw.length > 0) {
+      const org = organizadorRaw[0];
+      const nombreColaborador = `${usuario.nombre} ${usuario.apellidoPa}`.trim();
+      void this.mailService.enviarNotificacionOrganizadorLogisticaAceptada({
+        destinatario: org.correo,
+        nombreOrganizador: `${org.nombre} ${org.apellidoPa}`.trim(),
+        nombreColaborador,
+        correoColaborador: usuario.correo,
+        nombreEvento: evento[0].nombre,
+      });
+    }
+
+    void this.mailService.enviarConfirmacionAsignacionLogistica({
+      destinatario: usuario.correo,
+      nombreUsuario: `${usuario.nombre} ${usuario.apellidoPa}`.trim(),
+      nombreEvento: evento[0].nombre,
+    });
 
     const sessionPayload = {
       sub: usuario.idUsuario,

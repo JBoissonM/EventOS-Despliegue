@@ -366,4 +366,49 @@ export class MailService {
       this.logger.error(`Fallo al enviar confirmación de asignación a ${datos.destinatario}`, error);
     }
   }
+
+  async enviarNotificacionOrganizadorLogisticaAceptada(datos: {
+    destinatario: string;
+    nombreOrganizador: string;
+    nombreColaborador: string;
+    correoColaborador: string;
+    nombreEvento: string;
+  }): Promise<void> {
+    const html = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden;">
+        <div style="background-color: #6b1d2f; color: #ffffff; padding: 20px; text-align: center;">
+          <h2 style="margin: 0;">Nuevo Integrante de Logística - EventOS</h2>
+        </div>
+        
+        <div style="padding: 24px; color: #334155;">
+          <p>Hola <strong>${datos.nombreOrganizador}</strong>,</p>
+          <p>Te informamos que un colaborador ha aceptado la invitación y activado su cuenta como <strong>Personal de Logística</strong> para tu evento:</p>
+          
+          <div style="margin: 20px 0; padding: 16px; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px;">
+            <p style="margin: 0 0 8px 0;"><strong>Evento:</strong> ${datos.nombreEvento}</p>
+            <p style="margin: 0 0 8px 0;"><strong>Colaborador:</strong> ${datos.nombreColaborador}</p>
+            <p style="margin: 0;"><strong>Correo:</strong> ${datos.correoColaborador}</p>
+          </div>
+
+          <p>El colaborador ya cuenta con acceso para escanear boletos y validar entradas en las actividades programadas de tu evento.</p>
+
+          <p style="font-size: 12px; color: #64748b; margin-top: 24px; border-top: 1px solid #e2e8f0; padding-top: 12px;">
+            Puedes gestionar y consultar a tu equipo de logística en cualquier momento desde el panel de administración del evento.
+          </p>
+        </div>
+      </div>
+    `;
+
+    try {
+      await this.transporter.sendMail({
+        from: process.env.SMTP_FROM || process.env.SMTP_USER,
+        to: datos.destinatario,
+        subject: `Nuevo integrante de logística confirmado: ${datos.nombreEvento} - EventOS`,
+        html,
+      });
+      this.logger.log(`Notificación enviada al organizador ${datos.destinatario}`);
+    } catch (error) {
+      this.logger.error(`Fallo al enviar notificación al organizador ${datos.destinatario}`, error);
+    }
+  }
 }

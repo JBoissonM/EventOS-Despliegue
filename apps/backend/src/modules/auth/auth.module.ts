@@ -7,6 +7,7 @@ import { UsuarioEntity } from './entities/usuario.entity';
 import { VerificacionEntity } from './entities/verificacion.entity';
 import { EventoPersonalLogisticaEntity } from '../eventos/entities/eventoPersonalLogistica.entity';
 import { EventoEntity } from '../eventos/entities/evento.entity';
+import { ReservationsModule } from '../reservas/reservations.module';
 
 @Module({
   imports: [
@@ -16,6 +17,7 @@ import { EventoEntity } from '../eventos/entities/evento.entity';
       EventoPersonalLogisticaEntity,
       EventoEntity,
     ]),
+    ReservationsModule,
     JwtModule.register({
       global: true,
       secret: process.env.JWT_PASS || 'clave_secreta', 
