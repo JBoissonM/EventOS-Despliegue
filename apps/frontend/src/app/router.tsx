@@ -20,6 +20,9 @@ import { BitacoraGeneral } from "../features/admin/Bitacora";
 import { MenuPrincipalAdministracion } from "../features/admin/menu-admin";
 
 import { EventCatalogPage } from "../features/event-catalog/pages/EventCatalogPage";
+import { EventDetailsLayout } from "../features/event-details/pages/EventDetailsLayout";
+import { EventDetailsRoute } from "../features/event-details/pages/EventDetailsRoute";
+import { SubEventDetailsRoute } from "../features/event-details/pages/SubEventDetailsRoute";
 
 import { SolicitudesAprobadas } from "../features/educational-services/SolicitudesAprobadas";
 
@@ -32,6 +35,11 @@ export function AppRouter() {
           <Route path="/registro" element={<Registro />} />
           <Route path="/detalles-solicitud/" element={<DetallesSolicitud />} />
           <Route path="/cartelera" element={<EventCatalogPage />} />
+        </Route>
+
+        <Route element={<EventDetailsLayout />}>
+          <Route path="/eventos/:idEvento" element={<EventDetailsRoute />} />
+          <Route path="/eventos/:idEvento/actividades/:idSubEvento" element={<SubEventDetailsRoute />} />
         </Route>
 
         {/*Pantalla Perfil compartida*/}

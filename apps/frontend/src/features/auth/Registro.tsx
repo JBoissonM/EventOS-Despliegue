@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { useNavigate } from "react-router";
+import { useNavigate, useSearchParams } from "react-router";
+import { getAuthPathWithReturnUrl, getEventReturnPath } from "../event-details/utils/eventReturnUrl";
 import { Input } from "../../components/atoms/Input/Input";
 import { Button } from "../../components/atoms/Button/Button";
 import { FieldMessage } from "../../components/atoms/FieldMessage/FieldMessage";
@@ -10,6 +11,9 @@ import { Modal } from "../../components/molecules/Modal";
 
 export function Registro() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const returnPath = getEventReturnPath(searchParams.get("returnUrl"));
+  const loginPath = getAuthPathWithReturnUrl("/login", returnPath);
   const [formData, setFormData] = useState({
     nombre: "",
     apellidoPa: "",
@@ -321,16 +325,16 @@ export function Registro() {
           </div>
 
           <div className="mt-4 text-center">
-            <TextLink to="/login" className="text-sky-500 font-merriweather font-semibold text-[16px] hover:text-sky-600">
+            <TextLink to={loginPath} className="text-sky-500 font-merriweather font-semibold text-[16px] hover:text-sky-600">
               ¿Ya tienes cuenta? Inicia sesión
             </TextLink>
           </div>
         </form>
       </div>
 
-      <Modal titulo="¡Registro exitoso!" contenido="Tu cuenta ha sido creada correctamente. Ya puedes iniciar sesión en la plataforma." mostrarModal={modalExitoAbierto} cerrarModal={() => { setModalExitoAbierto(false); navigate("/login");}}>
+      <Modal titulo="¡Registro exitoso!" contenido="Tu cuenta ha sido creada correctamente. Ya puedes iniciar sesión en la plataforma." mostrarModal={modalExitoAbierto} cerrarModal={() => { setModalExitoAbierto(false); navigate(loginPath);}}>
         <div className="flex justify-end pt-4">
-          <Button text="Aceptar" type="button" onClick={() => {setModalExitoAbierto(false); navigate("/login");}}
+          <Button text="Aceptar" type="button" onClick={() => {setModalExitoAbierto(false); navigate(loginPath);}}
             className="font-merriweather text-sm px-6 py-2.5 rounded-md transition-colors shadow"
           />
         </div>
