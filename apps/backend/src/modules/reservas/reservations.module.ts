@@ -41,5 +41,6 @@ import { UsuarioEntity } from '../auth/entities/usuario.entity';
   ],
   controllers: [ReservationsController],
   providers: [QrService, ReservationsService, MailService],
+  exports: [MailService],
 })
 export class ReservationsModule {}
