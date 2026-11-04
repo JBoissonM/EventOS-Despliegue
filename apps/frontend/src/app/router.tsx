@@ -23,6 +23,7 @@ import { EventCatalogPage } from "../features/event-catalog/pages/EventCatalogPa
 import { EventDetailsLayout } from "../features/event-details/pages/EventDetailsLayout";
 import { EventDetailsRoute } from "../features/event-details/pages/EventDetailsRoute";
 import { SubEventDetailsRoute } from "../features/event-details/pages/SubEventDetailsRoute";
+import { ReservationRoute } from "../features/reservations/pages/ReservationRoute";
 
 import { SolicitudesAprobadas } from "../features/educational-services/SolicitudesAprobadas";
 
@@ -40,6 +41,7 @@ export function AppRouter() {
         <Route element={<EventDetailsLayout />}>
           <Route path="/eventos/:idEvento" element={<EventDetailsRoute />} />
           <Route path="/eventos/:idEvento/actividades/:idSubEvento" element={<SubEventDetailsRoute />} />
+          <Route path="/eventos/:idEvento/actividades/:idSubEvento/reservar" element={<ReservationRoute />} />
         </Route>
 
         {/*Pantalla Perfil compartida*/}

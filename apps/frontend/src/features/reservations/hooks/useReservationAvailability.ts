@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import type { DisponibilidadSubEvento } from "@eventos/shared";
+import type { ReservationAvailability } from "../services/reservations.service";
 
 import { reservationsService } from "../services/reservations.service";
 
@@ -7,7 +7,7 @@ export function useReservationAvailability(
   idSubEvento: number | null,
 ) {
   const [availability, setAvailability] =
-    useState<DisponibilidadSubEvento | null>(null);
+    useState<ReservationAvailability | null>(null);
 
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
