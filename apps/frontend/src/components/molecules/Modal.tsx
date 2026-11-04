@@ -49,7 +49,7 @@ export function Modal({
         <h2 id={tituloId} className="text-2xl font-merriweather font-bold">
           {titulo}
         </h2>
-        <p id={contenidoId} className="mb-6 font-merriweather">
+        <p id={contenidoId} className="mb-6 font-merriweather text-justify">
           {contenido}
         </p>
         {children}
