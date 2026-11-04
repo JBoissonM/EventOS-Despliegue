@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 import { Button } from "../../components/atoms/Button/Button";
 import { Table, type Columna } from "../../components/organisms/Table/Table";
+import Badge from "../../components/atoms/Badge/Badge";
 
 type SolicitudTabla = {
   idEvento: number;
@@ -9,6 +10,7 @@ type SolicitudTabla = {
   nombreSolicitante: string;
   fechaInicio: string | null;
   fechaCierre: string | null;
+  urgente: boolean;
 };
 
 function esRegistro(valor: unknown): valor is Record<string, unknown> {
@@ -84,12 +86,20 @@ function convertirSolicitud(valor: unknown): SolicitudTabla {
     nombreSolicitante = obtenerTexto(solicitante, "nombreCompleto");
   }
 
+  const urgente = valor.esUrgente;
+  if (typeof urgente !== "boolean") {
+    throw new Error(
+      'La respuesta no contiene un booleano válido para "esUrgente".',
+    );
+  }
+
   return {
     idEvento: obtenerNumero(valor, "idEvento"),
     nombre: obtenerTexto(valor, "nombre"),
     nombreSolicitante,
     fechaInicio: fechas[0] ?? null,
     fechaCierre: fechas[fechas.length - 1] ?? null,
+    urgente,
   };
 }
 
@@ -168,6 +178,33 @@ export function ListadoSolicitudes() {
 
   const columnas: Columna<SolicitudTabla>[] = [
     {
+      id: "prioridad",
+      encabezado: "Prioridad",
+      render: (solicitud) => (
+        <Badge variant={solicitud.urgente === true ? "error" : "success"}>
+          {solicitud.urgente == true && (
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="24"
+              height="24"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              className="lucide lucide-square-exclamation-point preview-icon">
+              <rect width="18" height="18" x="3" y="3" rx="2" />
+              <line x1="12" x2="12" y1="8" y2="12" />
+              <line x1="12" x2="12.01" y1="16" y2="16" />
+            </svg>
+          )}
+          {solicitud.urgente === true ? "Urgente" : "Normal"}
+        </Badge>
+      ),
+    },
+
+    {
       id: "nombre",
       encabezado: "Nombre del evento",
       render: (solicitud) => solicitud.nombre,
@@ -199,7 +236,7 @@ export function ListadoSolicitudes() {
           text="Ver detalles"
           type="button"
           onClick={() => navigate(`/detalles-solicitud/${solicitud.idEvento}`)}
-          />
+        />
       ),
     },
   ];

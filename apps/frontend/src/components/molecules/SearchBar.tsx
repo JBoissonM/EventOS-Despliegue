@@ -7,6 +7,7 @@ export interface SearchBarProps {
   texto: string;
   handle: FormEventHandler<HTMLFormElement>;
   onChangeEvent: ChangeEventHandler<HTMLInputElement>;
+  classname?: string;
 }
 
 export function SearchBar({
@@ -14,12 +15,13 @@ export function SearchBar({
   texto,
   onChangeEvent,
   handle,
+  classname
 }: SearchBarProps) {
   return (
     <div
       id="contenedorSearchBar"
-      className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-      <form className="w-full md:w-96" onSubmit={handle}>
+      className={`flex flex-col md:flex-row md:items-center md:justify-between gap-4 ${classname}`}>
+      <form className="w-full min-w-0" onSubmit={handle}>
         <div className="flex items-center border border-gray-300 rounded-md bg-white px-3 py-2 shadow-sm">
           <Input
             type="text"

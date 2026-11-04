@@ -9,6 +9,7 @@ import {
   RecintoId,
   type SubeventoPayload,
 } from "@eventos/shared";
+import { ModalMotivoUrgente } from "../../components/organisms/ModalMotivoUrgente/ModalMotivoUrgente";
 
 export type SubeventoFormData = SubeventoPayload & { id: number };
 
@@ -105,17 +106,31 @@ function validarFormulario(form: FormularioSolicitudData): ErroresFormulario {
   return errors;
 }
 
+function diferenciaFechas(fechaSeleccionada: string): number | null {
+  if (!fechaSeleccionada) return null;
+  const [anio, mes, dia] = fechaSeleccionada.split("-").map(Number);
+  const fecha = new Date(anio, mes - 1, dia);
+  const hoy = new Date();
+  const fechaSeleccionadaUTC = Date.UTC(anio, mes - 1, dia);
+  const hoyUTC = Date.UTC(hoy.getFullYear(), hoy.getMonth(), hoy.getDate());
+  return (fechaSeleccionadaUTC - hoyUTC) / 86_400_000;
+}
+
 function validarSubeventos(
   subEventos: SubeventoFormData[],
 ): ErroresSubevento[] {
   return subEventos.map((subevento, index) => {
     const errors: ErroresSubevento = {};
 
-    if (subevento.nombre.length > 150) {
+    if (!subevento.nombre.trim()) {
+      errors.nombre = "El nombre del subevento es obligatorio";
+    } else if (subevento.nombre.trim().length > 150) {
       errors.nombre =
         "El nombre del subevento no debe exceder los 150 caracteres";
     }
-    if (subevento.descripcion.length > 500) {
+    if (!subevento.descripcion.trim()) {
+      errors.descripcion = "La descripción del subevento es obligatoria";
+    } else if (subevento.descripcion.trim().length > 500) {
       errors.descripcion =
         "La descripción del subevento no debe exceder los 500 caracteres";
     }
@@ -200,6 +215,8 @@ export function SolicitudEvento() {
   );
 
   const [mensajeError, setMensajeError] = useState("");
+  const [modalUrgente, setModalUrgente] = useState(false);
+  const [motivoUrgente, setMotivoUrgente] = useState("");
   const errors = validarFormulario(form);
   const subeventErrors = validarSubeventos(form.subEventos);
   const navigate = useNavigate();
@@ -336,6 +353,17 @@ export function SolicitudEvento() {
       setModal("error");
       return;
     }
+
+    const hayFechaUrgente = form.subEventos.some((subevento) => {
+      const dias = diferenciaFechas(subevento.fecha);
+      return dias !== null && dias >= 0 && dias < 7;
+    });
+
+    if (hayFechaUrgente) {
+      setModalUrgente(true);
+      return;
+    }
+
     setModal("confirmacion");
   };
 
@@ -499,6 +527,19 @@ export function SolicitudEvento() {
             )}
           </div>
         </Modal>
+
+        {modalUrgente && (
+          <ModalMotivoUrgente
+            mostrar={modalUrgente}
+            motivo={motivoUrgente}
+            onMotivoChange={setMotivoUrgente}
+            cerrar={() => setModalUrgente(false)}
+            continuar={() => {
+              setModalUrgente(false);
+              setModal("confirmacion");
+            }}
+          />
+        )}
       </form>
     </section>
   );

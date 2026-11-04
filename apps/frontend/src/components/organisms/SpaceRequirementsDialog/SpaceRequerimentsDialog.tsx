@@ -112,9 +112,9 @@ export function SpaceRequerimentsDialog({
       encabezado: "Estado",
       render: (equipo) => {
         return equipo.estado === true ? (
-          <Badge variant="success">Habilitado</Badge>
+          <Badge variant="success">Activo</Badge>
         ) : (
-          <Badge variant="warning">Inhabilitado</Badge>
+          <Badge variant="warning">Inactivo</Badge>
         );
       },
     },
@@ -144,8 +144,8 @@ export function SpaceRequerimentsDialog({
             className="grid grid-cols-[2fr_3fr] gap-5 items-start">
             <div id="contendorInformacion" className="">
               <p>Total de equipos: {equipos.length}</p>
-              <p>Equipos habilitados: {equiposHabilitados} </p>
-              <p>Equipos deshabilitados: {equiposDeshabilitados}</p>
+              <p>Equipos activos: {equiposHabilitados} </p>
+              <p>Equipos inactivos: {equiposDeshabilitados}</p>
             </div>
             <div
               id="contenedorTabla"

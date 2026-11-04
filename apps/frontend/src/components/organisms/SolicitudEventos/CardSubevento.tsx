@@ -354,7 +354,7 @@ export function CardSubevento(props: CardSubeventoProps) {
       {!readOnly && (
         <div className="col-span-full flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <Button
-            text="Agregar información del subevento"
+            text="Nombre y descripción del subevento"
             id={`botonVerInformacion-${subevento.id}`}
             type="button"
             className="w-full sm:w-auto"
