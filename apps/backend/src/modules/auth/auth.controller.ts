@@ -11,6 +11,7 @@ import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 import { RegistroDto } from './dto/registro.dto';
+import { ActivarCuentaLogisticaDto } from './dto/activarCuentaLogistica.dto';
 import { RolesGuard } from './roles.guard';
 
 @ApiTags('Auth')
@@ -33,6 +34,16 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   async iniciarSesion(@Body() body: LoginDto) {
     return await this.authService.login(body);
+  }
+
+  @ApiOperation({
+    summary:
+      'Activar cuenta mediante token JWT de invitación para Personal de Logística',
+  })
+  @Post('activar-logistica')
+  @HttpCode(HttpStatus.CREATED)
+  async activarCuentaLogistica(@Body() body: ActivarCuentaLogisticaDto) {
+    return await this.authService.activarCuentaLogistica(body);
   }
 
   @ApiBearerAuth()

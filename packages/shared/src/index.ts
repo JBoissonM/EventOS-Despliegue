@@ -229,6 +229,27 @@ export interface EventoOrganizadorDetalle {
     estado: string;
   } | null;
   invitados?: InvitadoEventoItem[];
+  personalLogistica?: PersonalLogisticaItem[];
+  logisticaCount?: number;
+}
+
+export interface PersonalLogisticaItem {
+  idUsuario: number;
+  nombreCompleto: string;
+  correo: string;
+  tipoCuenta: string;
+}
+
+export interface AgregarPersonalLogisticaPayload {
+  correo: string;
+}
+
+export interface ActivarCuentaLogisticaPayload {
+  token: string;
+  nombre: string;
+  apellidoPa: string;
+  apellidoMa?: string;
+  contrasena: string;
 }
 
 export interface InvitadoEventoItem {

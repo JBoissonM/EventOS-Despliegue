@@ -5,12 +5,14 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { DataSource, Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 import { UsuarioEntity } from './entities/usuario.entity';
-import { TipoCuentaUsuario, EstadoVerificacion } from '@eventos/shared';
+import { TipoCuentaUsuario, EstadoVerificacion, EstadoEvento } from '@eventos/shared';
 import { JwtService } from '@nestjs/jwt';
 import { TOKEN_BLACKLIST } from './roles.guard';
+import { ActivarCuentaLogisticaDto } from './dto/activarCuentaLogistica.dto';
+import { MailService } from '../reservas/services/mail.service';
 
 @Injectable()
 export class AuthService {
@@ -20,6 +22,8 @@ export class AuthService {
     @InjectRepository(UsuarioEntity)
     private readonly usuarioRepository: Repository<UsuarioEntity>,
     private readonly jwtService: JwtService,
+    private readonly dataSource: DataSource,
+    private readonly mailService: MailService,
   ) {}
 
   async registrar(dto: {
@@ -229,6 +233,154 @@ export class AuthService {
     }
     return {
       mensaje: 'Sesión finalizada con éxito.',
+    };
+  }
+
+  async activarCuentaLogistica(dto: ActivarCuentaLogisticaDto) {
+    let payload: any;
+    try {
+      payload = this.jwtService.verify(dto.token, {
+        secret: process.env.JWT_PASS || 'clave_secreta',
+      });
+    } catch (_err) {
+      throw new BadRequestException(
+        'El token de invitación es inválido o ha expirado.',
+      );
+    }
+
+    if (
+      !payload ||
+      payload.tipo !== 'INVITACION_LOGISTICA' ||
+      !payload.correo ||
+      !payload.idEvento
+    ) {
+      throw new BadRequestException(
+        'El token proporcionado no es válido para activación de logística.',
+      );
+    }
+
+    const correo = String(payload.correo).toLowerCase().trim();
+    const idEvento = Number(payload.idEvento);
+
+    const evento = await this.dataSource.query(
+      `SELECT "idEvento", nombre, "idEstadoEvento" FROM evento WHERE "idEvento" = $1 LIMIT 1`,
+      [idEvento],
+    );
+    if (!evento.length || evento[0].idEstadoEvento === EstadoEvento.CANCELADO) {
+      throw new ConflictException('Evento no encontrado o cancelado.');
+    }
+
+    const conteo = await this.dataSource.query(
+      `SELECT COUNT(*)::int AS total FROM "eventoPersonalLogistica" WHERE "idEvento" = $1`,
+      [idEvento],
+    );
+    if ((conteo[0]?.total ?? 0) >= 10) {
+      throw new BadRequestException(
+        'No es posible registrar más personal de logística. El evento ha alcanzado el límite máximo de 10 integrantes.',
+      );
+    }
+
+    let usuario = await this.usuarioRepository.findOneBy({ correo });
+
+    if (!usuario) {
+      const nombre = dto.nombre.trim();
+      const apellidoPa = dto.apellidoPa.trim();
+      const apellidoMa = dto.apellidoMa ? dto.apellidoMa.trim() : null;
+
+      if (
+        !this.SOLO_LETRAS_REGEX.test(nombre) ||
+        !this.SOLO_LETRAS_REGEX.test(apellidoPa)
+      ) {
+        throw new BadRequestException(
+          'El nombre y los apellidos solo deben contener letras.',
+        );
+      }
+      if (apellidoMa && !this.SOLO_LETRAS_REGEX.test(apellidoMa)) {
+        throw new BadRequestException(
+          'El apellido materno solo debe contener letras.',
+        );
+      }
+
+      if (dto.contrasena.length < 8) {
+        throw new BadRequestException(
+          'La contraseña debe contener al menos 8 caracteres.',
+        );
+      }
+
+      const esInterno =
+        correo.endsWith('@ipn.mx') || correo.endsWith('@alumno.ipn.mx');
+      const tipoCuenta = esInterno
+        ? TipoCuentaUsuario.INTERNO
+        : TipoCuentaUsuario.EXTERNO;
+
+      const salt = await bcrypt.genSalt(10);
+      const hashedPassword = await bcrypt.hash(dto.contrasena, salt);
+
+      usuario = this.usuarioRepository.create({
+        nombre,
+        apellidoPa,
+        apellidoMa: apellidoMa || null,
+        correo,
+        contrasena: hashedPassword,
+        tipoCuenta,
+        estatus: true,
+        esJefeAcademia: false,
+      });
+
+      usuario = await this.usuarioRepository.save(usuario);
+    }
+
+    const yaAsignado = await this.dataSource.query(
+      `SELECT 1 FROM "eventoPersonalLogistica" WHERE "idEvento" = $1 AND "idUsuario" = $2 LIMIT 1`,
+      [idEvento, usuario.idUsuario],
+    );
+
+    if (!yaAsignado.length) {
+      await this.dataSource.query(
+        `INSERT INTO "eventoPersonalLogistica" ("idEvento", "idUsuario") VALUES ($1, $2)`,
+        [idEvento, usuario.idUsuario],
+      );
+    }
+
+    const organizadorRaw = await this.dataSource.query(
+      `SELECT u.correo, u.nombre, u."apellidoPa"
+       FROM evento e
+       INNER JOIN usuario u ON e."idOrganizador" = u."idUsuario"
+       WHERE e."idEvento" = $1 LIMIT 1`,
+      [idEvento],
+    );
+
+    if (organizadorRaw.length > 0) {
+      const org = organizadorRaw[0];
+      const nombreColaborador = `${usuario.nombre} ${usuario.apellidoPa}`.trim();
+      void this.mailService.enviarNotificacionOrganizadorLogisticaAceptada({
+        destinatario: org.correo,
+        nombreOrganizador: `${org.nombre} ${org.apellidoPa}`.trim(),
+        nombreColaborador,
+        correoColaborador: usuario.correo,
+        nombreEvento: evento[0].nombre,
+      });
+    }
+
+    void this.mailService.enviarConfirmacionAsignacionLogistica({
+      destinatario: usuario.correo,
+      nombreUsuario: `${usuario.nombre} ${usuario.apellidoPa}`.trim(),
+      nombreEvento: evento[0].nombre,
+    });
+
+    const sessionPayload = {
+      sub: usuario.idUsuario,
+      correo: usuario.correo,
+      tipoCuenta: usuario.tipoCuenta,
+      esJefeAcademia: usuario.esJefeAcademia,
+    };
+    const accessToken = this.jwtService.sign(sessionPayload);
+
+    const { contrasena: _contrasena, ...datosUsuario } = usuario;
+    return {
+      mensaje: 'Operación realizada con éxito.',
+      access_token: accessToken,
+      usuario: datosUsuario,
     };
   }
 }
