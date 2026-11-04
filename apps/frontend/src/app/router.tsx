@@ -20,6 +20,10 @@ import { BitacoraGeneral } from "../features/admin/Bitacora";
 import { MenuPrincipalAdministracion } from "../features/admin/menu-admin";
 
 import { EventCatalogPage } from "../features/event-catalog/pages/EventCatalogPage";
+import { EventDetailsLayout } from "../features/event-details/pages/EventDetailsLayout";
+import { EventDetailsRoute } from "../features/event-details/pages/EventDetailsRoute";
+import { SubEventDetailsRoute } from "../features/event-details/pages/SubEventDetailsRoute";
+import { ReservationRoute } from "../features/reservations/pages/ReservationRoute";
 
 import { SolicitudesAprobadas } from "../features/educational-services/SolicitudesAprobadas";
 import { MisEventos } from "../features/organizer/MisEventos";
@@ -35,6 +39,19 @@ export function AppRouter() {
           <Route path="/cartelera" element={<EventCatalogPage />} />
         </Route>
 
+        <Route element={<EventDetailsLayout />}>
+          <Route path="/eventos/:idEvento" element={<EventDetailsRoute />} />
+          <Route path="/eventos/:idEvento/actividades/:idSubEvento" element={<SubEventDetailsRoute />} />
+          <Route path="/eventos/:idEvento/actividades/:idSubEvento/reservar" element={<ReservationRoute />} />
+        </Route>
+
+        {/*Solicitud evento para subdirección y asistentes*/}
+        <Route element={<ProtectedRoute allowedRoles={["Subdirección","Asistente","Usuario Externo","Usuario Interno",]}/>}>
+          <Route element={<DashboardLayout />}>
+            <Route path="/solicitud-evento" element={<SolicitudEvento />} />
+          </Route>
+        </Route>
+
         {/*Pantalla Perfil compartida*/}
         <Route element={<ProtectedRoute allowedRoles={["Administrador","Subdirección","Asistente","Usuario Externo","Usuario Interno",]}/>}>
           <Route element={<DashboardLayout />}>
@@ -47,11 +64,7 @@ export function AppRouter() {
           <Route element={<DashboardLayout />}>
             <Route path="/menu-asistente" element={<MenuAsistente />} />
             <Route path="/asistente/cartelera" element={<EventCatalogPage />} />
-            <Route
-              path="/organizador/mis-eventos"
-              element={<MisEventos />}
-            />
-            <Route path="/solicitud-evento" element={<SolicitudEvento />} />
+            <Route path="/organizador/mis-eventos" element={<MisEventos />}/>
             <Route path="/verificacion" element={<Verificacion />} />
           </Route>
         </Route>

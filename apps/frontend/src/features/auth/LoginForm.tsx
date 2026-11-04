@@ -1,6 +1,7 @@
 import { useState, useRef } from "react";
 import ReCAPTCHA from "react-google-recaptcha";
-import { useNavigate } from "react-router";
+import { useNavigate, useSearchParams } from "react-router";
+import { getAuthPathWithReturnUrl, getEventReturnPath } from "../event-details/utils/eventReturnUrl";
 import { FieldMessage } from "../../components/atoms/FieldMessage/FieldMessage";
 import { Input } from "../../components/atoms/Input/Input";
 import { Button } from "../../components/atoms/Button/Button";
@@ -13,6 +14,8 @@ import { Modal } from "../../components/molecules/Modal";
 
 export function LoginForm() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const returnPath = getEventReturnPath(searchParams.get("returnUrl"));
 
   const [formData, setFormData] = useState({
     correo: "",
@@ -143,7 +146,9 @@ export function LoginForm() {
 
       const rol = data.usuario?.tipoCuenta;
 
-      if (rol === "admin" || rol === "Administrador") {
+      if (returnPath) {
+        navigate(returnPath, { replace: true });
+      } else if (rol === "admin" || rol === "Administrador") {
         navigate("/menu-admin");
       } else if (rol === "Subdirección") {
         navigate("/subdireccion/menu-principal"); 
@@ -192,7 +197,7 @@ export function LoginForm() {
         <Button fullWidth size="md" variant="primary" className="mt-2" type="submit" text="Iniciar Sesión" loadingText="Iniciando sesión..." loading={loading}/>
 
         <div className="mt-1 text-center">
-          <TextLink to="/registro" className="text-sky-500 hover:text-sky-600 font-merriweather font-semibold text-[16px]">
+          <TextLink to={getAuthPathWithReturnUrl("/registro", returnPath)} className="text-sky-500 hover:text-sky-600 font-merriweather font-semibold text-[16px]">
             ¿No tienes cuenta? Regístrate
           </TextLink>
         </div>

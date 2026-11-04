@@ -1,5 +1,6 @@
-export default ReservationSummary;export interface ReservationSummaryProps {
+export interface ReservationSummaryProps {
   eventName: string;
+  parentEventName?: string;
   date: string;
   startTime: string;
   endTime: string;
@@ -10,6 +11,7 @@ export default ReservationSummary;export interface ReservationSummaryProps {
 
 export function ReservationSummary({
                                      eventName,
+                                     parentEventName,
                                      date,
                                      startTime,
                                      endTime,
@@ -21,21 +23,27 @@ export function ReservationSummary({
     <section
       aria-label="Resumen de reservación"
       className="space-y-4 rounded-xl border
-                 border-eventos-neutral p-5"
+                 border-eventos-panel-border bg-eventos-panel-surface p-5"
     >
-      <h2 className="font-merriweather text-xl font-bold">
+      <h2 className="font-merriweather text-xl font-bold text-eventos-ink">
         Resumen de reservación
       </h2>
 
       <dl className="space-y-3 text-sm">
+        {parentEventName && (
+          <div>
+            <dt className="font-semibold">Evento</dt>
+            <dd>{parentEventName}</dd>
+          </div>
+        )}
         <div>
-          <dt className="font-semibold">Evento</dt>
+          <dt className="font-semibold">Actividad</dt>
           <dd>{eventName}</dd>
         </div>
 
         <div>
           <dt className="font-semibold">Fecha</dt>
-          <dd>{date}</dd>
+          <dd>{date ? new Date(`${date}T12:00:00`).toLocaleDateString("es-MX", { year: "numeric", month: "2-digit", day: "2-digit" }) : "Por confirmar"}</dd>
         </div>
 
         <div>
@@ -60,3 +68,5 @@ export function ReservationSummary({
     </section>
   );
 }
+
+export default ReservationSummary;
