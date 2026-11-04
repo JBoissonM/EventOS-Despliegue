@@ -11,6 +11,7 @@ const linksByRole = {
     { label: "Menú Principal", to: "/menu-asistente" },
     { label: "Cartelera de eventos", to: "/asistente/cartelera" },
     { label: "Solicitar evento", to: "/solicitud-evento" },
+    { label: "Mis eventos", to: "/organizador/mis-eventos" },
     { label: "Mis Boletos", to: "/asistente/boletos" },
   ],
   admin: [

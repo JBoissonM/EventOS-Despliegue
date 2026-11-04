@@ -22,6 +22,7 @@ import { MenuPrincipalAdministracion } from "../features/admin/menu-admin";
 import { EventCatalogPage } from "../features/event-catalog/pages/EventCatalogPage";
 
 import { SolicitudesAprobadas } from "../features/educational-services/SolicitudesAprobadas";
+import { MisEventos } from "../features/organizer/MisEventos";
 
 export function AppRouter() {
   return (
@@ -57,6 +58,10 @@ export function AppRouter() {
           <Route element={<DashboardLayout />}>
             <Route path="/menu-asistente" element={<MenuAsistente />} />
             <Route path="/asistente/cartelera" element={<EventCatalogPage />} />
+            <Route
+              path="/organizador/mis-eventos"
+              element={<MisEventos />}
+            />
             <Route path="/solicitud-evento" element={<SolicitudEvento />} />
             <Route path="/verificacion" element={<Verificacion />} />
           </Route>
