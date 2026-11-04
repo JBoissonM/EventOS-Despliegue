@@ -69,7 +69,9 @@ export function ActivityInformationCard({ activity, returnPath }: ActivityInform
               </Link>
             )}
             {canReserve && hasSession && (
-              <p className="mt-3 text-sm text-eventos-body-text">Tu sesión está iniciada. La opción para solicitar el boleto se habilitará al integrar el flujo de reservaciones.</p>
+              <Link to={`/eventos/${activity.idEvento}/actividades/${activity.idSubEvento}/reservar`} className="mt-4 inline-flex min-h-11 items-center justify-center rounded-md bg-eventos-primary px-5 py-2 text-center text-sm font-semibold text-eventos-on-primary hover:bg-eventos-action-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-eventos-primary">
+                Reservar lugar
+              </Link>
             )}
           </div>
         )}

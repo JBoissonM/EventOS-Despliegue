@@ -6,6 +6,8 @@ export interface ReservationSuccessDialogProps {
   isOpen: boolean;
   eventName: string;
   seatLabel?: string | null;
+  ticketId?: number | null;
+  qr?: string | null;
   onClose: () => void;
   onViewTicket?: () => void;
 }
@@ -14,6 +16,8 @@ export function ReservationSuccessDialog({
                                            isOpen,
                                            eventName,
                                            seatLabel,
+                                           ticketId,
+                                           qr,
                                            onClose,
                                            onViewTicket,
                                          }: ReservationSuccessDialogProps) {
@@ -45,8 +49,8 @@ export function ReservationSuccessDialog({
       }}
       className="
         m-auto w-full max-w-md rounded-xl
-        border-0 bg-white p-6 text-gray-900
-        shadow-xl backdrop:bg-black/50
+        border-0 bg-eventos-surface p-6 text-eventos-ink
+        shadow-xl backdrop:bg-eventos-ink/50
       "
     >
       <div className="space-y-5">
@@ -67,7 +71,7 @@ export function ReservationSuccessDialog({
             id={titleId}
             className="font-merriweather text-xl font-bold"
           >
-            Lugar asignado
+            {seatLabel ? "Asiento reservado" : "Reservación confirmada"}
           </h2>
 
           <p
@@ -76,6 +80,7 @@ export function ReservationSuccessDialog({
           >
             Tu reservación para {eventName} se
             registró correctamente.
+            {ticketId && <span className="mt-2 block font-semibold">Boleto #{ticketId}</span>}
             {seatLabel && (
               <span className="mt-2 block font-semibold">
                 Asiento: {seatLabel}
@@ -83,6 +88,13 @@ export function ReservationSuccessDialog({
             )}
           </p>
         </div>
+
+        {qr && (
+          <div className="mx-auto max-w-44 space-y-2 text-center">
+            <img className="mx-auto w-full rounded-md border border-eventos-panel-border" src={qr.startsWith("data:image/") ? qr : `data:image/png;base64,${qr}`} alt={`Código QR del boleto ${ticketId ?? "reservado"}`} />
+            <p className="text-xs text-eventos-muted-text">Conserva este código para el acceso a la actividad.</p>
+          </div>
+        )}
 
         <div className="flex flex-wrap justify-center gap-3">
           {onViewTicket && (
