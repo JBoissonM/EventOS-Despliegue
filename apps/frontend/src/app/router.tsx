@@ -43,6 +43,13 @@ export function AppRouter() {
           <Route path="/eventos/:idEvento/actividades/:idSubEvento" element={<SubEventDetailsRoute />} />
         </Route>
 
+        {/*Solicitud evento para subdirección y asistentes*/}
+        <Route element={<ProtectedRoute allowedRoles={["Subdirección","Asistente","Usuario Externo","Usuario Interno",]}/>}>
+          <Route element={<DashboardLayout />}>
+            <Route path="/solicitud-evento" element={<SolicitudEvento />} />
+          </Route>
+        </Route>
+
         {/*Pantalla Perfil compartida*/}
         <Route element={<ProtectedRoute allowedRoles={["Administrador","Subdirección","Asistente","Usuario Externo","Usuario Interno",]}/>}>
           <Route element={<DashboardLayout />}>
@@ -55,11 +62,7 @@ export function AppRouter() {
           <Route element={<DashboardLayout />}>
             <Route path="/menu-asistente" element={<MenuAsistente />} />
             <Route path="/asistente/cartelera" element={<EventCatalogPage />} />
-            <Route
-              path="/organizador/mis-eventos"
-              element={<MisEventos />}
-            />
-            <Route path="/solicitud-evento" element={<SolicitudEvento />} />
+            <Route path="/organizador/mis-eventos" element={<MisEventos />}/>
             <Route path="/verificacion" element={<Verificacion />} />
           </Route>
         </Route>

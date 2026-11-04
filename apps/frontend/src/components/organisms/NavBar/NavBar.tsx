@@ -10,9 +10,9 @@ const linksByRole = {
   asistente: [
     { label: "Menú Principal", to: "/menu-asistente" },
     { label: "Cartelera de eventos", to: "/asistente/cartelera" },
-    { label: "Solicitar evento", to: "/solicitud-evento" },
-    { label: "Mis eventos", to: "/organizador/mis-eventos" },
     { label: "Mis Boletos", to: "/asistente/boletos" },
+    { label: "Mis eventos", to: "/organizador/mis-eventos" },
+    { label: "Control de Acceso", to: "/control-acceso" },
   ],
   admin: [
     { label: "Menú", to: "/menu-admin" },
@@ -26,7 +26,7 @@ const linksByRole = {
     { label: "Mis eventos", to: "/subdireccion/mis-eventos" },
     { label: "Solicitudes Aprobadas", to: "/subdireccion/solicitudes-aprobadas" },
     { label: "Solicitudes Pendientes", to: "/subdireccion/lista-solicitudes" },
-    { label: "Solicitar evento", to: "/subdireccion/solicitud-evento" },
+    { label: "Solicitar evento", to: "/solicitud-evento" },
   ],
 } satisfies Record<NavbarProps["userRole"], { label: string; to: string }[]>;
 
