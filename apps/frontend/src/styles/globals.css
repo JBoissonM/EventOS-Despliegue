@@ -22,4 +22,27 @@
 
   /* Fuente */
   --font-merriweather: "Poppins", serif;
+
+  --color-eventos-surface: #FFFFFF;
+  --color-eventos-panel-surface: #F5F5F5;
+  --color-eventos-panel-border: #C9C9C9;
+  --color-eventos-divider: #D8D8D8;
+  --color-eventos-ink: #171717;
+  --color-eventos-body-text: #454545;
+  --color-eventos-placeholder-text: #737373;
+  --color-eventos-on-primary: #FFFFFF;
+  --color-eventos-action-hover: #49152A;
+
+
+  --color-eventos-divider-strong: var(--color-eventos-panel-border);
+  --color-eventos-secondary: var(--color-secondary);
+  --color-eventos-muted-text: var(--color-eventos-placeholder-text);
+  --color-eventos-error-strong: var(--color-eventos-error);
+  --color-eventos-action-hover-soft: var(--color-eventos-primary-light);
+
+
+  --color-eventos-navbar-divider: #60253A;
+  --color-eventos-navbar-link: #E7E5E4;
+  --color-eventos-navbar-focus: var(--color-eventos-on-primary);
+  --text-eventos-brand: clamp(1.5rem, 1.25rem + 1vw, 1.875rem);
 }
