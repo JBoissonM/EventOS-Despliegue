@@ -19,10 +19,7 @@ import { GestionUsuarios } from "../features/admin/Gestion-Usuarios";
 import { BitacoraGeneral } from "../features/admin/Bitacora";
 import { MenuPrincipalAdministracion } from "../features/admin/menu-admin";
 
-import { ReservationDemoPage } from "../features/reservations/pages/ReservationDemoPage";
-import { MyTicketsDemoPage } from "../features/tickets/pages/MyTicketsDemoPage";
-import { DigitalTicketDemoPage } from "../features/tickets/pages/DigitalTicketsDemo";
-import { ReservationAvailabilityPreviewPage } from "../features/reservations/pages/ReservationAvailabilityPreviewPage";
+import { EventCatalogPage } from "../features/event-catalog/pages/EventCatalogPage";
 
 import { SolicitudesAprobadas } from "../features/educational-services/SolicitudesAprobadas";
 
@@ -31,21 +28,11 @@ export function AppRouter() {
     <BrowserRouter>
       <Routes>
         <Route element={<MainLayout />}>
-          <Route path="/login" index element={<LoginForm />} />
+          <Route path="/login" element={<LoginForm />} />
           <Route path="/registro" element={<Registro />} />
-          {/*Colocar aqui rutas para probar sin tener que hacer login(no apareceran con el navbar correspondiente 
-             pero solo es para probar visualización)*/}
-          <Route path="/demo-reservacion" element={<ReservationDemoPage />} />
-          <Route path="/demo-boletos" element={<MyTicketsDemoPage />} />
           <Route path="/detalles-solicitud/" element={<DetallesSolicitud />} />
+          <Route path="/cartelera" element={<EventCatalogPage />} />
         </Route>
-
-        <Route path="/demo-boleto" element={<DigitalTicketDemoPage />} />
-
-        <Route
-          path="/demo-disponibilidad/:idSubEvento"
-          element={<ReservationAvailabilityPreviewPage />}
-        />
 
         {/*Pantalla Perfil compartida*/}
         <Route
@@ -69,6 +56,7 @@ export function AppRouter() {
         <Route element={<ProtectedRoute allowedRoles={["Asistente", "Usuario Externo", "Usuario Interno"]}/>}>
           <Route element={<DashboardLayout />}>
             <Route path="/menu-asistente" element={<MenuAsistente />} />
+            <Route path="/asistente/cartelera" element={<EventCatalogPage />} />
             <Route path="/solicitud-evento" element={<SolicitudEvento />} />
             <Route path="/verificacion" element={<Verificacion />} />
           </Route>

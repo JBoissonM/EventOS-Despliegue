@@ -1,75 +1,136 @@
-import React from "react";
-import { useNavigate } from "react-router";
-import { TextLink } from "../../atoms/TextLink/TextLink";
+import { useId, useRef, useState } from "react";
+import { Link, NavLink } from "react-router";
+import { Bell, CircleUserRound, Menu, X } from "lucide-react";
 
 interface NavbarProps {
   userRole: "asistente" | "subdireccion" | "admin";
 }
 
-export function Navbar({ userRole }: NavbarProps) {
-  const navigate = useNavigate();
+const linksByRole = {
+  asistente: [
+    { label: "Menú Principal", to: "/menu-asistente" },
+    { label: "Cartelera de eventos", to: "/asistente/cartelera" },
+    { label: "Solicitar evento", to: "/solicitud-evento" },
+    { label: "Mis Boletos", to: "/asistente/boletos" },
+  ],
+  admin: [
+    { label: "Menú", to: "/menu-admin" },
+    { label: "Bitácora", to: "/admin/bitacora" },
+    { label: "Gestión de Jefes de departamento", to: "/admin/jefe-departamento" },
+    { label: "Gestión de espacios", to: "/gestion-espacios" },
+    { label: "Gestión de usuarios", to: "/admin/gestion-usuarios" },
+  ],
+  subdireccion: [
+    { label: "Menú", to: "/subdireccion/menu-principal" },
+    { label: "Mis eventos", to: "/subdireccion/menu-principal" },
+    { label: "Solicitudes Aprobadas", to: "/subdireccion/solicitudes-aprobadas" },
+    { label: "Solicitudes Pendientes", to: "/subdireccion/lista-solicitudes" },
+    { label: "Solicitar evento", to: "/solicitud-evento" },
+  ],
+} satisfies Record<NavbarProps["userRole"], { label: string; to: string }[]>;
 
-  const getNavLinks = () => {
-    switch (userRole) {
-      case "asistente":
-        return [
-          { label: "Menú Principal", to: "menu-asistente" },
-          { label: "Cartelera de eventos", to: "/asistente/cartelera" },
-          { label: "Solicitar evento", to: "/solicitud-evento" },
-          { label: "Mis Boletos", to: "/asistente/boletos" },
-        ];
-      case "admin":
-        return [
-          { label: "Menú", to: "/menu-admin" },
-          { label: "Bitácora", to: "/admin/bitacora" },
-          { label: "Gestión de Jefes de departamento", to: "/admin/jefe-departamento" },
-          { label: "Gestión de espacios", to: "/gestion-espacios" },
-          { label: "Gestión de usuarios", to: "/admin/gestion-usuarios" },
-        ];
-      case "subdireccion":
-      default:
-        return [
-          { label: "Menú", to: "/subdireccion/menu-principal" },
-          { label: "Mis eventos", to: "/subdireccion/menu-principal" },
-          { label: "Solicitudes Aprobadas", to: "/subdireccion/solicitudes-aprobadas" },
-          { label: "Solicitudes Pendientes", to: "/subdireccion/lista-solicitudes" },
-          { label: "Solicitar evento", to: "/solicitud-evento" },
-        ];
-    }
-  };
+const keyboardFocus =
+  "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-eventos-navbar-focus";
+
+export function Navbar({ userRole }: NavbarProps) {
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const mobileMenuId = useId();
+  const menuButtonRef = useRef<HTMLButtonElement>(null);
+  const navLinks = linksByRole[userRole];
 
   return (
-    <nav className="w-full bg-primary border-b px-8 py-4 flex items-center justify-between font-merriweather text-white shadow-md">
-      <div className="flex items-center">
-        <span className="font-bold text-xl tracking-wide text-stone-100 font-merriweather">
+    <nav
+      aria-label="Navegación principal"
+      className="w-full border-b border-eventos-navbar-divider bg-eventos-primary px-4 py-3 font-merriweather text-eventos-on-primary shadow-md sm:px-6 xl:px-8 xl:py-4"
+      onKeyDown={(event) => {
+        if (mobileMenuOpen && event.key === "Escape") {
+          setMobileMenuOpen(false);
+          menuButtonRef.current?.focus();
+        }
+      }}
+    >
+      <div className="flex items-center justify-between gap-3">
+        <span className="shrink-0 text-eventos-brand font-bold tracking-wide text-eventos-on-primary">
           Event-Os
         </span>
-      </div>
 
-      <div className="hidden md:flex items-center space-x-8">
-        <div className="flex items-center space-x-8">
-          {getNavLinks().map((link, index) => (
-            <TextLink key={index} to={link.to} 
-              className="text-stone-200 hover:text-white font-merriweather text-sm font-normal transition-colors no-underline hover:underline">
-              {link.label}
-            </TextLink>
-          ))}
+        <div className="hidden items-center gap-3 xl:flex 2xl:gap-6">
+          <div className="flex items-center gap-1 xl:gap-2">
+            {navLinks.map((link) => (
+              <NavLink
+                key={`${link.to}-${link.label}`}
+                to={link.to}
+                className={({ isActive }) =>
+                  `rounded-md px-2 py-2 text-sm text-eventos-navbar-link transition-colors hover:text-eventos-on-primary hover:underline ${keyboardFocus} ${isActive ? "font-semibold underline underline-offset-4" : ""}`
+                }
+              >
+                {link.label}
+              </NavLink>
+            ))}
+          </div>
+
+          <div className="flex items-center gap-2 border-l border-eventos-navbar-divider pl-3 xl:gap-4">
+            {userRole === "asistente" && (
+              <button
+                type="button"
+                aria-label="Notificaciones"
+                className={`inline-flex h-10 w-10 items-center justify-center rounded-md text-eventos-navbar-link transition-colors hover:text-eventos-on-primary ${keyboardFocus}`}
+              >
+                <Bell size={23} aria-hidden="true" />
+              </button>
+            )}
+            <Link
+              to="/perfil"
+              aria-label="Perfil de usuario"
+              className={`inline-flex h-10 w-10 items-center justify-center rounded-md text-eventos-navbar-link transition-colors hover:text-eventos-on-primary ${keyboardFocus}`}
+            >
+              <CircleUserRound size={27} aria-hidden="true" />
+            </Link>
+          </div>
         </div>
 
-        <div className="flex items-center space-x-6 pl-4 border-l border-primary">
-          {userRole === "asistente" && (
-            <button type="button" className="text-stone-200 hover:text-white focus:outline-none transition-colors" aria-label="Notificaciones">
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75v-.7V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0" />
-              </svg>
-            </button>
+        <button
+          ref={menuButtonRef}
+          type="button"
+          aria-label={mobileMenuOpen ? "Cerrar menú" : "Abrir menú"}
+          aria-expanded={mobileMenuOpen}
+          aria-controls={mobileMenuId}
+          onClick={() => setMobileMenuOpen((open) => !open)}
+          className={`inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-md text-eventos-on-primary transition-colors hover:bg-eventos-action-hover xl:hidden ${keyboardFocus}`}
+        >
+          {mobileMenuOpen ? (
+            <X size={25} aria-hidden="true" />
+          ) : (
+            <Menu size={25} aria-hidden="true" />
           )}
+        </button>
+      </div>
 
-          <button type="button" onClick={() => navigate("/perfil")} className="text-stone-200 hover:text-white focus:outline-none transition-colors" aria-label="Perfil de usuario">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-7 h-7">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M17.982 18.725A7.488 7.488 0 0012 15.75a7.488 7.488 0 00-5.982 2.975m11.963 0a9 9 0 10-11.963 0m11.963 0A8.966 8.966 0 0112 21a8.966 8.966 0 01-5.982-2.275M15 9.75a3 3 0 11-6 0 3 3 0 016 0z" />
-            </svg>
-          </button>
+      <div
+        id={mobileMenuId}
+        className={`${mobileMenuOpen ? "block" : "hidden"} mt-3 border-t border-eventos-navbar-divider pt-3 xl:hidden`}
+      >
+        <div className="flex flex-col gap-1">
+          {navLinks.map((link) => (
+            <NavLink
+              key={`${link.to}-${link.label}`}
+              to={link.to}
+              onClick={() => setMobileMenuOpen(false)}
+              className={({ isActive }) =>
+                `rounded-md px-3 py-3 text-sm text-eventos-navbar-link transition-colors hover:bg-eventos-action-hover hover:text-eventos-on-primary ${keyboardFocus} ${isActive ? "bg-eventos-action-hover font-semibold" : ""}`
+              }
+            >
+              {link.label}
+            </NavLink>
+          ))}
+          <Link
+            to="/perfil"
+            onClick={() => setMobileMenuOpen(false)}
+            className={`mt-2 flex items-center gap-2 rounded-md border-t border-eventos-navbar-divider px-3 py-3 text-sm text-eventos-navbar-link transition-colors hover:bg-eventos-action-hover hover:text-eventos-on-primary ${keyboardFocus}`}
+          >
+            <CircleUserRound size={21} aria-hidden="true" />
+            Perfil de usuario
+          </Link>
         </div>
       </div>
     </nav>
