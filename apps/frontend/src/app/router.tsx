@@ -35,18 +35,7 @@ export function AppRouter() {
         </Route>
 
         {/*Pantalla Perfil compartida*/}
-        <Route
-          element={
-            <ProtectedRoute
-              allowedRoles={[
-                "Administrador",
-                "Subdirección",
-                "Asistente",
-                "Usuario Externo",
-                "Usuario Interno",
-              ]}
-            />
-          }>
+        <Route element={<ProtectedRoute allowedRoles={["Administrador","Subdirección","Asistente","Usuario Externo","Usuario Interno",]}/>}>
           <Route element={<DashboardLayout />}>
             <Route path="/perfil" element={<Perfil />} />
           </Route>
@@ -67,14 +56,8 @@ export function AppRouter() {
           <Route element={<DashboardLayout />}>
             <Route path="/gestion-espacios" element={<GestionEspacios />} />
             <Route path="/gestion-equipos/:id" element={<GestionEquipos />} />
-            <Route
-              path="admin/jefe-departamento"
-              element={<JefeDepartamento />}
-            />
-            <Route
-              path="admin/gestion-usuarios"
-              element={<GestionUsuarios />}
-            />
+            <Route path="admin/jefe-departamento" element={<JefeDepartamento />}/>
+            <Route path="admin/gestion-usuarios" element={<GestionUsuarios />}/>
             <Route path="admin/bitacora" element={<BitacoraGeneral />} />
             <Route path="/menu-admin" element={<MenuPrincipalAdministracion />} />
           </Route>
@@ -83,26 +66,14 @@ export function AppRouter() {
         {/* Rutas para Subdirección*/}
         <Route element={<ProtectedRoute allowedRoles={["Subdirección"]} />}>
           <Route element={<DashboardLayout />}>
-            <Route
-              path="/detalles-solicitud/:id"
-              element={<DetallesSolicitud />}
-            />
-            <Route
-              path="/subdireccion/lista-solicitudes"
-              element={<ListadoSolicitudes />}
-            />
-            <Route
-              path="/subdireccion/menu-principal"
-              element={<MenuSubdireccion />}
-            />
-            <Route
-              path="/subdireccion/solicitudes-aprobadas"
-              element={<SolicitudesAprobadas />}
-            />
+            <Route path="/detalles-solicitud/:id" element={<DetallesSolicitud />}/>
+            <Route path="/subdireccion/lista-solicitudes" element={<ListadoSolicitudes />}/>
+            <Route path="/subdireccion/menu-principal" element={<MenuSubdireccion />}/>
+            <Route path="/subdireccion/solicitudes-aprobadas" element={<SolicitudesAprobadas />}/>
           </Route>
         </Route>
 
-        <Route path="*" element={<Navigate to="/login" replace />} />
+        <Route path="*" element={<Navigate to="/cartelera" replace />} />
       </Routes>
     </BrowserRouter>
   );

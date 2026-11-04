@@ -96,6 +96,18 @@ export function Perfil() {
   
   const esPersonalDirectivoOAdmin = datosDinamicos.rol === "Administrador" || datosDinamicos.rol === "Subdirección";
 
+  const handleVolverAlMenu = () => {
+    const rolActual = datosDinamicos.rol.toLowerCase();
+
+    if (rolActual.includes("administrador")) {
+      navigate("/menu-admin");
+    } else if (rolActual.includes("subdirección") || rolActual.includes("subdir")) {
+      navigate("/subdireccion/menu-principal");
+    } else {
+      navigate("/menu-asistente");
+    }
+  };
+
   return (
     <div className="space-y-6 font-merriweather text-gray-800">
       {!esVerificado && !esPersonalDirectivoOAdmin && (
@@ -108,7 +120,7 @@ export function Perfil() {
       )}
 
       <div className="mb-2">
-        <button onClick={() => navigate(-1)} className="flex items-center text-sm font-semibold text-gray-700 hover:text-gray-900 transition-colors">
+        <button onClick={handleVolverAlMenu} className="flex items-center text-sm font-semibold text-gray-700 hover:text-gray-900 transition-colors">
           <span className="font-merriweather text-[16px] mr-3">← Volver al menú</span>
         </button>
       </div>
