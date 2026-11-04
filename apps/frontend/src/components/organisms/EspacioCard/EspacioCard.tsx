@@ -1,5 +1,6 @@
 import React from "react";
 import { Button } from "../../atoms/Button/Button";
+import { Landmark, Building, Monitor } from "lucide-react";
 
 interface Espacio {
   idRecinto: number;
@@ -25,20 +26,13 @@ export function EspacioCard({ espacio, onToggleEstado, onGestionarEquipos }: Esp
       <div>
         <div className="flex justify-center mb-6 text-gray-900">
           {espacio.nombre.toLowerCase().includes("auditorio") && (
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-10 h-10">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M3 9l9-6 9 6H3zm2.25 1.5h13.5M6 10.5v7.5m3-7.5v7.5m3-7.5v7.5m3-7.5v7.5M3 19.5h18" />
-            </svg>
+            <Landmark className="w-10 h-10" />
           )}
           {espacio.nombre.toLowerCase().includes("sala") && (
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-10 h-10">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M8 3h8a2 2 0 012 2v14a2 2 0 01-2 2H8a2 2 0 01-2-2V5a2 2 0 012-2z" />
-              <path strokeLinecap="round" strokeLinejoin="round" d="M10 7h1v1h-1V7zm3 0h1v1h-1V7zm-3 4h1v1h-1v-1zm3 0h1v1h-1v-1zm-3 4h1v1h-1v-1zm3 0h1v1h-1v-1z" />
-            </svg>
+            <Building className="w-10 h-10" />
           )}
           {esLaboratorio && (
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-10 h-10">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M6 20.25h12m-7.5-3v3m3-3v3m-10.5-3h15a2.25 2.25 0 002.25-2.25V6.75A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25v11.25A2.25 2.25 0 004.5 20.25z" />
-            </svg>
+            <Monitor className="w-10 h-10" />
           )}
         </div>
 
@@ -62,16 +56,12 @@ export function EspacioCard({ espacio, onToggleEstado, onGestionarEquipos }: Esp
 
       <div className="space-y-2">
         {esLaboratorio && (
-          <Button text="Gestionar equipos" variant="primary" size="sm"
-            className="w-full text-xs py-2 rounded"
-            onClick={() => onGestionarEquipos(espacio.idRecinto)}
-          />
+          <Button text="Gestionar equipos" variant="primary" size="sm" className="w-full text-xs py-2 rounded" onClick={() => onGestionarEquipos(espacio.idRecinto)}/>
         )}
-        <Button text={estaHabilitado ? "Inhabilitar" : "Habilitar"} variant="primary" size="sm"
-          className="w-full text-xs py-2 rounded"
-          onClick={() => onToggleEstado(espacio)}
-        />
+        <Button text={estaHabilitado ? "Inhabilitar" : "Habilitar"} variant="primary" size="sm" className="w-full text-xs py-2 rounded" onClick={() => onToggleEstado(espacio)}/>
       </div>
     </div>
   );
 }
+
+export default EspacioCard;
