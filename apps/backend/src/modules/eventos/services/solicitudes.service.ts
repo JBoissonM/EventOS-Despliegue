@@ -3,6 +3,7 @@ import {
   ConflictException,
   ForbiddenException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -25,10 +26,13 @@ import { SolicitudModificacionEntity } from '../entities/solicitudModificacion.e
 import { RecintoEntity } from '../../recintos/entities/recinto.entity';
 import { RecintoService } from '../../recintos/services/recinto.service';
 import { StorageService } from '../../../common/storage/storage.service';
+import { MailService } from '../../reservas/services/mail.service';
 import type { CrearSolicitudDto } from '../dto/crearSolicitud.dto';
 
 @Injectable()
 export class SolicitudesService {
+  private readonly logger = new Logger(SolicitudesService.name);
+
   constructor(
     @InjectRepository(EventoEntity)
     private readonly eventoRepository: Repository<EventoEntity>,
@@ -43,6 +47,7 @@ export class SolicitudesService {
     private readonly recintoService: RecintoService,
     private readonly storageService: StorageService,
     private readonly dataSource: DataSource,
+    private readonly mailService: MailService,
   ) {}
 
   async verificarUsuario(idUsuario: number): Promise<boolean> {
@@ -550,6 +555,15 @@ export class SolicitudesService {
         solicitudPendiente.subeventosPropuestos,
       );
 
+      const subeventosConCambioRecinto: {
+        idSubEvento: number;
+        nombreSubEvento: string;
+        idNuevoRecinto: number;
+        fecha: string;
+        horaInicio: string;
+        horaFin: string;
+      }[] = [];
+
       await this.dataSource.transaction(async (manager) => {
         const subeventosExistentes = await manager.find(SubEventoEntity, {
           where: { idEvento },
@@ -567,6 +581,27 @@ export class SolicitudesService {
 
           if (existente) {
             idsConservados.add(existente.idSubEvento);
+            const cambioRecinto = existente.idRecinto !== propuesto.idRecinto;
+            if (cambioRecinto) {
+              await manager.query(
+                `UPDATE boleto b
+                 SET "idAsiento" = NULL
+                 FROM "asistenteEvento" ae
+                 WHERE ae."idBoleto" = b."idBoleto"
+                   AND ae."idSubEvento" = $1
+                   AND b."idEstadoBoleto" = $2`,
+                [existente.idSubEvento, EstadoBoleto.VALIDO],
+              );
+              subeventosConCambioRecinto.push({
+                idSubEvento: existente.idSubEvento,
+                nombreSubEvento: propuesto.nombre,
+                idNuevoRecinto: propuesto.idRecinto,
+                fecha: propuesto.fecha,
+                horaInicio: propuesto.horaInicio,
+                horaFin: propuesto.horaFin,
+              });
+            }
+
             if (existente.idFecha) {
               await manager.update(FechaEntity, existente.idFecha, {
                 fecha: propuesto.fecha,
@@ -637,6 +672,10 @@ export class SolicitudesService {
           { estado: 'Aprobado' },
         );
       });
+
+      if (subeventosConCambioRecinto.length > 0) {
+        void this.notificarAsistentesCambioRecinto(idEvento, subeventosConCambioRecinto);
+      }
 
       return {
         mensaje: 'La solicitud fue aprobada exitosamente.',
@@ -907,5 +946,56 @@ export class SolicitudesService {
     }
 
     return await this.crearEvento(nuevoEvento, dto.subeventos);
+  }
+
+  private async notificarAsistentesCambioRecinto(
+    idEvento: number,
+    cambios: {
+      idSubEvento: number;
+      nombreSubEvento: string;
+      idNuevoRecinto: number;
+      fecha: string;
+      horaInicio: string;
+      horaFin: string;
+    }[],
+  ): Promise<void> {
+    try {
+      const evento = await this.eventoRepository.findOneBy({ idEvento });
+      for (const cambio of cambios) {
+        const recinto = await this.dataSource.query(
+          `SELECT nombre FROM recinto WHERE "idRecinto" = $1 LIMIT 1`,
+          [cambio.idNuevoRecinto],
+        );
+        const nombreRecinto = recinto[0]?.nombre || 'Nuevo Recinto';
+
+        const asistentes = await this.dataSource.query(
+          `SELECT DISTINCT u.correo, u.nombre, u."apellidoPa"
+           FROM "asistenteEvento" ae
+           INNER JOIN boleto b ON ae."idBoleto" = b."idBoleto"
+           INNER JOIN usuario u ON ae."idUsuario" = u."idUsuario"
+           WHERE ae."idSubEvento" = $1 AND b."idEstadoBoleto" = $2`,
+          [cambio.idSubEvento, EstadoBoleto.VALIDO],
+        );
+
+        for (const asist of asistentes) {
+          const nombreCompleto = `${asist.nombre} ${asist.apellidoPa}`.trim();
+          await this.mailService.enviarNotificacionCambioRecinto({
+            destinatario: asist.correo,
+            nombreAsistente: nombreCompleto,
+            nombreEvento: evento?.nombre || 'Evento Institucional',
+            nombreSubEvento: cambio.nombreSubEvento,
+            nuevoRecinto: nombreRecinto,
+            fecha: cambio.fecha,
+            horaInicio: cambio.horaInicio,
+            horaFin: cambio.horaFin,
+          });
+        }
+      }
+    } catch (err) {
+      this.logger.error(
+        'Error al enviar notificaciones de cambio de recinto a asistentes',
+        err,
+      );
+    }
   }
 }

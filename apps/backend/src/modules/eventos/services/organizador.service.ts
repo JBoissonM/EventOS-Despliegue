@@ -385,6 +385,33 @@ export class OrganizadorService {
       }
     }
 
+    // Validar que los subeventos existentes que cambian de recinto no superen el aforo con boletos activos
+    for (const subPropuesto of dto.subeventos) {
+      if (subPropuesto.idSubEvento) {
+        const existente = (evento.subEventos || []).find(
+          (s) => s.idSubEvento === subPropuesto.idSubEvento,
+        );
+        if (existente && existente.idRecinto !== subPropuesto.idRecinto) {
+          const nuevoRecintoRaw = await this.dataSource.query(
+            `SELECT "idRecinto", nombre, aforo FROM recinto WHERE "idRecinto" = $1 LIMIT 1`,
+            [subPropuesto.idRecinto],
+          );
+          if (nuevoRecintoRaw.length > 0) {
+            const aforoNuevo = Number(nuevoRecintoRaw[0].aforo);
+            const boletosMap = await this.contarBoletosValidosPorSubevento([
+              existente.idSubEvento,
+            ]);
+            const boletosActivos = boletosMap.get(existente.idSubEvento) ?? 0;
+            if (boletosActivos > aforoNuevo) {
+              throw new ConflictException(
+                `La cantidad solicitada excede el aforo máximo de seguridad del recinto. Solo quedan ${aforoNuevo} lugares disponibles.`,
+              );
+            }
+          }
+        }
+      }
+    }
+
     await this.solicitudesService.validarSubeventos(dto.subeventos, idEvento);
 
     const solicitudExistente =
