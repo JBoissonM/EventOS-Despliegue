@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { TextArea } from "../../atoms/TextArea/TextArea";
 import { Button } from "../../atoms/Button/Button";
 import { Input } from "../../atoms/Input/Input";
@@ -24,36 +25,73 @@ export function ModalSubevento({
   cambiarDescripcion,
   descripcion,
 }: ModalSubeventoProps) {
+  const [guardarIntentado, setGuardarIntentado] = useState(false);
+  const errorNombre =
+    errors.nombre ??
+    (guardarIntentado && !nombre.trim()
+      ? "El nombre del subevento es obligatorio"
+      : undefined);
+  const errorDescripcion =
+    errors.descripcion ??
+    (guardarIntentado && !descripcion.trim()
+      ? "La descripción del subevento es obligatoria"
+      : undefined);
+
+  const cerrarModal = () => {
+    setGuardarIntentado(false);
+    cerrar();
+  };
+
+  const guardar = () => {
+    setGuardarIntentado(true);
+    if (
+      !nombre.trim() ||
+      !descripcion.trim() ||
+      errors.nombre ||
+      errors.descripcion
+    ) {
+      return;
+    }
+
+    cerrarModal();
+  };
+
   return (
     <Modal
       titulo="Detalles del subevento"
       contenido="Agrega los detalles del subevento"
       mostrarModal={mostrar}
-      cerrarModal={cerrar}>
+      cerrarModal={cerrarModal}>
       <div id="contenedorModalSubevento" className="grid grid-cols-1 gap-1">
-        <FormField label="Nombre del subevento" errorMessage={errors.nombre}>
+        <FormField
+          required
+          label="Nombre del subevento"
+          errorMessage={errorNombre}>
           <Input
             id="campoNombreSubevento"
             type="text"
             placeholder="Ingresa el nombre del subevento"
             value={nombre}
-            hasError={Boolean(errors.nombre)}
+            hasError={Boolean(errorNombre)}
             onChange={(e) => cambiarNombre(e.target.value)}
-            maxLength={151}
+            maxLength={150}
           />
         </FormField>
-        <FormField label="Descripcion" errorMessage={errors.descripcion}>
+        <FormField
+          required
+          label="Descripción"
+          errorMessage={errorDescripcion}>
           <TextArea
             id="campoDescripcionSubevento"
             placeholder="Ingresa la descripción del subevento"
-            maxLength={501}
+            maxLength={500}
             className="resize-none h-50"
             value={descripcion}
-            hasError={Boolean(errors.descripcion)}
+            hasError={Boolean(errorDescripcion)}
             onChange={(e) => cambiarDescripcion(e.target.value)}
           />
         </FormField>
-        <Button text="Guardar" className="justify-self-end" onClick={cerrar} />
+        <Button text="Guardar" className="justify-self-end" onClick={guardar} />
       </div>
     </Modal>
   );
