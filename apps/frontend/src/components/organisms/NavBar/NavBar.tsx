@@ -22,10 +22,10 @@ const linksByRole = {
   ],
   subdireccion: [
     { label: "Menú", to: "/subdireccion/menu-principal" },
-    { label: "Mis eventos", to: "/subdireccion/menu-principal" },
+    { label: "Mis eventos", to: "/subdireccion/mis-eventos" },
     { label: "Solicitudes Aprobadas", to: "/subdireccion/solicitudes-aprobadas" },
     { label: "Solicitudes Pendientes", to: "/subdireccion/lista-solicitudes" },
-    { label: "Solicitar evento", to: "/solicitud-evento" },
+    { label: "Solicitar evento", to: "/subdireccion/solicitud-evento" },
   ],
 } satisfies Record<NavbarProps["userRole"], { label: string; to: string }[]>;
 
@@ -70,15 +70,6 @@ export function Navbar({ userRole }: NavbarProps) {
           </div>
 
           <div className="flex items-center gap-2 border-l border-eventos-navbar-divider pl-3 xl:gap-4">
-            {userRole === "asistente" && (
-              <button
-                type="button"
-                aria-label="Notificaciones"
-                className={`inline-flex h-10 w-10 items-center justify-center rounded-md text-eventos-navbar-link transition-colors hover:text-eventos-on-primary ${keyboardFocus}`}
-              >
-                <Bell size={23} aria-hidden="true" />
-              </button>
-            )}
             <Link
               to="/perfil"
               aria-label="Perfil de usuario"
