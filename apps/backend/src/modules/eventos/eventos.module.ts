@@ -16,6 +16,8 @@ import { EventosController } from './controllers/eventos.controller';
 import { AsientoEntity } from '../reservas/entities/asiento.entity';
 import { SolicitudModificacionEntity } from './entities/solicitudModificacion.entity';
 import { InvitacionEventoEntity } from './entities/invitacionEvento.entity';
+import { EventoPersonalLogisticaEntity } from './entities/eventoPersonalLogistica.entity';
+import { ReservationsModule } from '../reservas/reservations.module';
 
 @Module({
   imports: [
@@ -29,8 +31,10 @@ import { InvitacionEventoEntity } from './entities/invitacionEvento.entity';
       AsientoEntity,
       SolicitudModificacionEntity,
       InvitacionEventoEntity,
+      EventoPersonalLogisticaEntity,
     ]),
     RecintosModule,
+    ReservationsModule,
   ],
   controllers: [
     SolicitudesController,

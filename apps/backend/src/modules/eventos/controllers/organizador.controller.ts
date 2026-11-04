@@ -23,6 +23,7 @@ import { ModificarLogisticaDto } from '../dto/modificarLogistica.dto';
 import { ActualizarInfoGeneralDto } from '../dto/actualizarInfoGeneral.dto';
 import { AgregarInvitadoDto } from '../dto/invitadoPrivado.dto';
 import { CancelarSolicitudDto } from '../dto/cancelarSolicitud.dto';
+import { AgregarPersonalLogisticaDto } from '../dto/agregarPersonalLogistica.dto';
 import { posterOptions } from '../../../common/upload/upload.options';
 
 @ApiTags('Organizador')
@@ -189,6 +190,43 @@ export class OrganizadorController {
       idEvento,
       idUsuario,
       dto.motivo,
+    );
+  }
+
+  @ApiOperation({
+    summary:
+      'Asignar directamente o invitar por correo (token 48h) a un colaborador como Personal de Logística',
+  })
+  @Post(':idEvento/personal-logistica')
+  @UsePipes(new ValidationPipe({ transform: true, whitelist: true }))
+  async agregarPersonalLogistica(
+    @Param('idEvento', ParseIntPipe) idEvento: number,
+    @Body() dto: AgregarPersonalLogisticaDto,
+    @Req() req: any,
+  ) {
+    const idUsuario = this.obtenerIdUsuarioAutenticado(req);
+    return await this.organizadorService.agregarPersonalLogistica(
+      idEvento,
+      idUsuario,
+      dto,
+    );
+  }
+
+  @ApiOperation({
+    summary:
+      'Revocar los permisos de Personal de Logística a un usuario asignado a este evento',
+  })
+  @Delete(':idEvento/personal-logistica/:idUsuario')
+  async revocarPersonalLogistica(
+    @Param('idEvento', ParseIntPipe) idEvento: number,
+    @Param('idUsuario', ParseIntPipe) idUsuarioLogistica: number,
+    @Req() req: any,
+  ) {
+    const idUsuario = this.obtenerIdUsuarioAutenticado(req);
+    return await this.organizadorService.revocarPersonalLogistica(
+      idEvento,
+      idUsuario,
+      idUsuarioLogistica,
     );
   }
 }

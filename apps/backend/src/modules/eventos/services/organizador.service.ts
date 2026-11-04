@@ -30,6 +30,9 @@ import { ModificarLogisticaDto } from '../dto/modificarLogistica.dto';
 import { ActualizarInfoGeneralDto } from '../dto/actualizarInfoGeneral.dto';
 import { AgregarInvitadoDto } from '../dto/invitadoPrivado.dto';
 import { StorageService } from '../../../common/storage/storage.service';
+import { JwtService } from '@nestjs/jwt';
+import { MailService } from '../../reservas/services/mail.service';
+import { AgregarPersonalLogisticaDto } from '../dto/agregarPersonalLogistica.dto';
 
 @Injectable()
 export class OrganizadorService {
@@ -49,6 +52,8 @@ export class OrganizadorService {
     private readonly solicitudesService: SolicitudesService,
     private readonly storageService: StorageService,
     private readonly dataSource: DataSource,
+    private readonly jwtService: JwtService,
+    private readonly mailService: MailService,
   ) {}
 
   private obtenerPosterUrl(poster?: string | null): string | null {
@@ -290,6 +295,22 @@ export class OrganizadorService {
       });
     }
 
+    const personalLogisticaRaw = await this.dataSource.query(
+      `SELECT u."idUsuario", u.nombre, u."apellidoPa", u."apellidoMa", u.correo, u."tipoCuenta"
+       FROM "eventoPersonalLogistica" epl
+       INNER JOIN usuario u ON epl."idUsuario" = u."idUsuario"
+       WHERE epl."idEvento" = $1
+       ORDER BY u.nombre ASC`,
+      [idEvento],
+    );
+
+    const personalLogistica = personalLogisticaRaw.map((u: any) => ({
+      idUsuario: Number(u.idUsuario),
+      nombreCompleto: `${u.nombre} ${u.apellidoPa}${u.apellidoMa ? ' ' + u.apellidoMa : ''}`.trim(),
+      correo: u.correo,
+      tipoCuenta: u.tipoCuenta,
+    }));
+
     return {
       idEvento: evento.idEvento,
       nombre: evento.nombre,
@@ -314,6 +335,8 @@ export class OrganizadorService {
           }
         : null,
       invitados: invitadosDetallados,
+      personalLogistica,
+      logisticaCount: personalLogistica.length,
     };
   }
 
@@ -382,6 +405,33 @@ export class OrganizadorService {
       if (esUrgente && !evento.esUrgente) {
         evento.esUrgente = true;
         await this.eventoRepository.update(idEvento, { esUrgente: true });
+      }
+    }
+
+    // Validar que los subeventos existentes que cambian de recinto no superen el aforo con boletos activos
+    for (const subPropuesto of dto.subeventos) {
+      if (subPropuesto.idSubEvento) {
+        const existente = (evento.subEventos || []).find(
+          (s) => s.idSubEvento === subPropuesto.idSubEvento,
+        );
+        if (existente && existente.idRecinto !== subPropuesto.idRecinto) {
+          const nuevoRecintoRaw = await this.dataSource.query(
+            `SELECT "idRecinto", nombre, aforo FROM recinto WHERE "idRecinto" = $1 LIMIT 1`,
+            [subPropuesto.idRecinto],
+          );
+          if (nuevoRecintoRaw.length > 0) {
+            const aforoNuevo = Number(nuevoRecintoRaw[0].aforo);
+            const boletosMap = await this.contarBoletosValidosPorSubevento([
+              existente.idSubEvento,
+            ]);
+            const boletosActivos = boletosMap.get(existente.idSubEvento) ?? 0;
+            if (boletosActivos > aforoNuevo) {
+              throw new ConflictException(
+                `La cantidad solicitada excede el aforo máximo de seguridad del recinto. Solo quedan ${aforoNuevo} lugares disponibles.`,
+              );
+            }
+          }
+        }
       }
     }
 
@@ -775,6 +825,146 @@ export class OrganizadorService {
       motivo,
       idUsuario,
     );
+  }
+
+  async agregarPersonalLogistica(
+    idEvento: number,
+    idUsuarioOrganizador: number,
+    dto: AgregarPersonalLogisticaDto,
+  ) {
+    const evento = await this.eventoRepository.findOneBy({ idEvento });
+    if (!evento) {
+      throw new NotFoundException('Evento no encontrado o cancelado.');
+    }
+
+    if (evento.idOrganizador !== idUsuarioOrganizador) {
+      throw new ForbiddenException(
+        'No cuenta con los permisos necesarios para registrar personal de logística.',
+      );
+    }
+
+    if (evento.idEstadoEvento !== EstadoEvento.ACEPTADO) {
+      throw new BadRequestException(
+        'No es posible asignar personal de logística a un evento que no se encuentra aprobado.',
+      );
+    }
+
+    const conteoActual = await this.dataSource.query(
+      `SELECT COUNT(*)::int AS total FROM "eventoPersonalLogistica" WHERE "idEvento" = $1`,
+      [idEvento],
+    );
+    if ((conteoActual[0]?.total ?? 0) >= 10) {
+      throw new BadRequestException(
+        'No es posible registrar más personal de logística. El evento ha alcanzado el límite máximo de 10 integrantes.',
+      );
+    }
+
+    const correo = dto.correo.toLowerCase().trim();
+    const usuarioExistente = await this.usuarioRepository.findOneBy({ correo });
+
+    if (usuarioExistente) {
+      const yaAsignado = await this.dataSource.query(
+        `SELECT 1 FROM "eventoPersonalLogistica" WHERE "idEvento" = $1 AND "idUsuario" = $2 LIMIT 1`,
+        [idEvento, usuarioExistente.idUsuario],
+      );
+      if (yaAsignado.length > 0) {
+        throw new ConflictException(
+          'El personal de logística ya se encuentra asignado al evento seleccionado.',
+        );
+      }
+
+      const tieneBoletoActivo = await this.dataSource.query(
+        `SELECT 1
+         FROM "asistenteEvento" ae
+         INNER JOIN "subEvento" se ON ae."idSubEvento" = se."idSubEvento"
+         INNER JOIN boleto b ON ae."idBoleto" = b."idBoleto"
+         WHERE se."idEvento" = $1
+           AND ae."idUsuario" = $2
+           AND b."idEstadoBoleto" = $3
+         LIMIT 1`,
+        [idEvento, usuarioExistente.idUsuario, EstadoBoleto.VALIDO],
+      );
+      if (tieneBoletoActivo.length > 0) {
+        throw new ConflictException(
+          'Ya cuentas con un boleto de asistente para este evento. Si deseas postularte como staff, primero debes cancelar tu reserva actual.',
+        );
+      }
+
+      await this.dataSource.query(
+        `INSERT INTO "eventoPersonalLogistica" ("idEvento", "idUsuario") VALUES ($1, $2)`,
+        [idEvento, usuarioExistente.idUsuario],
+      );
+
+      void this.mailService.enviarConfirmacionAsignacionLogistica({
+        destinatario: usuarioExistente.correo,
+        nombreUsuario: `${usuarioExistente.nombre} ${usuarioExistente.apellidoPa}`,
+        nombreEvento: evento.nombre,
+      });
+
+      return {
+        asignadoDirecto: true,
+        mensaje: 'Operación realizada con éxito.',
+      };
+    }
+
+    const payload = {
+      correo,
+      idEvento,
+      tipo: 'INVITACION_LOGISTICA',
+    };
+    const token = this.jwtService.sign(payload, {
+      expiresIn: '48h',
+      secret: process.env.JWT_PASS || 'clave_secreta',
+    });
+
+    const frontendBaseUrl =
+      process.env.FRONTEND_URL || 'http://localhost:5173';
+    const enlaceActivacion = `${frontendBaseUrl}/activar-logistica?token=${token}`;
+
+    const organizador = await this.usuarioRepository.findOneBy({
+      idUsuario: idUsuarioOrganizador,
+    });
+    const nombreOrganizador = organizador
+      ? `${organizador.nombre} ${organizador.apellidoPa}`.trim()
+      : 'Organizador';
+
+    void this.mailService.enviarInvitacionLogistica({
+      destinatario: correo,
+      nombreEvento: evento.nombre,
+      organizador: nombreOrganizador,
+      enlaceActivacion,
+    });
+
+    return {
+      asignadoDirecto: false,
+      mensaje: 'Operación realizada con éxito.',
+    };
+  }
+
+  async revocarPersonalLogistica(
+    idEvento: number,
+    idUsuarioOrganizador: number,
+    idUsuarioLogistica: number,
+  ) {
+    const evento = await this.eventoRepository.findOneBy({ idEvento });
+    if (!evento) {
+      throw new NotFoundException('Evento no encontrado o cancelado.');
+    }
+
+    if (evento.idOrganizador !== idUsuarioOrganizador) {
+      throw new ForbiddenException(
+        'No cuenta con los permisos necesarios para administrar este evento.',
+      );
+    }
+
+    await this.dataSource.query(
+      `DELETE FROM "eventoPersonalLogistica" WHERE "idEvento" = $1 AND "idUsuario" = $2`,
+      [idEvento, idUsuarioLogistica],
+    );
+
+    return {
+      mensaje: 'Operación realizada con éxito.',
+    };
   }
 }
 
