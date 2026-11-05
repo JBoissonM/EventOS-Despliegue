@@ -6,6 +6,7 @@ import {
   EstadoSubEvento,
   type EventoOrganizadorDetalle,
   type EventoOrganizadorDetalleSubevento,
+  type PersonalLogisticaItem,
   type Ponente,
 } from "@eventos/shared";
 import Button from "../../components/atoms/Button/Button";
@@ -20,6 +21,8 @@ type TablaPonente = {
   correo: string;
 };
 
+type TablaPersonalLogistica = PersonalLogisticaItem;
+
 const columnasPonente: Columna<TablaPonente>[] = [
   {
     id: "nombreCompleto",
@@ -32,6 +35,21 @@ const columnasPonente: Columna<TablaPonente>[] = [
     encabezado: "Correo",
     render: (ponente) => ponente.correo,
     className: "min-w-[10rem] max-w-[14rem] break-all px-3",
+  },
+];
+
+const columnasLogistica: Columna<TablaPersonalLogistica>[] = [
+  {
+    id: "nombreCompleto",
+    encabezado: "Nombre completo",
+    render: (personal) => personal.nombreCompleto,
+    className: "min-w-[10rem] px-3",
+  },
+  {
+    id: "correo",
+    encabezado: "Correo",
+    render: (personal) => personal.correo,
+    className: "min-w-[12rem] break-all px-3",
   },
 ];
 
@@ -173,6 +191,19 @@ function convertirPonente(valor: unknown): Ponente {
   };
 }
 
+function convertirPersonalLogistica(valor: unknown): PersonalLogisticaItem {
+  if (!esRegistro(valor)) {
+    throw new Error("La respuesta contiene personal de logística inválido.");
+  }
+
+  return {
+    idUsuario: obtenerNumero(valor, "idUsuario"),
+    nombreCompleto: obtenerTexto(valor, "nombreCompleto"),
+    correo: obtenerTexto(valor, "correo"),
+    tipoCuenta: obtenerTexto(valor, "tipoCuenta"),
+  };
+}
+
 function convertirSubevento(valor: unknown): EventoOrganizadorDetalleSubevento {
   if (!esRegistro(valor) || !Array.isArray(valor.ponentes)) {
     throw new Error("La respuesta contiene un subevento inválido.");
@@ -192,7 +223,11 @@ function convertirSubevento(valor: unknown): EventoOrganizadorDetalleSubevento {
 }
 
 function convertirEvento(valor: unknown): EventoOrganizadorDetalle {
-  if (!esRegistro(valor) || !Array.isArray(valor.subEventos)) {
+  if (
+    !esRegistro(valor) ||
+    !Array.isArray(valor.subEventos) ||
+    !Array.isArray(valor.personalLogistica)
+  ) {
     throw new Error("La respuesta del evento tiene un formato inválido.");
   }
 
@@ -220,6 +255,8 @@ function convertirEvento(valor: unknown): EventoOrganizadorDetalle {
     cupoMaximo: obtenerNumero(valor, "cupoMaximo"),
     boletosActivosCount: obtenerNumero(valor, "boletosActivosCount"),
     subEventos: valor.subEventos.map(convertirSubevento),
+    personalLogistica: valor.personalLogistica.map(convertirPersonalLogistica),
+    logisticaCount: obtenerNumero(valor, "logisticaCount"),
   };
 }
 
@@ -257,6 +294,8 @@ export function AdministracionEvento() {
   const [mostrarModal, setMostrarModal] = useState(false);
   const subevento =
     datosEvento?.subEventos.length === 1 ? datosEvento.subEventos[0] : null;
+  const personalLogistica =
+    subevento && datosEvento ? datosEvento.personalLogistica ?? [] : [];
 
   useEffect(() => {
     const controller = new AbortController();
@@ -383,14 +422,27 @@ export function AdministracionEvento() {
                 )}
               </div>
 
-              <div id="contenedorLogistica">
-                <h2 className="text-xl font-bold sm:text-2xl">
-                  Personal de lógistica
-                </h2>
-                <p className="mt-3 text-gray-600">
-                  No hay personal de lógistica registrado para este evento.
-                </p>
-              </div>
+              {subevento && (
+                <div id="contenedorLogistica">
+                  <h2 className="text-xl font-bold sm:text-2xl">
+                    Personal de lógistica
+                  </h2>
+                  {personalLogistica.length > 0 ? (
+                    <div className="mt-4 w-full min-w-0 overflow-x-auto rounded-md border border-gray-200 shadow-md">
+                      <Table
+                        columnas={columnasLogistica}
+                        filas={personalLogistica}
+                        obtenerClave={(personal) => personal.idUsuario}
+                        className="table-auto min-w-full bg-white text-left text-sm [&_tbody_tr]:h-12 [&_thead_tr]:h-10 [&_th]:py-2 [&_td]:py-2"
+                      />
+                    </div>
+                  ) : (
+                    <p className="mt-3 text-gray-600">
+                      No hay personal de lógistica registrado para este evento.
+                    </p>
+                  )}
+                </div>
+              )}
             </div>
 
             <div id="contenedorSubeventos" className="w-full min-w-0 space-y-4">
