@@ -37,7 +37,7 @@ tags:
 
 ### Trayectoria Principal
 
-1. Selecciona la opción "Solicitar un evento" desde UI03 "Menú Principal del Asistente" o UI36 "Menú Principal de Subdirección", según su rol.
+1. Selecciona la opción "Solicitar un evento" desde UI03 "Menú Principal del Asistente" o UI25 "Menú Principal de Subdirección", según su rol.
 2. Muestra UI07 "Formulario de Solicitud de Evento" con nombre, descripción, justificación, alcance, póster, acceso con boleto, recinto y bloques de fecha, hora inicial y final.
 3. Identifica el rol del actor autenticado y configura los campos adicionales del formulario según corresponda. [Trayectoria A] [Trayectoria B]
 4. El actor captura los datos del evento y define su primer bloque horario; si la actividad incluye más fechas o sesiones, utiliza [Agregar nueva fecha]. [Trayectoria I]
@@ -150,7 +150,7 @@ tags:
 
 - **H-1.** Selecciona la opción [Cancelar] desde la pantalla **UI07** "Formulario de Solicitud de Evento", en lugar de enviar la solicitud.
 - **H-2.** Interrumpe el proceso de registro sin guardar la información ingresada ni generar una nueva solicitud de evento.
-- **H-3.** Redirige al actor a la pantalla UI03 "Menú Principal del Asistente" o UI36 "Menú Principal de Subdirección", según el rol correspondiente.
+- **H-3.** Redirige al actor a la pantalla UI03 "Menú Principal del Asistente" o UI25 "Menú Principal de Subdirección", según el rol correspondiente.
 
 *Fin de la trayectoria.*
 

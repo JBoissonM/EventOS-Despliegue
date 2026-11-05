@@ -39,7 +39,7 @@ Permitir a cualquier usuario autenticado (asistente, subdirección de servicios 
 
 ### Trayectoria Principal
 
-1. Selecciona la opción "Cerrar sesión" en la barra de navegación o menú de perfil de la pantalla en la que se encuentre (UI03, UI04, UI36 O UI25, según su rol).
+1. Selecciona la opción "Cerrar sesión" en la barra de navegación o menú de perfil de la pantalla en la que se encuentre (UI03, UI04, UI25 O UI26, según su rol).
 2. Solicita confirmación al actor mediante una ventana emergente **MSG-P-02** "¿Desea cerrar su sesión?". [Trayectoria A]
 3. Da clic en el botón "Aceptar" para confirmar el cierre de sesión.
 4. Destruye el token de autenticación de la sesión activa en el servidor. [Trayectoria B]
