@@ -173,7 +173,7 @@ Este actor cuenta con privilegios de gestión sobre las cuentas de usuario, la i
 
 ---
 
-## 5. Catálogo de Mensajes Informativos (`MSG-I-01` – `MSG-I-25`)
+## 5. Catálogo de Mensajes Informativos (`MSG-I-01` – `MSG-I-26`)
 
 | Código | Mensaje Detallado |
 | :---: | :--- |
@@ -202,6 +202,7 @@ Este actor cuenta con privilegios de gestión sobre las cuentas de usuario, la i
 | **`MSG-I-23`** | No se encontraron registros que coincidan con los filtros seleccionados. |
 | **`MSG-I-24`** | Para reservar tu lugar en este evento es necesario iniciar sesión o crear una cuenta. |
 | **`MSG-I-25`** | La capacidad operativa del laboratorio ha disminuido. Existen eventos aprobados que requieren revisión. |
+| **`MSG-I-26`** | Invitación aceptada. Por favor, selecciona tu asiento en el mapa para confirmar tu lugar y generar tu boleto. |
 
 ---
 
