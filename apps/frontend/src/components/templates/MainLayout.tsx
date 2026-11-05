@@ -16,6 +16,12 @@ export function MainLayout() {
           </span>
           <div className="flex flex-wrap items-center gap-1 sm:gap-3">
             <Link
+              to="/cartelera"
+              className={`rounded-md px-3 py-2 font-merriweather text-sm font-semibold text-eventos-on-primary transition-colors hover:bg-eventos-action-hover ${keyboardFocus}`}
+            >
+              Inicio
+            </Link>
+            <Link
               to="/login"
               className={`rounded-md px-3 py-2 font-merriweather text-sm font-semibold text-eventos-on-primary transition-colors hover:bg-eventos-action-hover ${keyboardFocus}`}
             >
