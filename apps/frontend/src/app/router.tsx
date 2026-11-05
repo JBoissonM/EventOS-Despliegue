@@ -27,6 +27,8 @@ import { SubEventDetailsRoute } from "../features/event-details/pages/SubEventDe
 import { SolicitudesAprobadas } from "../features/educational-services/SolicitudesAprobadas";
 import { MisEventos } from "../features/organizer/MisEventos";
 
+import { AdministracionEvento } from "../features/organizer/AdministracionEvento";
+
 export function AppRouter() {
   return (
     <BrowserRouter>
@@ -61,6 +63,7 @@ export function AppRouter() {
             />
             <Route path="/solicitud-evento" element={<SolicitudEvento />} />
             <Route path="/verificacion" element={<Verificacion />} />
+            <Route path="/organizador/administrar-evento/:idEvento" element={<AdministracionEvento />}/>
           </Route>
         </Route>
 

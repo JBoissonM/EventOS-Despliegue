@@ -79,7 +79,7 @@ export function CardMenuPrincipal({
           text="Ver detalles"
           variant="primary"
           type="button"
-          onClick={() => navigate(`/detalles-solicitud/${idEvento}`)}
+          onClick={() => navigate(`/organizador/administrar-evento/${idEvento}`)}
         />
       </div>
     </article>
