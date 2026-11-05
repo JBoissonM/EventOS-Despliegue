@@ -11,10 +11,11 @@ export function CardMenuPrincipal({
   idAlcance,
   idEvento,
   idEstadoEvento,
-  primerSubevento,
+  subeventos,
 }: MisEventosItem) {
   const estiloTexto = "font-merriweather text-base";
   const navigate = useNavigate();
+  const subeventoMostrado = subeventos?.[0];
 
   return (
     <article
@@ -61,16 +62,16 @@ export function CardMenuPrincipal({
             {nombre}
           </h2>
           <p className={estiloTexto}>
-            Fecha: {primerSubevento?.fecha ?? "Fecha no disponible"}
+            Fecha: {subeventoMostrado?.fecha ?? "Fecha no disponible"}
           </p>
           <p className={estiloTexto}>
-            Hora inicio: {primerSubevento?.horaInicio ?? "Hora no disponible"}
+            Hora inicio: {subeventoMostrado?.horaInicio ?? "Hora no disponible"}
           </p>
           <p className={estiloTexto}>
-            Hora fin: {primerSubevento?.horaFin ?? "Hora no disponible"}
+            Hora fin: {subeventoMostrado?.horaFin ?? "Hora no disponible"}
           </p>
           <p className={estiloTexto}>
-            Espacio: {primerSubevento?.nombreRecinto ?? "Recinto no disponible"}
+            Espacio: {subeventoMostrado?.nombreRecinto ?? "Recinto no disponible"}
           </p>
         </div>
       </div>
