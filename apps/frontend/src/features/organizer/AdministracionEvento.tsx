@@ -14,10 +14,11 @@ import { Table } from "../../components/organisms/Table/Table";
 import type { Columna } from "../../components/organisms/Table/Table";
 import { EventBanner } from "../event-details/components/molecules/EventBanner";
 import { SpaceRequerimentsDialog } from "../../components/organisms/SpaceRequirementsDialog/SpaceRequerimentsDialog";
+import { useNavigate } from "react-router";
+import Input from "../../components/atoms/Input/Input";
 
 type TablaPonente = {
   id: number;
-  nombre: string;
   correo: string;
 };
 
@@ -25,26 +26,14 @@ type TablaPersonalLogistica = PersonalLogisticaItem;
 
 const columnasPonente: Columna<TablaPonente>[] = [
   {
-    id: "nombreCompleto",
-    encabezado: "Nombre completo",
-    render: (ponente) => ponente.nombre,
-    className: "min-w-[6rem] max-w-[8rem] px-3",
-  },
-  {
     id: "correo",
     encabezado: "Correo",
     render: (ponente) => ponente.correo,
-    className: "min-w-[10rem] max-w-[14rem] break-all px-3",
+    className: "min-w-[10rem] max-w-[10rem] break-all px-3",
   },
 ];
 
 const columnasLogistica: Columna<TablaPersonalLogistica>[] = [
-  {
-    id: "nombreCompleto",
-    encabezado: "Nombre completo",
-    render: (personal) => personal.nombreCompleto,
-    className: "min-w-[10rem] px-3",
-  },
   {
     id: "correo",
     encabezado: "Correo",
@@ -295,7 +284,8 @@ export function AdministracionEvento() {
   const subevento =
     datosEvento?.subEventos.length === 1 ? datosEvento.subEventos[0] : null;
   const personalLogistica =
-    subevento && datosEvento ? datosEvento.personalLogistica ?? [] : [];
+    subevento && datosEvento ? (datosEvento.personalLogistica ?? []) : [];
+  const navigate = useNavigate();
 
   useEffect(() => {
     const controller = new AbortController();
@@ -357,15 +347,32 @@ export function AdministracionEvento() {
     datosEvento?.subEventos.flatMap((subevento) =>
       subevento.ponentes.map((ponente) => ({
         id: ponente.idPonente,
-        nombre: [ponente.nombre, ponente.apellidoPa, ponente.apellidoMa]
-          .filter(Boolean)
-          .join(" "),
         correo: ponente.correo,
       })),
     ) ?? [];
 
   return (
     <section className="mx-auto w-full max-w-7xl space-y-8 px-4 sm:px-6 lg:space-y-10 lg:px-8">
+      <div
+        id="contenedorReturn"
+        className="flex gap-2 cursor-pointer"
+        onClick={() => navigate(`/organizador/mis-eventos`)}>
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          width="24"
+          height="24"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          className="lucide lucide-undo-2 preview-icon">
+          <path d="M9 14 4 9l5-5" />
+          <path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5a5.5 5.5 0 0 1-5.5 5.5H11" />
+        </svg>
+        <span>Volver</span>
+      </div>
       <div id="contenedorTituloBanner" className="space-y-4 sm:space-y-5">
         <h1 className="font-merriweather text-2xl font-semibold leading-tight sm:text-3xl lg:text-4xl">
           Administración y detalles de mi evento
@@ -395,7 +402,7 @@ export function AdministracionEvento() {
         <>
           <div
             id="contenedorDatos"
-            className="grid min-w-0 grid-cols-1 items-start gap-8 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)] xl:gap-12">
+            className="grid min-w-0 grid-cols-1 items-start gap-8 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,0.9fr)] xl:gap-12">
             <div id="contenedorIzquierda" className="w-full min-w-0 space-y-6">
               <div id="contenedorTitulo" className="space-y-2">
                 <span className="block font-merriweather text-xl font-bold text-secondary sm:text-2xl">
@@ -445,7 +452,7 @@ export function AdministracionEvento() {
               )}
             </div>
 
-            <div id="contenedorSubeventos" className="w-full min-w-0 space-y-4">
+            <div id="contenedorDerecha" className="w-full min-w-0 space-y-4">
               {datosEvento.subEventos.map((subevento) => (
                 <article
                   key={subevento.idSubEvento}
@@ -458,9 +465,10 @@ export function AdministracionEvento() {
                   </div>
                   <div className="flex min-w-0 flex-col gap-2">
                     <span className="font-bold">Espacio</span>
-                    <span>
-                      {subevento.recinto?.nombre ?? "No especificado"}
+                    <span>{subevento.recinto
+                      ?.nombre}
                     </span>
+                    
                   </div>
                   <div className="flex min-w-0 flex-col gap-2">
                     <span className="font-bold">Fecha</span>
@@ -506,23 +514,23 @@ export function AdministracionEvento() {
                     </p>
                   </div>
                 </article>
-              )
-              )}
-
+              ))}
             </div>
           </div>
 
           <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:justify-end">
-            {subevento?.recinto && (
+            {subevento?.recinto && subevento.recinto.nombre !== "Auditorio Principal" &&
+            subevento.recinto.nombre !== "Sala 14" && (
               <Button
                 text="Ver detalles de laboratorio"
                 variant="primary"
                 type="button"
-                disabled={subevento.recinto.nombre === "Auditorio Principal" || subevento.recinto.nombre === "Sala 14"}
                 onClick={() => setMostrarModal(true)}
               />
             )}
-            <Button text="Cancelar evento" variant="primary" type="button" />
+            {subevento?.estado !== "Finalizado" && (
+              <Button text="Cancelar evento" variant="primary" type="button" />
+            )}
             <Button text="Modificar evento" variant="primary" type="button" />
           </div>
           {subevento?.recinto && (
