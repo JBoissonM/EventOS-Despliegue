@@ -17,7 +17,7 @@ tags:
 > - [Requerimientos y Reglas de Negocio](../01-Requerimientos-y-Reglas-de-Negocio.md)
 > - [Catálogos de Pantallas y Mensajes](../02-Actores-y-Catalogos.md)
 
-**Resumen:** Permitir al Organizador emitir boletos directos asociados a nombre y correo para eventos que administra, sin enviar correos electrónicos y respetando las reservas ya existentes.
+**Resumen:** Permitir al Organizador emitir boletos directos asociados a nombre y correo para eventos que administra, enviando un correo electrónico de confirmación con los datos de acceso al invitado y respetando las reservas ya existentes.
 
 **Descripción:**
 
@@ -28,9 +28,9 @@ tags:
 | **Actor** | Organizador. |
 | **Propósito** | Permitir al Organizador generar boletos individuales para destinatarios identificados por nombre y correo electrónico, únicamente en eventos que administra y tienen acceso mediante boleto, respetando aforo y unicidad de reservas. |
 | **Entradas** | • ID del evento aprobado administrado por el Organizador.<br>• Nombre y correo electrónico (institucional o externo) del destinatario del boleto.<br>• Confirmación de emisión del boleto directo. |
-| **Salidas** | • Boleto digital individual y su código QR de acceso vinculados al evento y destinatario.<br>• Registro del boleto en las reservas del evento.<br>• Mensaje **MSG-I-08** "Operación realizada con éxito.".<br>• Boleto consultable por el destinatario desde su cuenta en la aplicación; no se envía por correo. |
+| **Salidas** | • Boleto digital individual y su código QR de acceso vinculados al evento y destinatario.<br>• Registro del boleto en las reservas del evento.<br>• Mensaje **MSG-I-08** "Operación realizada con éxito.".<br>• Correo electrónico de confirmación enviado al invitado directo con los datos de su acceso y código QR.<br>• Boleto consultable por el destinatario desde su cuenta en la aplicación. |
 | **Precondiciones** | • El Organizador ha iniciado sesión y tiene permisos sobre el evento, desde CU-24 "Consultar mis eventos".<br>• El evento está aprobado, no ha concluido y tiene habilitado el acceso con boleto.<br>• El destinatario dispone de una cuenta activa: la excepción de RN-05 para invitados sin cuenta corresponde únicamente a Subdirección. |
-| **Postcondiciones** | • Se registra un boleto activo individual y código QR válido de un solo uso.<br>• La suma de reservas y boletos directos no supera el cupo autorizado del recinto (RN-07 y RN-10).<br>• No se genera un segundo boleto activo para el mismo destinatario y evento (RN-08).<br>• El boleto permanece disponible desde el apartado de la aplicación, sin envío de correo electrónico. |
+| **Postcondiciones** | • Se registra un boleto activo individual y código QR válido de un solo uso.<br>• La suma de reservas y boletos directos no supera el cupo autorizado del recinto (RN-07 y RN-10).<br>• No se genera un segundo boleto activo para el mismo destinatario y evento (RN-08).<br>• Se envía un correo electrónico de confirmación con los datos de acceso al invitado y el boleto permanece disponible desde el apartado de la aplicación. |
 | **Errores** | • **MSG-E-11** por falta de nombre o correo.<br>• **MSG-E-21** cuando el correo no sea válido.<br>• **MSG-E-49** cuando no exista una cuenta activa para el destinatario.<br>• **MSG-E-48** si el destinatario ya tiene un boleto activo del evento.<br>• **MSG-E-03** o **MSG-E-05** cuando se alcance el límite de cupos.<br>• **MSG-E-07** si el evento no está habilitado.<br>• **MSG-E-08** por fallo al registrar el boleto. |
 | **Tipo** | Secundario; extiende el CU-24 "Consultar mis eventos" (`<<extend>>`). |
 
@@ -47,7 +47,7 @@ tags:
 6. El sistema valida los campos, el formato del correo y la existencia de una cuenta activa del destinatario. [Trayectoria A]
 7. El sistema comprueba que no exista otro boleto activo para ese destinatario y que la suma de entradas no supere el aforo permitido del evento. [Trayectoria B] [Trayectoria C]
 8. El sistema registra el boleto digital y genera un código QR único, con protección contra reutilización (RN-11). [Trayectoria E]
-9. El sistema muestra **MSG-I-08** "Operación realizada con éxito." y pone el boleto a disposición del destinatario en el apartado correspondiente de la aplicación.
+9. El sistema envía un correo de confirmación con los datos del boleto al invitado directo, muestra **MSG-I-08** "Operación realizada con éxito." y pone el boleto a disposición del destinatario en el apartado correspondiente de la aplicación.
 10. El Organizador puede volver a emitir boletos para otros destinatarios mientras existan cupos.
 
 *Fin de la trayectoria.*

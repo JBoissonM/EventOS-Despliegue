@@ -1,49 +1,56 @@
 import { useState } from "react";
-
 import { Button } from "../../../../components/atoms/Button/Button";
 import { ConfirmationDialog } from "../../../../components/organisms/ConfirmationDialog/ConfirmationDialog";
 import { ReservationSummary } from "../molecules/ReservationSummary";
 import { ReservationSuccessDialog } from "./ReservationSuccessDialog";
+import type { CreateReservationResponse } from "../../services/reservations.service";
 
 export interface AutomaticReservationPanelProps {
   eventName: string;
+  parentEventName?: string;
   date: string;
   startTime: string;
   endTime: string;
   venue: string;
-  onReserve: () => Promise<void>;
+  onReserve: () => Promise<CreateReservationResponse | void>;
+  canReserve?: boolean;
 }
 
 export function AutomaticReservationPanel({
-                                            eventName,
-                                            date,
-                                            startTime,
-                                            endTime,
-                                            venue,
-                                            onReserve,
-                                          }: AutomaticReservationPanelProps) {
+  eventName,
+  parentEventName,
+  date,
+  startTime,
+  endTime,
+  venue,
+  onReserve,
+  canReserve = true,
+}: AutomaticReservationPanelProps) {
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isReserved, setIsReserved] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isSuccessOpen, setIsSuccessOpen] = useState(false);
+  const [ticketId, setTicketId] = useState<number | null>(null);
+  const [ticketQr, setTicketQr] = useState<string | null>(null);
 
   const handleConfirm = async () => {
-    if (isLoading || isReserved) return;
+    if (isLoading || isReserved || !canReserve) return;
 
     setIsLoading(true);
     setError(null);
 
     try {
-      await onReserve();
-
+      const result = await onReserve();
+      if (result) {
+        setTicketId(result.boleto.idBoleto);
+        setTicketQr(result.qr ?? null);
+      }
       setIsReserved(true);
       setIsConfirmOpen(false);
       setIsSuccessOpen(true);
-    } catch {
-      setError(
-        "No fue posible reservar un lugar. Verifica la disponibilidad e inténtalo nuevamente.",
-      );
+    } catch (cause: unknown) {
+      setError(cause instanceof Error ? cause.message : "No fue posible reservar un lugar.");
       setIsConfirmOpen(false);
     } finally {
       setIsLoading(false);
@@ -51,9 +58,10 @@ export function AutomaticReservationPanel({
   };
 
   return (
-    <section className="space-y-6">
+    <section className="space-y-6 text-eventos-body-text">
       <ReservationSummary
         eventName={eventName}
+        parentEventName={parentEventName}
         date={date}
         startTime={startTime}
         endTime={endTime}
@@ -62,40 +70,24 @@ export function AutomaticReservationPanel({
         showSeat={false}
       />
 
-      <div className="rounded-xl border border-eventos-neutral p-5">
-        <h2 className="font-merriweather text-xl font-bold">
-          Reservación de lugar
-        </h2>
-
-        <p className="mt-3 text-sm text-gray-600">
-          Para este recinto no necesitas seleccionar un asiento.
-          El sistema asignará un lugar disponible al confirmar
-          tu reservación.
+      <div className="rounded-xl border border-eventos-panel-border bg-eventos-panel-surface p-5">
+        <h2 className="text-xl font-semibold text-eventos-ink">Reservación de lugar</h2>
+        <p className="mt-3 text-sm">
+          Para esta actividad no necesitas seleccionar un asiento numerado. Al confirmar se registrará tu lugar disponible.
         </p>
       </div>
 
-      {error && (
-        <p role="alert" className="text-sm text-eventos-error">
-          {error}
-        </p>
-      )}
-
+      {error && <p role="alert" className="rounded-md border border-eventos-error p-3 text-sm text-eventos-error">{error}</p>}
       {isReserved ? (
-        <p role="status" className="text-eventos-success">
-          Reservación registrada correctamente.
-        </p>
+        <p role="status" className="font-semibold text-eventos-success">Reservación registrada correctamente.</p>
       ) : (
-        <Button
-          text="Reservar lugar"
-          disabled={isLoading}
-          onClick={() => setIsConfirmOpen(true)}
-        />
+        <Button text="Reservar lugar" disabled={isLoading || !canReserve} onClick={() => setIsConfirmOpen(true)} />
       )}
 
       <ConfirmationDialog
         isOpen={isConfirmOpen}
         title="Confirmar reservación"
-        description={`¿Deseas reservar un lugar para el evento ${eventName}?`}
+        description={`¿Deseas reservar un lugar para ${eventName}?`}
         confirmText="Confirmar reservación"
         cancelText="Volver"
         isLoading={isLoading}
@@ -106,6 +98,8 @@ export function AutomaticReservationPanel({
       <ReservationSuccessDialog
         isOpen={isSuccessOpen}
         eventName={eventName}
+        ticketId={ticketId}
+        qr={ticketQr}
         onClose={() => setIsSuccessOpen(false)}
       />
     </section>

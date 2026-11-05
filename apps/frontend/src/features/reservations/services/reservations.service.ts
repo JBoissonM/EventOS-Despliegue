@@ -2,6 +2,11 @@ import type { DisponibilidadSubEvento } from "@eventos/shared";
 import { apiRequest } from "../../../lib/apiClient";
 import type { SeatMapItem } from "../components/organisms/SeatMap";
 
+export interface ReservationAvailability extends DisponibilidadSubEvento {
+  permiteReservar: boolean;
+  requiereSeleccionAsiento: boolean;
+}
+
 export interface CreateReservationInput {
   idSubEvento: number;
   idAsiento?: number;
@@ -23,8 +28,8 @@ export const reservationsService = {
   getAvailability(
     idSubEvento: number,
     signal?: AbortSignal,
-  ): Promise<DisponibilidadSubEvento> {
-    return apiRequest<DisponibilidadSubEvento>(
+  ): Promise<ReservationAvailability> {
+    return apiRequest<ReservationAvailability>(
       `reservations/disponibilidad/${idSubEvento}`,
       { signal },
     );
@@ -33,18 +38,15 @@ export const reservationsService = {
   createReservation(
     data: CreateReservationInput,
   ): Promise<CreateReservationResponse> {
-    return apiRequest<CreateReservationResponse>(
-      "reservations",
-      {
-        method: "POST",
-        body: JSON.stringify(data),
-      },
-    );
+    return apiRequest<CreateReservationResponse>("reservations", {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
   },
 };
 
 export function toSeatMapItems(
-  seats: DisponibilidadSubEvento["asientos"],
+  seats: ReservationAvailability["asientos"],
 ): SeatMapItem[] {
   return seats.map((seat) => ({
     idAsiento: seat.idAsiento,
