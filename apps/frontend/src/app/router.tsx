@@ -28,6 +28,8 @@ import { ReservationRoute } from "../features/reservations/pages/ReservationRout
 import { SolicitudesAprobadas } from "../features/educational-services/SolicitudesAprobadas";
 import { MisEventos } from "../features/organizer/MisEventos";
 
+import { AdministracionEvento } from "../features/organizer/AdministracionEvento";
+
 export function AppRouter() {
   return (
     <BrowserRouter>
@@ -66,6 +68,7 @@ export function AppRouter() {
             <Route path="/asistente/cartelera" element={<EventCatalogPage />} />
             <Route path="/organizador/mis-eventos" element={<MisEventos />}/>
             <Route path="/verificacion" element={<Verificacion />} />
+            <Route path="/organizador/administrar-evento/:idEvento" element={<AdministracionEvento />}/>
           </Route>
         </Route>
 
