@@ -17,7 +17,7 @@ import {
   type InvitadoEventoItem,
   type MisEventosItem,
   type Ponente,
-  type PrimerSubeventoResumen,
+  type SubEventoResumen,
 } from '@eventos/shared';
 import { EventoEntity } from '../entities/evento.entity';
 import { PonenteEntity } from '../entities/ponente.entity';
@@ -122,18 +122,16 @@ export class OrganizadorService {
         return fechaA.localeCompare(fechaB);
       });
 
-      const primerSub = subeventos[0] || null;
-      const primerSubevento: PrimerSubeventoResumen | null = primerSub
-        ? {
-            idSubEvento: primerSub.idSubEvento,
-            nombre: primerSub.nombre,
-            fecha: primerSub.fecha ? primerSub.fecha.fecha : null,
-            horaInicio: primerSub.fecha ? primerSub.fecha.horaInicio : null,
-            horaFin: primerSub.fecha ? primerSub.fecha.horaFin : null,
-            nombreRecinto: primerSub.recinto ? primerSub.recinto.nombre : null,
-          }
-        : null;
+      const subeventosMapeados: SubEventoResumen[] = subeventos.map((sub) => ({
+        idSubEvento: sub.idSubEvento,
+        nombre: sub.nombre,
+        fecha: sub.fecha ? sub.fecha.fecha : null,
+        horaInicio: sub.fecha ? sub.fecha.horaInicio : null,
+        horaFin: sub.fecha ? sub.fecha.horaFin : null,
+        nombreRecinto: sub.recinto ? sub.recinto.nombre : null,
+      }));
 
+      const primerSub = subeventos[0] || null;
       const cupoMaximo = primerSub?.recinto?.aforo ?? 0;
       const boletosEmitidos = subeventos.reduce(
         (acc, sub) => acc + (boletosPorSubevento.get(sub.idSubEvento) || 0),
@@ -151,7 +149,7 @@ export class OrganizadorService {
         idEstadoEvento: evento.idEstadoEvento,
         cupoMaximo,
         boletosEmitidos,
-        primerSubevento,
+        subeventos: subeventosMapeados,
       };
     });
   }

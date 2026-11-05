@@ -172,7 +172,7 @@ export interface SubeventoPayload {
   horaFin: string;
 }
 
-export interface PrimerSubeventoResumen {
+export interface SubEventoResumen {
   idSubEvento: number;
   nombre: string;
   fecha: string | null;
@@ -192,7 +192,7 @@ export interface MisEventosItem {
   idEstadoEvento?: EstadoEvento;
   cupoMaximo: number;
   boletosEmitidos: number;
-  primerSubevento: PrimerSubeventoResumen | null;
+  subeventos: SubEventoResumen[];
 }
 
 export interface EventoOrganizadorDetalleSubevento {
