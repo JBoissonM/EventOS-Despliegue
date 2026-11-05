@@ -85,7 +85,7 @@ tags:
 
 ### Trayectoria alternativa D: Registro manual realizado por Administrador
 
-> **Condición:** El Administrador selecciona [Registrar usuario] desde **UI20** "Gestión de Cuentas de Usuario".
+> **Condición:** El Administrador selecciona [Registrar usuario] desde **UI21** "Gestión de Cuentas de Usuario".
 
 - **D-1.** El sistema abre el formulario **UI02** para captura manual y permite asignar únicamente el rol Asistente o Subdirección de Servicios Educativos (RF-24).
 - **D-2.** El Administrador completa los datos del usuario y selecciona [Registrar].

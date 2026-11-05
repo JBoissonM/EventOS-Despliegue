@@ -102,7 +102,7 @@ tags:
 > **Condición:** En el paso 1, el usuario intenta solicitar un evento sin contar con verificación de identidad activa (esta_verificado == false).
 
 - **E-1.** El sistema impide el registro de la solicitud y muestra MSG-E-54: "Para solicitar recintos institucionales es indispensable haber acreditado tu identidad.".
-- **E-2.** Redirige a UI24 "Pantalla de Verificación de Identidad" para adjuntar la documentación probatoria y completar el proceso de validación.
+- **E-2.** Redirige a UI32 "Pantalla de Verificación de Identidad" para adjuntar la documentación probatoria y completar el proceso de validación.
 - **E-3.** La solicitud no se registra hasta que la cuenta se encuentre verificada.
 
 *Fin de la trayectoria.*
