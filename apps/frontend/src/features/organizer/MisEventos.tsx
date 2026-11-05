@@ -86,17 +86,22 @@ export function MisEventos() {
   const [filtroRecinto, setFiltroRecinto] = useState("");
   const busquedaNormalizada = normalizarTexto(busqueda.trim());
   const solicitudesFiltradas = eventos.filter((evento) => {
+    const listaSubeventos = evento.subeventos || [];
     const nombreFiltrado =
       !busquedaNormalizada ||
       normalizarTexto(evento.nombre).includes(busquedaNormalizada);
-    const recinto = evento.primerSubevento?.nombreRecinto ?? "";
     const recintoFiltrado =
       !filtroRecinto ||
-      normalizarTexto(recinto) === normalizarTexto(filtroRecinto);
-    const fechaFiltrada = coincideFiltroFecha(
-      evento.primerSubevento?.fecha,
-      filtroFecha,
-    );
+      listaSubeventos.some(
+        (sub) =>
+          normalizarTexto(sub.nombreRecinto ?? "") ===
+          normalizarTexto(filtroRecinto),
+      );
+    const fechaFiltrada =
+      !filtroFecha ||
+      listaSubeventos.some((sub) =>
+        coincideFiltroFecha(sub.fecha, filtroFecha),
+      );
 
     return nombreFiltrado && recintoFiltrado && fechaFiltrada;
   });
