@@ -273,4 +273,247 @@ export class MailService {
       this.logger.error(`Fallo al enviar notificación de cambio de recinto a ${datos.destinatario}`, error);
     }
   }
+
+  async enviarInvitacionLogistica(datos: {
+    destinatario: string;
+    nombreEvento: string;
+    organizador: string;
+    enlaceActivacion: string;
+  }): Promise<void> {
+    const html = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden;">
+        <div style="background-color: #6b1d2f; color: #ffffff; padding: 20px; text-align: center;">
+          <h2 style="margin: 0;">Invitación a Personal de Logística - EventOS</h2>
+        </div>
+        
+        <div style="padding: 24px; color: #334155;">
+          <p>Hola,</p>
+          <p>El organizador <strong>${datos.organizador}</strong> te ha invitado a formar parte del <strong>Personal de Logística</strong> para el evento institucional:</p>
+          
+          <div style="margin: 20px 0; padding: 16px; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; text-align: center;">
+            <h3 style="margin: 0; color: #6b1d2f; font-size: 18px;">${datos.nombreEvento}</h3>
+          </div>
+
+          <p>Como colaborador de logística, podrás validar los accesos de los asistentes mediante escaneo de código QR durante la realización de las actividades.</p>
+
+          <div style="text-align: center; margin: 32px 0;">
+            <a href="${datos.enlaceActivacion}" style="background-color: #6b1d2f; color: #ffffff; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px; display: inline-block;">
+              Activar mi cuenta y unirme al equipo
+            </a>
+          </div>
+
+          <p style="font-size: 13px; color: #dc2626; text-align: center;">
+            * Este enlace es de un solo uso y expirará en <strong>48 horas naturales</strong>.
+          </p>
+
+          <p style="font-size: 12px; color: #64748b; margin-top: 24px; border-top: 1px solid #e2e8f0; padding-top: 12px;">
+            Si no reconoces esta invitación, puedes ignorar este mensaje con seguridad.
+          </p>
+        </div>
+      </div>
+    `;
+
+    try {
+      await this.transporter.sendMail({
+        from: process.env.SMTP_FROM || process.env.SMTP_USER,
+        to: datos.destinatario,
+        subject: `Invitación al Personal de Logística: ${datos.nombreEvento} - EventOS`,
+        html,
+      });
+      this.logger.log(`Invitación de logística enviada a ${datos.destinatario}`);
+    } catch (error) {
+      this.logger.error(`Fallo al enviar invitación de logística a ${datos.destinatario}`, error);
+    }
+  }
+
+  async enviarConfirmacionAsignacionLogistica(datos: {
+    destinatario: string;
+    nombreUsuario: string;
+    nombreEvento: string;
+  }): Promise<void> {
+    const html = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden;">
+        <div style="background-color: #6b1d2f; color: #ffffff; padding: 20px; text-align: center;">
+          <h2 style="margin: 0;">Asignación a Personal de Logística - EventOS</h2>
+        </div>
+        
+        <div style="padding: 24px; color: #334155;">
+          <p>Hola <strong>${datos.nombreUsuario}</strong>,</p>
+          <p>Te confirmamos que has sido asignado como <strong>Personal de Logística</strong> para el evento:</p>
+          
+          <div style="margin: 20px 0; padding: 16px; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; text-align: center;">
+            <h3 style="margin: 0; color: #6b1d2f; font-size: 18px;">${datos.nombreEvento}</h3>
+          </div>
+
+          <p>Ya puedes consultar las actividades programadas en tu panel de eventos asignados y utilizar el escáner QR de acceso durante la fecha del evento.</p>
+
+          <p style="font-size: 12px; color: #64748b; margin-top: 24px; border-top: 1px solid #e2e8f0; padding-top: 12px;">
+            EventOS — Escuela Superior de Cómputo (IPN).
+          </p>
+        </div>
+      </div>
+    `;
+
+    try {
+      await this.transporter.sendMail({
+        from: process.env.SMTP_FROM || process.env.SMTP_USER,
+        to: datos.destinatario,
+        subject: `Asignación a Personal de Logística: ${datos.nombreEvento} - EventOS`,
+        html,
+      });
+      this.logger.log(`Confirmación de asignación enviada a ${datos.destinatario}`);
+    } catch (error) {
+      this.logger.error(`Fallo al enviar confirmación de asignación a ${datos.destinatario}`, error);
+    }
+  }
+
+  async enviarNotificacionOrganizadorLogisticaAceptada(datos: {
+    destinatario: string;
+    nombreOrganizador: string;
+    nombreColaborador: string;
+    correoColaborador: string;
+    nombreEvento: string;
+  }): Promise<void> {
+    const html = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden;">
+        <div style="background-color: #6b1d2f; color: #ffffff; padding: 20px; text-align: center;">
+          <h2 style="margin: 0;">Nuevo Integrante de Logística - EventOS</h2>
+        </div>
+        
+        <div style="padding: 24px; color: #334155;">
+          <p>Hola <strong>${datos.nombreOrganizador}</strong>,</p>
+          <p>Te informamos que un colaborador ha aceptado la invitación y activado su cuenta como <strong>Personal de Logística</strong> para tu evento:</p>
+          
+          <div style="margin: 20px 0; padding: 16px; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px;">
+            <p style="margin: 0 0 8px 0;"><strong>Evento:</strong> ${datos.nombreEvento}</p>
+            <p style="margin: 0 0 8px 0;"><strong>Colaborador:</strong> ${datos.nombreColaborador}</p>
+            <p style="margin: 0;"><strong>Correo:</strong> ${datos.correoColaborador}</p>
+          </div>
+
+          <p>El colaborador ya cuenta con acceso para escanear boletos y validar entradas en las actividades programadas de tu evento.</p>
+
+          <p style="font-size: 12px; color: #64748b; margin-top: 24px; border-top: 1px solid #e2e8f0; padding-top: 12px;">
+            Puedes gestionar y consultar a tu equipo de logística en cualquier momento desde el panel de administración del evento.
+          </p>
+        </div>
+      </div>
+    `;
+
+    try {
+      await this.transporter.sendMail({
+        from: process.env.SMTP_FROM || process.env.SMTP_USER,
+        to: datos.destinatario,
+        subject: `Nuevo integrante de logística confirmado: ${datos.nombreEvento} - EventOS`,
+        html,
+      });
+      this.logger.log(`Notificación enviada al organizador ${datos.destinatario}`);
+    } catch (error) {
+      this.logger.error(`Fallo al enviar notificación al organizador ${datos.destinatario}`, error);
+    }
+  }
+
+  async enviarInvitacionEventoPrivado(datos: {
+    destinatario: string;
+    nombreUsuario: string;
+    nombreEvento: string;
+    descripcionEvento: string;
+    organizador: string;
+    enlaceEvento: string;
+  }): Promise<void> {
+    const html = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden;">
+        <div style="background-color: #6b1d2f; color: #ffffff; padding: 20px; text-align: center;">
+          <h2 style="margin: 0;">Invitación a Evento Privado - EventOS</h2>
+        </div>
+        
+        <div style="padding: 24px; color: #334155;">
+          <p>Hola <strong>${datos.nombreUsuario}</strong>,</p>
+          <p>El organizador <strong>${datos.organizador}</strong> te ha invitado a participar en el siguiente evento privado institucional:</p>
+          
+          <div style="margin: 20px 0; padding: 16px; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px;">
+            <h3 style="margin: 0 0 8px 0; color: #6b1d2f; font-size: 18px;">${datos.nombreEvento}</h3>
+            <p style="margin: 0; color: #475569; font-size: 14px;">${datos.descripcionEvento}</p>
+          </div>
+
+          <p>Al estar registrado en la lista de invitados, este evento ahora se encuentra disponible en tu cartelera para que puedas consultar sus actividades y reservar tu lugar.</p>
+
+          <div style="text-align: center; margin: 32px 0;">
+            <a href="${datos.enlaceEvento}" style="background-color: #6b1d2f; color: #ffffff; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px; display: inline-block;">
+              Ver detalles y reservar mi lugar
+            </a>
+          </div>
+
+          <p style="font-size: 12px; color: #64748b; margin-top: 24px; border-top: 1px solid #e2e8f0; padding-top: 12px;">
+            Inicia sesión con tu cuenta en EventOS para acceder a la cartelera y tramitar tu boleto digital.
+          </p>
+        </div>
+      </div>
+    `;
+
+    try {
+      await this.transporter.sendMail({
+        from: process.env.SMTP_FROM || process.env.SMTP_USER,
+        to: datos.destinatario,
+        subject: `Invitación al evento: ${datos.nombreEvento} - EventOS`,
+        html,
+      });
+      this.logger.log(`Invitación a evento privado enviada a ${datos.destinatario}`);
+    } catch (error) {
+      this.logger.error(
+        `Fallo al enviar invitación a evento privado a ${datos.destinatario}`,
+        error,
+      );
+    }
+  }
+
+  async enviarCorreoRecuperacionContrasena(datos: {
+    destinatario: string;
+    nombreUsuario: string;
+    enlaceRecuperacion: string;
+  }): Promise<void> {
+    const html = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden;">
+        <div style="background-color: #6b1d2f; color: #ffffff; padding: 20px; text-align: center;">
+          <h2 style="margin: 0;">Recuperación de Contraseña - EventOS</h2>
+        </div>
+        
+        <div style="padding: 24px; color: #334155;">
+          <p>Hola <strong>${datos.nombreUsuario}</strong>,</p>
+          <p>Hemos recibido una solicitud para restablecer la contraseña de tu cuenta en <strong>EventOS</strong>.</p>
+          <p>Haz clic en el siguiente botón para crear una nueva contraseña:</p>
+
+          <div style="text-align: center; margin: 32px 0;">
+            <a href="${datos.enlaceRecuperacion}" style="background-color: #6b1d2f; color: #ffffff; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px; display: inline-block;">
+              Restablecer mi contraseña
+            </a>
+          </div>
+
+          <p style="font-size: 13px; color: #dc2626; text-align: center;">
+            * Este enlace es de un solo uso y expirará en <strong>15 minutos</strong>.
+          </p>
+
+          <p style="font-size: 12px; color: #64748b; margin-top: 24px; border-top: 1px solid #e2e8f0; padding-top: 12px;">
+            Si tú no solicitaste este cambio, puedes ignorar este correo con seguridad; tu contraseña actual no será modificada.
+          </p>
+        </div>
+      </div>
+    `;
+
+    try {
+      await this.transporter.sendMail({
+        from: process.env.SMTP_FROM || process.env.SMTP_USER,
+        to: datos.destinatario,
+        subject: 'Restablecer contraseña - EventOS',
+        html,
+      });
+      this.logger.log(
+        `Correo de recuperación de contraseña enviado a ${datos.destinatario}`,
+      );
+    } catch (error) {
+      this.logger.error(
+        `Fallo al enviar correo de recuperación a ${datos.destinatario}`,
+        error,
+      );
+    }
+  }
 }

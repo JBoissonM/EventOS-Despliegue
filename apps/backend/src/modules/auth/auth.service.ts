@@ -5,21 +5,34 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { DataSource, Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 import { UsuarioEntity } from './entities/usuario.entity';
-import { TipoCuentaUsuario, EstadoVerificacion } from '@eventos/shared';
+import {
+  TipoCuentaUsuario,
+  EstadoVerificacion,
+  EstadoEvento,
+} from '@eventos/shared';
 import { JwtService } from '@nestjs/jwt';
 import { TOKEN_BLACKLIST } from './roles.guard';
+import { ActivarCuentaLogisticaDto } from './dto/activarCuentaLogistica.dto';
+import { SolicitarRecuperacionDto } from './dto/solicitarRecuperacion.dto';
+import { RestablecerContrasenaDto } from './dto/restablecerContrasena.dto';
+import { MailService } from '../reservas/services/mail.service';
 
 @Injectable()
 export class AuthService {
   private readonly SOLO_LETRAS_REGEX = /^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s]+$/;
+  // Regla de complejidad: mínimo 8 caracteres, al menos una letra y un número
+  private readonly PASSWORD_COMPLEJIDAD_REGEX =
+    /^(?=.*[a-zA-Z])(?=.*\d).{8,}$/;
 
   constructor(
     @InjectRepository(UsuarioEntity)
     private readonly usuarioRepository: Repository<UsuarioEntity>,
     private readonly jwtService: JwtService,
+    private readonly dataSource: DataSource,
+    private readonly mailService: MailService,
   ) {}
 
   async registrar(dto: {
@@ -44,7 +57,7 @@ export class AuthService {
       !contrasenaRaw.trim()
     ) {
       throw new BadRequestException(
-        'Por favor, completa todos los campos obligatorios resaltados para continuar (MSG-17).',
+        'Por favor, completa todos los campos obligatorios resaltados para continuar.',
       );
     }
 
@@ -99,7 +112,7 @@ export class AuthService {
       esVerificado: EstadoVerificacion.NO_VERIFICADO,
       tipoCuenta: tipoAsignado,
       esJefeAcademia: false,
-  });
+    });
 
     const guardado = await this.usuarioRepository.save(nuevoUsuario);
     const { contrasena: _contrasena, ...resultado } = guardado;
@@ -162,7 +175,7 @@ export class AuthService {
       const ahora = new Date();
       if (ahora < new Date(usuario.bloqueadoHasta)) {
         throw new UnauthorizedException(
-          'Cuenta bloqueada temporalmente por seguridad tras múltiples intentos fallidos. Intente más tarde. (MSG-14)',
+          'Cuenta bloqueada temporalmente por seguridad tras múltiples intentos fallidos. Intente más tarde.',
         );
       } else {
         usuario.bloqueadoHasta = null;
@@ -188,7 +201,7 @@ export class AuthService {
           await this.usuarioRepository.save(usuario);
 
           throw new UnauthorizedException(
-            'Demasiados intentos fallidos. La cuenta de Administrador ha sido bloqueada temporalmente por 30 minutos. (MSG-14)',
+            'Demasiados intentos fallidos. La cuenta de Administrador ha sido bloqueada temporalmente por 30 minutos',
           );
         }
 
@@ -229,6 +242,338 @@ export class AuthService {
     }
     return {
       mensaje: 'Sesión finalizada con éxito.',
+    };
+  }
+
+  //Solicitar enlace de recuperación de contraseña (15 minutos)
+  async solicitarRecuperacionContrasena(dto: SolicitarRecuperacionDto) {
+    const correo = dto.correo?.trim().toLowerCase() ?? '';
+    if (!correo) {
+      throw new BadRequestException(
+        'Por favor, ingresa tu correo electrónico.',
+      );
+    }
+
+    const respuestaGenerica = {
+      mensaje:
+        'Si el correo electrónico se encuentra registrado, recibirás un enlace para restablecer tu contraseña.',
+    };
+
+    const usuario = await this.usuarioRepository.findOne({
+      where: { correo },
+    });
+
+    // Respuesta genérica contra enumeración de cuentas si no existe o está inactivo
+    if (!usuario || !usuario.estatus || !usuario.contrasena) {
+      return respuestaGenerica;
+    }
+
+    const payload = {
+      sub: usuario.idUsuario,
+      correo: usuario.correo,
+      tipo: 'RECUPERACION_CONTRASENA',
+      pwdRef: usuario.contrasena.slice(-12),
+    };
+
+    const token = this.jwtService.sign(payload, {
+      secret: process.env.JWT_PASS || 'clave_secreta',
+      expiresIn: '15m',
+    });
+
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+    //Lo mande a restablecer-contrasena, si el frontend cambia la ruta, solo hay que cambiarla aquí
+    const enlaceRecuperacion = `${frontendUrl}/restablecer-contrasena?token=${encodeURIComponent(token)}`;
+
+    const nombreUsuario =
+      `${usuario.nombre} ${usuario.apellidoPa}`.trim() || 'Usuario';
+
+    void this.mailService.enviarCorreoRecuperacionContrasena({
+      destinatario: usuario.correo,
+      nombreUsuario,
+      enlaceRecuperacion,
+    });
+
+    return respuestaGenerica;
+  }
+
+  //Validar vigencia e integridad del token
+  async validarTokenRecuperacion(tokenRaw?: string) {
+    const token = tokenRaw?.trim() ?? '';
+    if (!token || TOKEN_BLACKLIST.has(token)) {
+      throw new BadRequestException(
+        'El enlace de recuperación es inválido, ya fue utilizado o ha expirado.',
+      );
+    }
+
+    let payload: any;
+    try {
+      payload = this.jwtService.verify(token, {
+        secret: process.env.JWT_PASS || 'clave_secreta',
+      });
+    } catch {
+      throw new BadRequestException(
+        'El enlace de recuperación es inválido, ya fue utilizado o ha expirado.',
+      );
+    }
+
+    if (
+      !payload ||
+      payload.tipo !== 'RECUPERACION_CONTRASENA' ||
+      !payload.sub
+    ) {
+      throw new BadRequestException(
+        'El enlace de recuperación es inválido, ya fue utilizado o ha expirado.',
+      );
+    }
+
+    const usuario = await this.usuarioRepository.findOne({
+      where: { idUsuario: Number(payload.sub) },
+    });
+
+    if (
+      !usuario ||
+      !usuario.estatus ||
+      !usuario.contrasena ||
+      usuario.contrasena.slice(-12) !== payload.pwdRef
+    ) {
+      throw new BadRequestException(
+        'El enlace de recuperación es inválido, ya fue utilizado o ha expirado.',
+      );
+    }
+
+    return {
+      valido: true,
+      mensaje: 'Token válido.',
+    };
+  }
+
+  //Restablecer contraseña
+  async restablecerContrasena(dto: RestablecerContrasenaDto) {
+    const token = dto.token?.trim() ?? '';
+    const nuevaContrasena = dto.nuevaContrasena ?? '';
+    const confirmarContrasena = dto.confirmarContrasena ?? '';
+
+    //Validar que el token no haya expirado ni haya sido reutilizado 
+    if (!token || TOKEN_BLACKLIST.has(token)) {
+      throw new BadRequestException(
+        'El enlace de recuperación es inválido, ya fue utilizado o ha expirado.',
+      );
+    }
+
+    let payload: any;
+    try {
+      payload = this.jwtService.verify(token, {
+        secret: process.env.JWT_PASS || 'clave_secreta',
+      });
+    } catch {
+      throw new BadRequestException(
+        'El enlace de recuperación es inválido, ya fue utilizado o ha expirado.',
+      );
+    }
+
+    if (
+      !payload ||
+      payload.tipo !== 'RECUPERACION_CONTRASENA' ||
+      !payload.sub
+    ) {
+      throw new BadRequestException(
+        'El enlace de recuperación es inválido, ya fue utilizado o ha expirado.',
+      );
+    }
+
+    const usuario = await this.usuarioRepository.findOne({
+      where: { idUsuario: Number(payload.sub) },
+    });
+
+    if (
+      !usuario ||
+      !usuario.estatus ||
+      !usuario.contrasena ||
+      usuario.contrasena.slice(-12) !== payload.pwdRef
+    ) {
+      throw new BadRequestException(
+        'El enlace de recuperación es inválido, ya fue utilizado o ha expirado.',
+      );
+    }
+
+    //Validar campos vacíos o contraseña insegura
+    if (
+      !nuevaContrasena.trim() ||
+      !confirmarContrasena.trim() ||
+      !this.PASSWORD_COMPLEJIDAD_REGEX.test(nuevaContrasena)
+    ) {
+      throw new BadRequestException(
+        'La contraseña debe tener al menos 8 caracteres e incluir letras y números.',
+      );
+    }
+
+    //Validar que ambas contraseñas coincidan exactamente
+    if (nuevaContrasena !== confirmarContrasena) {
+      throw new BadRequestException(
+        'Las contraseñas ingresadas no coinciden.',
+      );
+    }
+
+    // 4. Hashear nueva contraseña, invalidar token y levantar bloqueo si existía
+    const saltRounds = 10;
+    usuario.contrasena = await bcrypt.hash(nuevaContrasena, saltRounds);
+    usuario.intentosFallidos = 0;
+    usuario.bloqueadoHasta = null;
+
+    await this.usuarioRepository.save(usuario);
+    TOKEN_BLACKLIST.add(token);
+
+    return {
+      mensaje: 'Operación realizada con éxito.',
+    };
+  }
+
+  async activarCuentaLogistica(dto: ActivarCuentaLogisticaDto) {
+    let payload: any;
+    try {
+      payload = this.jwtService.verify(dto.token, {
+        secret: process.env.JWT_PASS || 'clave_secreta',
+      });
+    } catch (_err) {
+      throw new BadRequestException(
+        'El token de invitación es inválido o ha expirado.',
+      );
+    }
+
+    if (
+      !payload ||
+      payload.tipo !== 'INVITACION_LOGISTICA' ||
+      !payload.correo ||
+      !payload.idEvento
+    ) {
+      throw new BadRequestException(
+        'El token proporcionado no es válido para activación de logística.',
+      );
+    }
+
+    const correo = String(payload.correo).toLowerCase().trim();
+    const idEvento = Number(payload.idEvento);
+
+    const evento = await this.dataSource.query(
+      `SELECT "idEvento", nombre, "idEstadoEvento" FROM evento WHERE "idEvento" = $1 LIMIT 1`,
+      [idEvento],
+    );
+    if (!evento.length || evento[0].idEstadoEvento === EstadoEvento.CANCELADO) {
+      throw new ConflictException('Evento no encontrado o cancelado.');
+    }
+
+    const conteo = await this.dataSource.query(
+      `SELECT COUNT(*)::int AS total FROM "eventoPersonalLogistica" WHERE "idEvento" = $1`,
+      [idEvento],
+    );
+    if ((conteo[0]?.total ?? 0) >= 10) {
+      throw new BadRequestException(
+        'No es posible registrar más personal de logística. El evento ha alcanzado el límite máximo de 10 integrantes.',
+      );
+    }
+
+    let usuario = await this.usuarioRepository.findOneBy({ correo });
+
+    if (!usuario) {
+      const nombre = dto.nombre.trim();
+      const apellidoPa = dto.apellidoPa.trim();
+      const apellidoMa = dto.apellidoMa ? dto.apellidoMa.trim() : null;
+
+      if (
+        !this.SOLO_LETRAS_REGEX.test(nombre) ||
+        !this.SOLO_LETRAS_REGEX.test(apellidoPa)
+      ) {
+        throw new BadRequestException(
+          'El nombre y los apellidos solo deben contener letras.',
+        );
+      }
+      if (apellidoMa && !this.SOLO_LETRAS_REGEX.test(apellidoMa)) {
+        throw new BadRequestException(
+          'El apellido materno solo debe contener letras.',
+        );
+      }
+
+      if (dto.contrasena.length < 8) {
+        throw new BadRequestException(
+          'La contraseña debe contener al menos 8 caracteres.',
+        );
+      }
+
+      const esInterno =
+        correo.endsWith('@ipn.mx') || correo.endsWith('@alumno.ipn.mx');
+      const tipoCuenta = esInterno
+        ? TipoCuentaUsuario.INTERNO
+        : TipoCuentaUsuario.EXTERNO;
+
+      const salt = await bcrypt.genSalt(10);
+      const hashedPassword = await bcrypt.hash(dto.contrasena, salt);
+
+      usuario = this.usuarioRepository.create({
+        nombre,
+        apellidoPa,
+        apellidoMa: apellidoMa || null,
+        correo,
+        contrasena: hashedPassword,
+        tipoCuenta,
+        estatus: true,
+        esJefeAcademia: false,
+      });
+
+      usuario = await this.usuarioRepository.save(usuario);
+    }
+
+    const yaAsignado = await this.dataSource.query(
+      `SELECT 1 FROM "eventoPersonalLogistica" WHERE "idEvento" = $1 AND "idUsuario" = $2 LIMIT 1`,
+      [idEvento, usuario.idUsuario],
+    );
+
+    if (!yaAsignado.length) {
+      await this.dataSource.query(
+        `INSERT INTO "eventoPersonalLogistica" ("idEvento", "idUsuario") VALUES ($1, $2)`,
+        [idEvento, usuario.idUsuario],
+      );
+    }
+
+    const organizadorRaw = await this.dataSource.query(
+      `SELECT u.correo, u.nombre, u."apellidoPa"
+       FROM evento e
+       INNER JOIN usuario u ON e."idOrganizador" = u."idUsuario"
+       WHERE e."idEvento" = $1 LIMIT 1`,
+      [idEvento],
+    );
+
+    if (organizadorRaw.length > 0) {
+      const org = organizadorRaw[0];
+      const nombreColaborador =
+        `${usuario.nombre} ${usuario.apellidoPa}`.trim();
+      void this.mailService.enviarNotificacionOrganizadorLogisticaAceptada({
+        destinatario: org.correo,
+        nombreOrganizador: `${org.nombre} ${org.apellidoPa}`.trim(),
+        nombreColaborador,
+        correoColaborador: usuario.correo,
+        nombreEvento: evento[0].nombre,
+      });
+    }
+
+    void this.mailService.enviarConfirmacionAsignacionLogistica({
+      destinatario: usuario.correo,
+      nombreUsuario: `${usuario.nombre} ${usuario.apellidoPa}`.trim(),
+      nombreEvento: evento[0].nombre,
+    });
+
+    const sessionPayload = {
+      sub: usuario.idUsuario,
+      correo: usuario.correo,
+      tipoCuenta: usuario.tipoCuenta,
+      esJefeAcademia: usuario.esJefeAcademia,
+    };
+    const accessToken = this.jwtService.sign(sessionPayload);
+
+    const { contrasena: _contrasena, ...datosUsuario } = usuario;
+    return {
+      mensaje: 'Operación realizada con éxito.',
+      access_token: accessToken,
+      usuario: datosUsuario,
     };
   }
 }

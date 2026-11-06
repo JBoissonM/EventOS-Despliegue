@@ -15,7 +15,7 @@ tags:
 # Actores, Diagramas de Casos de Uso y Catálogos — EventOS (v2.0)
 
 > [!NOTE] Navegación Rápida
-> **Hub del Proyecto:** [00-Proyecto-EventOS](./00-Proyecto-EventOS.md) | **Requerimientos y Reglas:** [01-Requerimientos-y-Reglas-de-Negocio](./01-Requerimientos-y-Reglas-de-Negocio.md) | **Casos de Uso (`CU-01`–`CU-38`):** [00-Indice-Casos-de-Uso](./03-Casos-de-Uso/00-Indice-Casos-de-Uso.md)
+> **Hub del Proyecto:** [00-Proyecto-EventOS](./00-Proyecto-EventOS.md) | **Requerimientos y Reglas:** [01-Requerimientos-y-Reglas-de-Negocio](./01-Requerimientos-y-Reglas-de-Negocio.md) | **Casos de Uso (`CU-01`–`CU-39`):** [00-Indice-Casos-de-Uso](./03-Casos-de-Uso/00-Indice-Casos-de-Uso.md)
 
 ---
 
@@ -23,23 +23,23 @@ tags:
 
 ### Asistente
 
-Este actor interactúa con la plataforma para consultar la cartelera (`CU-04`) y gestionar su participación. Tiene la capacidad de reservar su lugar o recursos específicos (`CU-15`, `CU-16` en `UI06`), generar y visualizar su boleto digital de acceso mediante código QR (`CU-17`, `CU-20` en `UI09`), administrar o cancelar sus reservas activas (`CU-18`, `CU-19` en `UI08`), consultar la bitácora de eventos realizados (`CU-14` en `UI10`) y solicitar la creación de un evento (`CU-21` en `UI07`) contando previamente con su identidad verificada (`UI24`). Puede operar desde una cuenta de tipo `Usuario Interno` (comunidad ESCOM/IPN) o `Usuario Externo` (público general), lo cual determinará su visibilidad en la cartelera.
+Este actor interactúa con la plataforma para consultar la cartelera (`CU-04`) y gestionar su participación. Tiene la capacidad de reservar su lugar o recursos específicos (`CU-15`, `CU-16` en `UI06`), generar y visualizar su boleto digital de acceso mediante código QR (`CU-17`, `CU-20` en `UI09`), administrar o cancelar sus reservas activas (`CU-18`, `CU-19` en `UI08`), consultar la bitácora de eventos realizados (`CU-14` en `UI10`) y solicitar la creación de un evento (`CU-21` en `UI07`) contando previamente con su identidad verificada (`UI32`). Puede operar desde una cuenta de tipo `Usuario Interno` (comunidad ESCOM/IPN) o `Usuario Externo` (público general), lo cual determinará su visibilidad en la cartelera.
 
 ### Organizador
 
-Este actor es responsable de la propuesta, creación y administración operativa de los eventos bajo su responsabilidad (privilegio otorgado por evento conforme a `RN-02`), pudiendo pertenecer a la comunidad institucional, a un club estudiantil o a una entidad externa. Sus capacidades incluyen consultar y administrar sus eventos (`CU-24` en `UI14`/`UI15`), reprogramar o reubicar su logística (`CU-25` en `UI16`), actualizar la información general (`CU-26`, `CU-27`), solicitar requerimientos técnicos de cómputo en laboratorios (`CU-28`), agregar ponentes (`CU-10` en `UI28`), emitir boletos directos (`CU-30`), asignar o registrar personal de logística (`CU-31`, `CU-32` en `UI26`/`UI32`) y cancelar sus eventos especificando un motivo obligatorio (`CU-29`).
+Este actor es responsable de la propuesta, creación y administración operativa de los eventos bajo su responsabilidad (privilegio otorgado por evento conforme a `RN-02`), pudiendo pertenecer a la comunidad institucional, a un club estudiantil o a una entidad externa. Sus capacidades incluyen consultar y administrar sus eventos (`CU-24` en `UI14`/`UI15`), reprogramar o reubicar su logística (`CU-25` en `UI16`), actualizar la información general (`CU-26`, `CU-27`), solicitar requerimientos técnicos de cómputo en laboratorios (`CU-28` en `UI17`), agregar ponentes (`CU-10` en `UI29`), invitar asistentes a eventos privados (`CU-30`), asignar o registrar personal de logística (`CU-31`, `CU-32` en `UI27`) y cancelar sus eventos especificando un motivo obligatorio (`CU-29`).
 
 ### Subdirección de Servicios Educativos
 
-Este actor es el encargado de consultar y evaluar las solicitudes de eventos pendientes de aprobación (`CU-06`, `CU-07` en `UI11`/`UI12`), dictaminando si se aprueban, rechazan o requieren cambios (`UI37`) con base en la agenda de disponibilidad y el impacto académico frente a las clases regulares. Asimismo, puede consultar los eventos aprobados (`CU-08` en `UI13`), cancelarlos justificadamente (`CU-09`), agregar ponentes (`CU-10` en `UI28`), solicitar eventos cuyas solicitudes se aprueban de forma automática (`CU-11` en `UI07`), registrar personal de logística (`CU-12` en `UI26`) y evaluar el estado de verificación de identidad de los usuarios (`CU-38` en `UI30`).
+Este actor es el encargado de consultar y evaluar las solicitudes de eventos pendientes de aprobación (`CU-06`, `CU-07` en `UI11`/`UI12`), dictaminando si se aprueban, rechazan o requieren cambios (modal como subcomponente de `UI12`) con base en la agenda de disponibilidad y el impacto académico frente a las clases regulares. Asimismo, puede consultar los eventos aprobados (`CU-08` en `UI13`), cancelarlos justificadamente (`CU-09`), agregar ponentes (`CU-10` en `UI29`), solicitar eventos cuyas solicitudes se aprueban de forma automática (`CU-11` en `UI07`), registrar personal de logística (`CU-12` en `UI27`) y evaluar el estado de verificación de identidad de los usuarios (`CU-38` en `UI31`).
 
 ### Personal de Logística
 
-Actor operativo cuyo propósito en el sistema es la validación de acceso de los asistentes en los eventos a los que ha sido asignado. Activa su cuenta por token (`UI23`), interactúa con el panel de eventos asignados (`CU-22` en `UI17`), visualiza los detalles del evento (`CU-05` en `UI05`) y utiliza la cámara del dispositivo desde el navegador web para escanear los códigos QR de los boletos digitales (`CU-23` en `UI18`), recibiendo el dictamen del sistema (acceso válido, código no reconocido o código ya validado) y actualizando el estado del boleto a `Ingresado`.
+Actor operativo cuyo propósito en el sistema es la validación de acceso de los asistentes en los eventos a los que ha sido asignado. Activa su cuenta por token (`UI24`), interactúa con el panel de eventos asignados (`CU-22` en `UI18`), visualiza los detalles del evento (`CU-05` en `UI05`) y utiliza la cámara del dispositivo desde el navegador web para escanear los códigos QR de los boletos digitales (`CU-23` en `UI19`), recibiendo el dictamen del sistema (acceso válido, código no reconocido o código ya validado) y actualizando el estado del boleto a `Ingresado`.
 
 ### Administrador
 
-Este actor cuenta con privilegios de gestión sobre las cuentas de usuario, la infraestructura de espacios físicos y la auditoría del sistema desde su menú principal (`UI25`). Puede registrar usuarios manualmente (`CU-13` en `UI33`), registrar jefes de área (`CU-33` en `UI34`), activar o desactivar cuentas de usuario mediante borrado lógico (`CU-34` en `UI20`), actualizar el estado operativo (`Activo`, `Mantenimiento`, `Inactivo`) y aforo máximo de los espacios físicos de ESCOM (`CU-35` en `UI21`), administrar el estado del inventario de equipos de cómputo por laboratorio (`CU-36` en `UI22`), consultar/exportar en formato PDF la bitácora histórica inmutable del sistema (`CU-37` en `UI19`) y gestionar el estado de verificación de usuarios (`CU-38` en `UI30`).
+Este actor cuenta con privilegios de gestión sobre las cuentas de usuario, la infraestructura de espacios físicos y la auditoría del sistema desde su menú principal (`UI26`). Puede registrar usuarios manualmente (`CU-13` en `UI33`), registrar jefes de área (`CU-33` en `UI34`), activar o desactivar cuentas de usuario mediante borrado lógico (`CU-34` en `UI21`), actualizar el estado operativo (`Activo`, `Mantenimiento`, `Inactivo`) y aforo máximo de los espacios físicos de ESCOM (`CU-35` en `UI22`), administrar el estado del inventario de equipos de cómputo por laboratorio (`CU-36` en `UI23`), consultar/exportar en formato PDF la bitácora histórica inmutable del sistema (`CU-37` en `UI20`) y gestionar el estado de verificación de usuarios (`CU-38` en `UI31`).
 
 ---
 
@@ -62,7 +62,7 @@ Este actor cuenta con privilegios de gestión sobre las cuentas de usuario, la i
 
 ---
 
-## 3. Catálogo Oficial de Pantallas (`UI01` – `UI37`)
+## 3. Catálogo Oficial de Pantallas (`UI01` – `UI35`)
 
 > [!TIP] Guía de Estilo, Wireframes y Mockups en Figma
 > Para consultar la tipografía (`Merriweather`), paleta institucional (`#5F1B36` / `#1B585F`), tabla de correspondencia con los nombres de frames en Figma y capturas de **Wireframes** y **Mockups** (Desktop y Móvil), revisa [04-Diseno-UI](./04-Diseno-UI.md).
@@ -70,44 +70,40 @@ Este actor cuenta con privilegios de gestión sobre las cuentas de usuario, la i
 | Actor / Rol | ID | Nombre de la Pantalla / Componente |
 | :--- | :---: | :--- |
 | Todos | `UI01` | Pantalla de Inicio de Sesión |
-| Todos | `UI27` | Visualizar Perfil de Usuario |
 | Asistente | `UI02` | Pantalla de Registro de Usuario |
 | Asistente | `UI03` | Menú Principal del Asistente |
 | Todos / Público General | `UI04` | Cartelera de Eventos |
 | Todos / Público General | `UI05` | Detalles del Evento *(incluye subvista `UI05.1` Detalles del subevento)* |
 | Asistente | `UI06` | Mapa de Asientos y Disponibilidad del Recinto |
-| Asistente | `UI07` | Formulario de Solicitud de Evento |
-| Asistente | `UI08` | Consultar Mis Eventos |
+| Asistente / Subdirección | `UI07` | Formulario de Solicitud de Evento |
+| Asistente | `UI08` | Consultar Mis Eventos (Reservas del Asistente) |
 | Asistente | `UI09` | Boleto Digital y Código QR |
 | Asistente | `UI10` | Bitácora de Eventos Realizados |
-| Asistente / Usuario Externo | `UI24` | Pantalla de Verificación de Identidad *(vigencia trimestral, PDF máx. 5 MB)* |
-| Jefe de Área / Directivo | `UI31` | Panel de Supervisión y Calendario Institucional |
-| Subdirección de Servicios Educativos | `UI07` | Formulario de Solicitud de Evento |
 | Subdirección de Servicios Educativos | `UI11` | Panel de Solicitudes Pendientes |
-| Subdirección de Servicios Educativos | `UI12` | Detalles del Evento para Evaluación |
+| Subdirección de Servicios Educativos | `UI12` | Detalles del Evento para Evaluación *(incluye Modal de Solicitud de Cambios como subcomponente)* |
 | Subdirección de Servicios Educativos | `UI13` | Panel de Eventos |
-| Subdirección de Servicios Educativos | `UI26` | Agregar Personal de Logística |
-| Subdirección de Servicios Educativos | `UI28` | Agregar Ponente al Evento |
-| Subdirección de Servicios Educativos | `UI36` | Menú Principal de Subdirección |
-| Subdirección de Servicios Educativos | `UI37` | Modal de Solicitud de Cambios al Evento |
 | Organizador | `UI14` | Panel de Consulta de Mis Eventos |
 | Organizador | `UI15` | Panel de Administración y Detalles del Evento |
 | Organizador | `UI16` | Formulario de Modificación de Evento |
-| Organizador | `UI26` | Agregar Personal de Logística |
-| Organizador | `UI28` | Agregar Ponente al Evento |
-| Organizador | `UI32` | Registro de Personal de Logística desde Organizador |
-| Todos / Público General | `UI05` | Detalles del Evento |
-| Personal de Logística | `UI17` | Panel de Eventos Asignados |
-| Personal de Logística | `UI18` | Pantalla de Escáner QR |
-| Personal de Logística | `UI23` | Activación de Cuenta por Token |
-| Administrador | `UI19` | Bitácora Histórica del Sistema |
-| Administrador | `UI20` | Gestión de Cuentas de Usuario |
-| Administrador | `UI21` | Panel de Gestión de Espacios Físicos |
-| Administrador | `UI22` | Gestión de Equipos de Laboratorio |
-| Administrador | `UI25` | Menú Principal de Administrador |
-| Subdirección de Servicios Educativos / Administrador | `UI30` | Gestionar Estado de Verificación de Usuarios |
+| Organizador | `UI17` | Requerimientos Técnicos de Laboratorio |
+| Personal de Logística | `UI18` | Panel de Eventos Asignados |
+| Personal de Logística | `UI19` | Pantalla de Escáner QR |
+| Administrador | `UI20` | Bitácora Histórica del Sistema |
+| Administrador | `UI21` | Gestión de Cuentas de Usuario |
+| Administrador | `UI22` | Panel de Gestión de Espacios Físicos |
+| Administrador | `UI23` | Gestión de Equipos de Laboratorio |
+| Personal de Logística | `UI24` | Activación de Cuenta por Token |
+| Subdirección de Servicios Educativos | `UI25` | Menú Principal de Subdirección |
+| Administrador | `UI26` | Menú Principal de Administrador |
+| Subdirección / Organizador | `UI27` | Agregar Personal de Logística |
+| Todos | `UI28` | Visualizar Perfil de Usuario |
+| Subdirección / Organizador | `UI29` | Agregar Ponente al Evento |
+| Jefe de Área / Directivo | `UI30` | Panel de Supervisión y Calendario Institucional |
+| Subdirección / Administrador | `UI31` | Gestionar Estado de Verificación de Usuarios |
+| Asistente / Usuario Externo | `UI32` | Pantalla de Verificación de Identidad *(vigencia trimestral, PDF máx. 5 MB)* |
 | Administrador | `UI33` | Registro de Usuario desde Administrador |
-| Administrador | `UI34` | Registro de jefe de área |
+| Administrador | `UI34` | Asignación de Jefes de Departamento |
+| Público / Todos | `UI35` | Restablecer Contraseña *(asociada a `CU-39`)* |
 
 ---
 
@@ -173,7 +169,7 @@ Este actor cuenta con privilegios de gestión sobre las cuentas de usuario, la i
 
 ---
 
-## 5. Catálogo de Mensajes Informativos (`MSG-I-01` – `MSG-I-25`)
+## 5. Catálogo de Mensajes Informativos (`MSG-I-01` – `MSG-I-26`)
 
 | Código | Mensaje Detallado |
 | :---: | :--- |
@@ -202,6 +198,7 @@ Este actor cuenta con privilegios de gestión sobre las cuentas de usuario, la i
 | **`MSG-I-23`** | No se encontraron registros que coincidan con los filtros seleccionados. |
 | **`MSG-I-24`** | Para reservar tu lugar en este evento es necesario iniciar sesión o crear una cuenta. |
 | **`MSG-I-25`** | La capacidad operativa del laboratorio ha disminuido. Existen eventos aprobados que requieren revisión. |
+| **`MSG-I-26`** | Invitación aceptada. Por favor, selecciona tu asiento en el mapa para confirmar tu lugar y generar tu boleto. |
 
 ---
 
@@ -219,10 +216,13 @@ Este actor cuenta con privilegios de gestión sobre las cuentas de usuario, la i
 
 ---
 
-## 7. Notas de Consolidación (Versión 2.0)
+## 7. Notas de Consolidación (Versión 2.0 — Unificación Normativa UI35)
 
-- La cartelera y la visualización de detalles del evento quedaron como casos universales `CU-04` y `CU-05`. La numeración del plan de correcciones corresponde a otra versión; las referencias finales se ajustaron a este documento.
-- La guía propone los códigos `MSG-I-15`, `MSG-E-18` y `MSG-E-25` para textos nuevos, pero ya designan otros mensajes. Para no renombrar identificadores vigentes se crearon `MSG-I-24`, `MSG-E-54` y `MSG-E-55`, respectivamente.
-- La guía usa `UI15` para el modal de solicitar cambios y `UI13` para evaluar una solicitud; esas pantallas identifican funciones diferentes en el proyecto base. Para evitar romper sus flujos, el modal se identificó como `UI37` y se abre desde `UI12`. La guía redefine `UI24` como verificación de identidad: el menú de Subdirección se conserva sin colisión como `UI36`.
-- `CU-12` especifica el registro de Personal de Logística realizado por Subdirección. `CU-32` especifica de forma independiente la misma función para el Organizador; ambos conservan invitación por token de 48 horas, activación en `UI23`, límite de 10 integrantes y permisos exclusivos de los eventos asignados.
+- La cartelera y la visualización de detalles del evento quedaron como casos universales `CU-04` y `CU-05`.
+- El catálogo oficial consta de exactamente **35 pantallas consecutivas (`UI01` a `UI35`)**, en estricta sincronía 1:1 con Figma y los 39 Casos de Uso del sistema.
+- Se integra formalmente `UI17 Requerimientos Técnicos de Laboratorio` (mockup de Figma `mk-organizador-requerimientos-lab.png`), sincronizando correlativamente `UI18` a `UI24`.
+- El modal de solicitud de cambios al evento queda modelado como subcomponente operativo de `UI12` (Detalles del Evento para Evaluación), eliminando los identificadores huérfanos `UI36` y `UI37`.
+- El Menú Principal de Subdirección se consolida como `UI25`, y el Menú Principal de Administrador como `UI26`.
+- `UI27` unifica Agregar Personal de Logística tanto para Subdirección (`CU-12`) como para el Organizador (`CU-31`, `CU-32`), integrando su modal de registro por token de 48 horas (`UI24`).
+- `UI28` consolida la visualización de perfil (`CU-02`), `UI29` la asignación de ponentes (`CU-10`), `UI30` el panel directivo de supervisión y calendario institucional, `UI31` la gestión de verificación de usuarios por Subdirección/Administrador (`CU-38`), `UI32` la pantalla de verificación de identidad con comprobante PDF (`CU-21`), `UI33` el registro de usuarios por el Administrador (`CU-13`), `UI34` la asignación de jefes de departamento (`CU-33`), y `UI35` culmina el catálogo oficial con el restablecimiento de contraseñas (`CU-39`).
 

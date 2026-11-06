@@ -10,7 +10,7 @@ hero:
       text: Explorar Hub del Proyecto
       link: /00-Proyecto-EventOS
     - theme: alt
-      text: Casos de Uso (CU-01–CU-38)
+      text: Casos de Uso (CU-01–CU-39)
       link: /03-Casos-de-Uso/00-Indice-Casos-de-Uso
     - theme: alt
       text: Reglas de Negocio y Catálogos
@@ -19,7 +19,7 @@ hero:
 features:
   - icon: 🎓
     title: Ámbito Institucional (ESCOM / IPN)
-    details: Auditorio, Sala 14 y Laboratorios de cómputo con validación de correos @alumno.ipn.mx y @ipn.mx, candado de identidad y evaluación de expedientes (CU-38 en UI30).
+    details: Auditorio, Sala 14 y Laboratorios de cómputo con validación de correos @alumno.ipn.mx y @ipn.mx, candado de identidad y evaluación de expedientes (CU-38 en UI31).
   - icon: 🎫
     title: Boletos Digitales y Acceso QR
     details: Control de acceso firmado criptográficamente, sobrecupo escalonado controlado, eventos privados lean por token de invitación y validación por personal de logística.
@@ -28,7 +28,7 @@ features:
     details: Monorepo con NestJS, TypeORM, PostgreSQL 18, React, Vite y MinIO/Cloudflare R2.
   - icon: 📑
     title: Especificación Consolidada v2.0
-    details: 38 Casos de Uso detallados (CU-01–CU-38), 45 Reglas de Negocio, catálogo de 34 pantallas oficiales (UI01–UI37) y mensajes MSG-E, MSG-I y MSG-P.
+    details: 39 Casos de Uso detallados (CU-01–CU-39), 45 Reglas de Negocio, catálogo de 35 pantallas oficiales (UI01–UI35) y mensajes MSG-E, MSG-I y MSG-P.
 ---
 
 <style>

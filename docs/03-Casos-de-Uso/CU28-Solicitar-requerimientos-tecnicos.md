@@ -28,7 +28,7 @@ tags:
 | **Actor** | Organizador |
 | **Propósito** | Registrar la cantidad de computadoras necesarias para el evento, garantizando que no se supere la capacidad instalada. |
 | **Entradas** | Cantidad entera de computadoras a solicitar. |
-| **Salidas** | El sistema muestra MSG-I-08 operación realizada con éxito.<br>El sistema muestra la UI15 Panel de Administración y Detalles del Evento. |
+| **Salidas** | • Pantalla **UI17** "Requerimientos Técnicos de Laboratorio".<br>• El sistema muestra MSG-I-08 operación realizada con éxito.<br>• El sistema muestra la UI15 Panel de Administración y Detalles del Evento. |
 | **Precondiciones** | El usuario se encuentra en la pantalla UI07 "Formulario de Solicitud de Evento" o UI15 "Panel de Administración y Detalles del Evento".<br>El evento está configurado para realizarse en un espacio tipo laboratorio. |
 | **Postcondiciones** | La cantidad de computadoras solicitadas se asocia al evento y se guarda permanentemente en la base de datos. |
 | **Errores** | MSG-E-02 Cantidad inválida. Ingrese un número entero válido.<br>MSG-E-03 La cantidad solicitada excede el límite disponible. |
@@ -37,7 +37,7 @@ tags:
 
 ### Trayectoria Principal
 
-1. Muestra el catálogo de requerimientos técnicos (equipos de cómputo disponibles).
+1. Muestra la pantalla **UI17** "Requerimientos Técnicos de Laboratorio", presentando el catálogo de equipos de cómputo funcionales disponibles y fuera de servicio del laboratorio asignado.
 2. Selecciona y/o ingresa la cantidad de computadoras necesarias para su actividad. [Trayectoria A]
 3. Confirma la solicitud de requerimientos.
 4. Valida que la cantidad ingresada sea un número entero y no exceda el límite máximo permitido. [Trayectoria B] [Trayectoria C]

@@ -1,157 +1,32 @@
-import React, { useEffect, useState } from "react";
-import { useNavigate, useParams } from "react-router";
 import { Button } from "../../components/atoms/Button/Button";
 import { Modal } from "../../components/molecules/Modal";
 import { ListaEquiposTable } from "../admin/organism/ListaEquiposTable";
-
-interface Equipo {
-  idEstadoEquipo: number;
-  numeroEquipo: number;
-  estado: boolean;
-  idRecinto: number;
-}
+import { useGestionEquipos } from "../admin/hooks/useGestionEquipos";
 
 export function GestionEquipos() {
-  const navigate = useNavigate();
-  const { id } = useParams<{ id: string }>();
-
-  const [equipos, setEquipos] = useState<Equipo[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  const [modalAbierto, setModalAbierto] = useState(false);
-  const [modalEspacioAbierto, setModalEspacioAbierto] = useState(false);
-  const [equipoPendiente, setEquipoPendiente] = useState<Equipo | null>(null);
-
-  const getToken = () => {
-    const usuario = JSON.parse(localStorage.getItem("usuario") || "{}");
-    return usuario.token || localStorage.getItem("token") || "";
-  };
-
-  const fetchEquipos = async () => {
-    if (!id) return;
-    try {
-      setLoading(true);
-      const response = await fetch(`http://localhost:3000/api/espacios/${id}/equipos`, {
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${getToken()}`,
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error("No se pudieron cargar los equipos de este laboratorio.");
-      }
-
-      const data = await response.json();
-      setEquipos(data);
-    } catch (err: any) {
-      alert(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchEquipos();
-  }, [id]);
-
-  const totalEquipos = equipos.length;
-  const equiposDisponibles = equipos.filter((e) => e.estado).length;
-  const equiposFueraDeServicio = totalEquipos - equiposDisponibles;
-
-  const handleToggleClick = (equipo: Equipo) => {
-    setEquipoPendiente(equipo);
-    setModalAbierto(true);
-  };
-
-  const handleConfirmarCambio = async () => {
-    if (!equipoPendiente) return;
-
-    const nuevoEstado = !equipoPendiente.estado;
-    const isDesactivando = equipoPendiente.estado === true && nuevoEstado === false;
-    const equiposActivosCount = equipos.filter((e) => e.estado).length;
-    const esUltimoActivo = isDesactivando && equiposActivosCount === 1;
-
-    if (esUltimoActivo) {
-      setModalAbierto(false);
-      setModalEspacioAbierto(true);
-      return; 
-    }
-
-    try {
-      const response = await fetch(`http://localhost:3000/api/espacios/${id}/equipos/${equipoPendiente.idEstadoEquipo}/estado`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${getToken()}`,
-        },
-        body: JSON.stringify({ estado: nuevoEstado }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.message || "Error al actualizar el estado del equipo.");
-      }
-
-      await fetchEquipos();
-      setModalAbierto(false);
-      setEquipoPendiente(null);
-    } catch (err: any) {
-      alert(err.message);
-    }
-  };
-
-  const handleConfirmarInhabilitarEspacio = async () => {
-    if (!equipoPendiente) return;
-
-    try {
-      const responseEquipo = await fetch(`http://localhost:3000/api/espacios/${id}/equipos/${equipoPendiente.idEstadoEquipo}/estado`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${getToken()}`,
-        },
-        body: JSON.stringify({ estado: false }),
-      });
-
-      const dataEquipo = await responseEquipo.json();
-      if (!responseEquipo.ok) {
-        throw new Error(dataEquipo.message || "Error al actualizar el estado del equipo.");
-      }
-
-      const responseEspacio = await fetch(`http://localhost:3000/api/espacios/${id}/estado`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${getToken()}`,
-        },
-        body: JSON.stringify({ estado: false }),
-      });
-
-      if (!responseEspacio.ok) {
-        const dataEspacio = await responseEspacio.json();
-        throw new Error(dataEspacio.message || "Error al inhabilitar el espacio.");
-      }
-
-      await fetchEquipos();
-      setModalEspacioAbierto(false);
-      setEquipoPendiente(null);
-    } catch (err: any) {
-      alert(err.message);
-    }
-  };
-
-  const handleCancelarInhabilitarEspacio = () => {
-    setModalEspacioAbierto(false);
-    setEquipoPendiente(null);
-  };
+  const {
+    id,
+    equipos,
+    loading,
+    totalEquipos,
+    equiposDisponibles,
+    equiposFueraDeServicio,
+    modalAbierto,
+    setModalAbierto,
+    modalEspacioAbierto,
+    equipoPendiente,
+    handleToggleClick,
+    handleConfirmarCambio,
+    handleConfirmarInhabilitarEspacio,
+    handleCancelarInhabilitarEspacio,
+    handleVolverAGestionEspacios,
+  } = useGestionEquipos();
 
   return (
     <div className="space-y-6 font-merriweather text-gray-800">
 
       <div className="mb-2">
-        <button onClick={() => navigate("/gestion-espacios")} className="flex items-center text-sm font-semibold text-gray-700 hover:text-gray-900 transition-colors">
+        <button onClick={handleVolverAGestionEspacios} className="flex items-center text-sm font-semibold text-gray-700 hover:text-gray-900 transition-colors">
           <span className="font-merriweather text-[16px] mr-3">← Volver a Gestion de Espacios</span>
         </button>
       </div>

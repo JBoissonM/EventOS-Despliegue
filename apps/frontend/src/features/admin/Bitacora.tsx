@@ -1,98 +1,26 @@
-import { useState, useEffect } from "react";
-import { useNavigate } from "react-router";
 import { Button } from "../../components/atoms/Button/Button";
 import { Input } from "../../components/atoms/Input/Input";
 import { Modal } from "../../components/molecules/Modal";
-
-interface BitacoraItem {
-  idBitacoraEvento?: number;
-  evento: string;
-  estado: string;
-  usuario: string;
-  fecha: string;
-  hora: string;
-}
+import { useBitacoraGeneral } from "../admin/hooks/useBitacoraGeneral";
+import { Search } from "lucide-react";
 
 export function BitacoraGeneral() {
-  const navigate = useNavigate();
-  const [bitacora, setBitacora] = useState<BitacoraItem[]>([]);
-  const [busqueda, setBusqueda] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [modalExito, setModalExito] = useState(false);
-
-  const getToken = () => {
-    const usuario = JSON.parse(localStorage.getItem("usuario") || "{}");
-    return usuario.token || localStorage.getItem("token") || "";
-  };
-
-  const cargarBitacora = async (query = "") => {
-    setLoading(true);
-    try {
-      const endpoint = `http://localhost:3000/api/eventos/bitacora${query ? `?buscar=${encodeURIComponent(query)}` : ""}`;
-      const response = await fetch(endpoint, {
-        headers: {
-          Authorization: `Bearer ${getToken()}`,
-        },
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setBitacora(data.movimientos || []);
-      } else {
-        console.error("Error al obtener la bitácora del servidor");
-        setBitacora([]);
-      }
-    } catch (err) {
-      console.error("Error de conexión al cargar la bitácora", err);
-      setBitacora([]);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    cargarBitacora();
-  }, []);
-
-  const handleBuscar = (e: React.FormEvent) => {
-    e.preventDefault();
-    cargarBitacora(busqueda);
-  };
-
-  const handleExportar = async () => {
-    try {
-      const endpoint = `http://localhost:3000/api/eventos/bitacora/exportar${busqueda ? `?buscar=${encodeURIComponent(busqueda)}` : ""}`;
-      const response = await fetch(endpoint, {
-        headers: {
-          Authorization: `Bearer ${getToken()}`,
-        },
-      });
-
-      if (response.ok) {
-        const blob = await response.blob();
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = `bitacora_general_${new Date().toISOString().split("T")[0]}.csv`;
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-        window.URL.revokeObjectURL(url);
-        
-        setModalExito(true);
-      } else {
-        alert("No hay registros disponibles para exportar.");
-      }
-    } catch (err) {
-      console.error("Error al exportar la bitácora", err);
-      alert("Ocurrió un error al intentar exportar el archivo.");
-    }
-  };
+  const {
+    bitacora,
+    busqueda,
+    setBusqueda,
+    loading,
+    modalExito,
+    handleBuscar,
+    handleExportar,
+    handleVolverAlMenu,
+    cerrarModalExito,
+  } = useBitacoraGeneral();
 
   return (
     <div className="space-y-6 font-merriweather text-gray-800 w-full p-0">
       <div className="mb-2">
-        <button onClick={() => navigate("/menu-admin")} className="flex items-center text-sm font-semibold text-gray-700 hover:text-gray-900 transition-colors">
+        <button onClick={handleVolverAlMenu} className="flex items-center text-sm font-semibold text-gray-700 hover:text-gray-900 transition-colors">
           <span className="font-merriweather text-[16px] mr-3">← Volver al menú</span>
         </button>
       </div>
@@ -106,9 +34,7 @@ export function BitacoraGeneral() {
           <div className="flex items-center border border-gray-300 rounded-md bg-white px-3 py-2 shadow-sm focus-within:ring-1 focus-within:ring-[#5c1d33]">
             <Input type="text" placeholder="Buscar evento" value={busqueda} onChange={(e) => setBusqueda(e.target.value)} className="border-none p-0 focus:ring-0 text-sm w-full outline-none bg-transparent"/>
             <button type="submit" className="text-gray-500 hover:text-gray-700 ml-2 focus:outline-none shrink-0" aria-label="Buscar">
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor" className="w-5 h-5">
-                <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607z"/>
-              </svg>
+              <Search className="w-5 h-5" />
             </button>
           </div>
         </form>
@@ -151,13 +77,13 @@ export function BitacoraGeneral() {
         </table>
       </div>
       
-      <div className="text-center">         
-        <Modal mostrarModal={modalExito} cerrarModal={() => setModalExito(false)} titulo="Bitácora exportada correctamente" contenido="">
+      <div className="text-center">     
+        <Modal mostrarModal={modalExito} cerrarModal={cerrarModalExito} titulo="Bitácora exportada correctamente" contenido="">
           <div className="flex justify-end pt-4">
-            <Button text="Aceptar" type="button" variant="primary" onClick={() => setModalExito(false)} className="px-4 py-1.5 text-xs rounded-md shadow"/>
+            <Button text="Aceptar" type="button" variant="primary" onClick={cerrarModalExito} className="px-4 py-1.5 text-xs rounded-md shadow"/>
           </div>
         </Modal>
-      </div>       
+      </div>     
     </div>
   );
 }

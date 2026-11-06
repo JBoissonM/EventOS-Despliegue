@@ -172,7 +172,7 @@ export interface SubeventoPayload {
   horaFin: string;
 }
 
-export interface PrimerSubeventoResumen {
+export interface SubEventoResumen {
   idSubEvento: number;
   nombre: string;
   fecha: string | null;
@@ -192,7 +192,7 @@ export interface MisEventosItem {
   idEstadoEvento?: EstadoEvento;
   cupoMaximo: number;
   boletosEmitidos: number;
-  primerSubevento: PrimerSubeventoResumen | null;
+  subeventos: SubEventoResumen[];
 }
 
 export interface EventoOrganizadorDetalleSubevento {
@@ -229,6 +229,27 @@ export interface EventoOrganizadorDetalle {
     estado: string;
   } | null;
   invitados?: InvitadoEventoItem[];
+  personalLogistica?: PersonalLogisticaItem[];
+  logisticaCount?: number;
+}
+
+export interface PersonalLogisticaItem {
+  idUsuario: number;
+  nombreCompleto: string;
+  correo: string;
+  tipoCuenta: string;
+}
+
+export interface AgregarPersonalLogisticaPayload {
+  correo: string;
+}
+
+export interface ActivarCuentaLogisticaPayload {
+  token: string;
+  nombre: string;
+  apellidoPa: string;
+  apellidoMa?: string;
+  contrasena: string;
 }
 
 export interface InvitadoEventoItem {
@@ -423,4 +444,14 @@ export interface JefeDepartamentoItem {
   nombre: string;
   correoInstitucional: string;
   esJefeAcademia: boolean;
+}
+
+export interface SolicitarRecuperacionPayload {
+  correo: string;
+}
+
+export interface RestablecerContrasenaPayload {
+  token: string;
+  nuevaContrasena: string;
+  confirmarContrasena: string;
 }

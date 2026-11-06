@@ -30,6 +30,8 @@ import { DigitalTicketRoute } from "../features/tickets/pages/DigitalTicketRoute
 import { SolicitudesAprobadas } from "../features/educational-services/SolicitudesAprobadas";
 import { MisEventos } from "../features/organizer/MisEventos";
 
+import { AdministracionEvento } from "../features/organizer/AdministracionEvento";
+
 export function AppRouter() {
   return (
     <BrowserRouter>
@@ -70,6 +72,7 @@ export function AppRouter() {
             <Route path="/asistente/boletos" element={<MyTicketsRoute />} />
             <Route path="/asistente/boletos/:idBoleto" element={<DigitalTicketRoute />} />
             <Route path="/verificacion" element={<Verificacion />} />
+            <Route path="/organizador/administrar-evento/:idEvento" element={<AdministracionEvento />}/>
           </Route>
         </Route>
 

@@ -17,7 +17,7 @@ tags:
 > - [Requerimientos y Reglas de Negocio](../01-Requerimientos-y-Reglas-de-Negocio.md)
 > - [Catálogos de Pantallas y Mensajes](../02-Actores-y-Catalogos.md)
 
-**Resumen:** Permitir al Organizador incorporar colaboradores como Personal de Logística de los eventos aprobados bajo su responsabilidad, mediante asignación directa si ya tienen cuenta o invitación por correo con un token temporal para crear su cuenta.
+**Resumen:** Permitir al Organizador incorporar colaboradores como Personal de Logística de los eventos aprobados bajo su responsabilidad, mediante asignación directa con correo de confirmación si ya tienen cuenta, o invitación por correo con un token temporal de 48 horas para crear su cuenta, notificando por correo electrónico al Organizador y al colaborador tras la activación.
 
 **Descripción:**
 
@@ -27,10 +27,10 @@ tags:
 | **Autor** | Vargas Rodriguez Leonardo |
 | **Actor** | Organizador. |
 | **Propósito** | Permitir al Organizador registrar o invitar colaboradores de logística vinculándolos exclusivamente con sus eventos aprobados, sin otorgarles permisos permanentes de logística ni credenciales de terceros. |
-| **Entradas** | ID del Organizador autenticado; ID de uno de sus eventos aprobados; correo electrónico del colaborador. Si la persona no tiene cuenta, registrará su nombre y establecerá su contraseña personalmente en UI23 al aceptar la invitación por token. |
-| **Salidas** | Pantalla UI26 "Agregar Personal de Logística" a la que se accede desde UI15 "Panel de Administración y Detalles del Evento"; confirmación MSG-I-08; envío de correo con datos del evento al usuario registrado o invitación con enlace a UI23 y token de un solo uso válido por 48 horas al usuario nuevo. |
+| **Entradas** | ID del Organizador autenticado; ID de uno de sus eventos aprobados; correo electrónico del colaborador. Si la persona no tiene cuenta, registrará su nombre y establecerá su contraseña personalmente en UI24 al aceptar la invitación por token. |
+| **Salidas** | Pantalla UI27 "Agregar Personal de Logística" a la que se accede desde UI15 "Panel de Administración y Detalles del Evento"; confirmación MSG-I-08; envío de correo con datos del evento al colaborador asignado directamente, o invitación por correo con enlace a UI24 y token de un solo uso válido por 48 horas al colaborador nuevo; al responder y activar el token en UI24, envío de correo de confirmación al colaborador y notificación por correo electrónico al Organizador responsable. |
 | **Precondiciones** | El Organizador debe tener una cuenta activa y haber iniciado sesión correctamente mediante CU-01. El Organizador debe ser responsable del evento seleccionado. El evento debe encontrarse aprobado, vigente y no cancelado. No debe haberse alcanzado el límite de 10 integrantes de logística asignados al evento. |
-| **Postcondiciones** | Si la cuenta está activa, el colaborador queda asignado directamente al evento y recibe una confirmación por correo. Si no existe cuenta, recibe una invitación y queda asignado tras activar su cuenta en UI23. La invitación caduca a las 48 horas. Los permisos de logística solo aplican a eventos asignados, expiran tras la fecha/hora de terminación del último evento vigente y la cuenta conserva después su rol base. No se exceden 10 integrantes por evento. Si se cancela el proceso, no se modifica la asignación. |
+| **Postcondiciones** | Si la cuenta está activa, el colaborador queda asignado directamente al evento y recibe una confirmación por correo. Si no existe cuenta, recibe una invitación por correo y queda asignado tras activar su cuenta en UI24 dentro de las 48 horas de vigencia; al completarse la activación, el sistema envía un correo de confirmación al colaborador y notifica por correo electrónico al Organizador responsable que la invitación fue aceptada e incorporada al equipo. Los permisos de logística solo aplican a eventos asignados, expiran tras la fecha/hora de terminación del último evento vigente y la cuenta conserva después su rol base. No se exceden 10 integrantes por evento. Si se cancela el proceso, no se modifica la asignación. |
 | **Errores** | Se mostrará MSG-E-11 cuando falten campos obligatorios. Se mostrará MSG-E-21 cuando el correo electrónico no sea válido. Se mostrará MSG-E-38 cuando el actor no tenga permisos sobre el evento. Se mostrará MSG-E-39 si el colaborador ya está asignado al evento. Se mostrará MSG-E-40 si el evento aún no está aprobado. Se mostrará MSG-E-50 si se alcanzó el límite de 10 integrantes. Se mostrará MSG-E-06 si el evento no existe o fue cancelado; MSG-E-08 si falla la comunicación con la base de datos. |
 | **Tipo** | Primario para el Organizador. Complementa CU-31 "Asignar personal de logística" y no reemplaza el registro administrado por Subdirección en CU-12. |
 
@@ -40,7 +40,7 @@ tags:
 1. El Organizador selecciona uno de sus eventos aprobados mediante CU-24 "Consultar mis eventos" y accede a UI15 "Panel de Administración y Detalles del Evento".
 2. Selecciona la opción [Agregar personal de logística].
 3. Verifica la sesión del Organizador, que sea responsable del evento, que el evento esté aprobado y que no se haya superado el límite de 10 colaboradores. [Trayectoria D]
-4. Muestra UI26 "Agregar Personal de Logística" desde el panel del evento, con el campo para ingresar el correo electrónico del colaborador y el contador de 10 lugares permitidos.
+4. Muestra UI27 "Agregar Personal de Logística" desde el panel del evento, con el campo para ingresar el correo electrónico del colaborador y el contador de 10 lugares permitidos.
 5. El Organizador ingresa el correo electrónico del colaborador y selecciona [Agregar personal].
 6. Verifica que todos los campos obligatorios estén completos y que el correo electrónico tenga un formato válido. [Trayectoria A] [Trayectoria B]
 7. Consulta en la base de datos si el correo electrónico ya corresponde a una cuenta activa. [Trayectoria C] [Trayectoria F] [Trayectoria E]
@@ -58,7 +58,7 @@ tags:
 
 - **A-1.** Detecta que uno o más campos obligatorios se encuentran vacíos.
 - **A-2.** Muestra el mensaje **MSG-E-11** "Por favor, completa todos los campos obligatorios resaltados para continuar.".
-- **A-3.** Mantiene al actor en la pantalla **UI26** "Agregar Personal de Logística", resaltando los campos incompletos.
+- **A-3.** Mantiene al actor en la pantalla **UI27** "Agregar Personal de Logística", resaltando los campos incompletos.
 - **A-4.** Completa la información faltante y retoma el proceso desde el paso 5 de la trayectoria principal.
 
 *Fin de la trayectoria.*
@@ -70,7 +70,7 @@ tags:
 
 - **B-1.** Detecta que el correo electrónico proporcionado no cumple con el formato establecido.
 - **B-2.** Muestra el mensaje **MSG-E-21** "Advertencia: Ingrese un correo válido.".
-- **B-3.** Mantiene al actor en la pantalla **UI26** "Agregar Personal de Logística", permitiéndole corregir el correo.
+- **B-3.** Mantiene al actor en la pantalla **UI27** "Agregar Personal de Logística", permitiéndole corregir el correo.
 - **B-4.** Corrige la información y retoma el proceso desde el paso 5 de la trayectoria principal.
 
 *Fin de la trayectoria.*
@@ -108,7 +108,7 @@ tags:
 - **E-2.** Si ocurre un error de conexión con la base de datos, muestra el mensaje **MSG-E-08** "Error de conexión con la base de datos." e impide completar el registro.
 - **E-3.** Si no se confirma la operación, mantiene la asignación sin modificaciones.
 - **E-4.** Permite reintentar la operación después de verificar si la asignación se registró correctamente.
-- **E-5.** Mantiene al Organizador en UI26 "Agregar Personal de Logística" para revisar el resultado e intentar nuevamente si corresponde.
+- **E-5.** Mantiene al Organizador en UI27 "Agregar Personal de Logística" para revisar el resultado e intentar nuevamente si corresponde.
 
 *Fin de la trayectoria.*
 
@@ -118,10 +118,10 @@ tags:
 > **Condición:** En el paso 7, el correo indicado no corresponde a ninguna cuenta registrada y el evento admite más integrantes de logística.
 
 - **F-1.** El sistema genera un token criptográfico de un solo uso con vigencia de 48 horas, vinculado al correo electrónico y al evento aprobado del Organizador.
-- **F-2.** Envía un correo electrónico de invitación con un enlace hacia UI23 "Activación de Cuenta por Token".
-- **F-3.** El destinatario accede a UI23 "Activación de Cuenta por Token", captura nombre completo y define su propia contraseña; el sistema valida el token y crea una cuenta activa.
+- **F-2.** Envía un correo electrónico de invitación con un enlace hacia UI24 "Activación de Cuenta por Token".
+- **F-3.** El destinatario accede a UI24 "Activación de Cuenta por Token", captura nombre completo y define su propia contraseña; el sistema valida el token y crea una cuenta activa.
 - **F-4.** El sistema asigna permisos temporales de Personal de Logística para el evento autorizado, sin conceder privilegios generales a la cuenta.
 - **F-5.** Cuando el usuario esté asignado a varios eventos, los permisos de logística se mantienen hasta que concluya el último por fecha y hora; posteriormente conserva su cuenta con el rol base.
-- **F-6.** El sistema confirma la activación y la asignación, y muestra MSG-I-08 "Operación realizada con éxito.".
+- **F-6.** El sistema confirma la activación y la asignación, envía un correo de confirmación de activación al nuevo colaborador, envía un correo de notificación al Organizador responsable informándole que el usuario respondió al token y quedó integrado al equipo de logística del evento, y muestra MSG-I-08 "Operación realizada con éxito.".
 
 *Fin de la trayectoria.*

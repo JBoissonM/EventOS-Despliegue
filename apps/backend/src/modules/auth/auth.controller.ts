@@ -1,7 +1,9 @@
 import {
   Controller,
   Post,
+  Get,
   Body,
+  Query,
   HttpCode,
   HttpStatus,
   UseGuards,
@@ -11,6 +13,9 @@ import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 import { RegistroDto } from './dto/registro.dto';
+import { ActivarCuentaLogisticaDto } from './dto/activarCuentaLogistica.dto';
+import { SolicitarRecuperacionDto } from './dto/solicitarRecuperacion.dto';
+import { RestablecerContrasenaDto } from './dto/restablecerContrasena.dto';
 import { RolesGuard } from './roles.guard';
 
 @ApiTags('Auth')
@@ -21,10 +26,7 @@ export class AuthController {
   @ApiOperation({ summary: 'Registrar nuevo usuario' })
   @Post('registro')
   @HttpCode(HttpStatus.CREATED)
-  async registrarUsuario(
-    @Body()
-    body: RegistroDto,
-  ) {
+  async registrarUsuario(@Body() body: RegistroDto) {
     return await this.authService.registrar(body);
   }
 
@@ -33,6 +35,45 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   async iniciarSesion(@Body() body: LoginDto) {
     return await this.authService.login(body);
+  }
+
+  @ApiOperation({
+    summary:
+      'Solicitar correo con enlace de recuperación de contraseña (15 min)',
+  })
+  @Post('recuperar-contrasena')
+  @HttpCode(HttpStatus.OK)
+  async solicitarRecuperacion(@Body() body: SolicitarRecuperacionDto) {
+    return await this.authService.solicitarRecuperacionContrasena(body);
+  }
+
+  @ApiOperation({
+    summary:
+      'Validar vigencia e integridad del token de recuperación',
+  })
+  @Get('restablecer-contrasena/validar')
+  @HttpCode(HttpStatus.OK)
+  async validarTokenRecuperacion(@Query('token') token: string) {
+    return await this.authService.validarTokenRecuperacion(token);
+  }
+
+  @ApiOperation({
+    summary: 'Restablecer contraseña con token de un solo uso',
+  })
+  @Post('restablecer-contrasena')
+  @HttpCode(HttpStatus.OK)
+  async restablecerContrasena(@Body() body: RestablecerContrasenaDto) {
+    return await this.authService.restablecerContrasena(body);
+  }
+
+  @ApiOperation({
+    summary:
+      'Activar cuenta mediante token JWT de invitación para Personal de Logística',
+  })
+  @Post('activar-logistica')
+  @HttpCode(HttpStatus.CREATED)
+  async activarCuentaLogistica(@Body() body: ActivarCuentaLogisticaDto) {
+    return await this.authService.activarCuentaLogistica(body);
   }
 
   @ApiBearerAuth()

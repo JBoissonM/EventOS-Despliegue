@@ -67,7 +67,7 @@ tags:
 
 - **B-1.** Detecta una falla de conexión con la base de datos al intentar recuperar la información de los eventos aprobados.
 - **B-2.** Muestra el mensaje **MSG-E-08** "Error de conexión con la base de datos.", notificando al actor que no fue posible completar la consulta.
-- **B-3.** Mantiene al actor en la pantalla **UI36** "Menú Principal de Subdirección", permitiéndole intentar realizar nuevamente la consulta.
+- **B-3.** Mantiene al actor en la pantalla **UI25** "Menú Principal de Subdirección", permitiéndole intentar realizar nuevamente la consulta.
 
 *Fin de la trayectoria.*
 
@@ -87,7 +87,7 @@ tags:
 - **D-1.** Selecciona un evento específico del listado mostrado en la pantalla **UI13** "Panel de Eventos".
 - **D-2.** Selecciona la opción [Agregar ponente] correspondiente al evento seleccionado.
 - **D-3.** Obtiene el identificador del evento seleccionado y ejecuta el caso de uso "Agregar Ponente", conforme a la relación `<<extend>>` establecida en el diagrama.
-- **D-4.** Muestra la pantalla **UI28** "Agregar Ponente al Evento", conforme a la trayectoria definida en el caso de uso correspondiente.
+- **D-4.** Muestra la pantalla **UI29** "Agregar Ponente al Evento", conforme a la trayectoria definida en el caso de uso correspondiente.
 - *----- Continúa la ejecución del caso de uso "Agregar Ponente".*
 
 ### Trayectoria alternativa E: Búsqueda sin coincidencias

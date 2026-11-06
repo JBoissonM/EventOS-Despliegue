@@ -11,10 +11,14 @@ export function CardMenuPrincipal({
   idAlcance,
   idEvento,
   idEstadoEvento,
-  primerSubevento,
+  subeventos,
 }: MisEventosItem) {
   const estiloTexto = "font-merriweather text-base";
   const navigate = useNavigate();
+  const primerSubevento = subeventos?.[0];
+  const ultimoSubevento = subeventos?.[subeventos.length - 1];
+  const tieneUnSubevento = subeventos?.length === 1;
+
 
   return (
     <article
@@ -60,15 +64,28 @@ export function CardMenuPrincipal({
           <h2 className="break-words font-merriweather text-xl font-semibold sm:text-2xl">
             {nombre}
           </h2>
-          <p className={estiloTexto}>
-            Fecha: {primerSubevento?.fecha ?? "Fecha no disponible"}
-          </p>
-          <p className={estiloTexto}>
-            Hora inicio: {primerSubevento?.horaInicio ?? "Hora no disponible"}
-          </p>
-          <p className={estiloTexto}>
-            Hora fin: {primerSubevento?.horaFin ?? "Hora no disponible"}
-          </p>
+          {tieneUnSubevento ? (
+            <>
+              <p className={estiloTexto}>
+                Fecha: {primerSubevento?.fecha ?? "Fecha no disponible"}
+              </p>
+              <p className={estiloTexto}>
+                Hora inicio: {primerSubevento?.horaInicio ?? "Hora no disponible"}
+              </p>
+              <p className={estiloTexto}>
+                Hora fin: {primerSubevento?.horaFin ?? "Hora no disponible"}
+              </p>
+            </>
+          ) : (
+            <>
+              <p className={estiloTexto}>
+                Fecha inicio: {primerSubevento?.fecha ?? "Fecha no disponible"}
+              </p>
+              <p className={estiloTexto}>
+                Fecha final: {ultimoSubevento?.fecha ?? "Fecha no disponible"}
+              </p>
+            </>
+          )}
           <p className={estiloTexto}>
             Espacio: {primerSubevento?.nombreRecinto ?? "Recinto no disponible"}
           </p>
@@ -79,8 +96,10 @@ export function CardMenuPrincipal({
           text="Ver detalles"
           variant="primary"
           type="button"
-          onClick={() => navigate(`/detalles-solicitud/${idEvento}`)}
-        />
+          onClick={() => { tieneUnSubevento 
+            ? navigate(`/organizador/administrar-evento/${idEvento}`)
+            : navigate(`/organizador/mis-eventos`)}}
+            />
       </div>
     </article>
   );

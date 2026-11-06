@@ -4,9 +4,9 @@ import { DataSource, DataSourceOptions } from 'typeorm';
 export const dbOptions: DataSourceOptions = {   // los datos de conexión, reutilizables
   type: 'postgres',                             // qué base de datos
   host: process.env.DB_HOST ?? 'localhost',     // lee .env; si no existe, usa 'localhost'
-  port: Number(process.env.DB_PORT ?? 5432),    // las variables llegan como texto; Number() lo convierte
+  port: Number(process.env.DB_PORT ?? 5433),    // las variables llegan como texto; Number() lo convierte
   username: process.env.DB_USER ?? 'postgres',
-  password: process.env.DB_PASSWORD,            // sin valor por defecto a propósito
+  password: process.env.DB_PASSWORD ?? 'postgres',
   database: process.env.DB_NAME ?? 'eventos',
 };
 

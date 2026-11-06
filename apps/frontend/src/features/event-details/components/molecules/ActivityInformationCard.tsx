@@ -44,7 +44,7 @@ export function ActivityInformationCard({ activity, returnPath }: ActivityInform
           <div key={label} className="flex items-start gap-3">
             <Icon size={22} className="shrink-0 text-eventos-secondary" aria-hidden="true" />
             <dt className="font-semibold">{label}:</dt>
-            <dd className="min-w-0 break-words">{value}</dd>
+            <dd className="min-w-0 wrap-break-word">{value}</dd>
           </div>
         ))}
       </dl>

@@ -28,7 +28,7 @@ tags:
 | **Actor** | Organizador |
 | **Propósito** | Permitir al Organizador modificar el texto descriptivo, configurar la accesibilidad, y asignar o editar etiquetas temáticas y áreas de conocimiento del evento. |
 | **Entradas** | • Se escribe desde el teclado la nueva descripción del evento.<br>• Se selecciona el tipo de alcance del evento (Público, Interno o Privado).<br>• Se escriben desde el teclado y/o seleccionan las etiquetas y el área de conocimiento. |
-| **Salidas** | • Mensaje unificado de éxito confirmando la actualización de la información.<br>• Se mostrará el enlace directo y código de invitación si el alcance seleccionado es Privado. |
+| **Salidas** | • Mensaje unificado de éxito confirmando la actualización de la información.<br>• Habilitación de la gestión del padrón de invitados (agregar, reenviar con cooldown de 8h y eliminar invitados) si el alcance seleccionado es Privado. |
 | **Precondiciones** | • Que el sistema se encuentre en el punto de extensión de la pantalla "Modificar detalles de un evento".<br>• Que el evento seleccionado se encuentre activo. |
 | **Postcondiciones** | Se modifica en la base de datos la descripción, el nivel de visibilidad/acceso y las etiquetas del evento, alterando cómo y quién visualiza la información. |
 | **Errores** | • **MSG-E-13** Dato requerido faltante en la descripción.<br>• **MSG-E-14** La descripción excede el límite de caracteres.<br>• **MSG-E-15** Debe seleccionar un tipo de alcance válido.<br>• **MSG-E-16** Formato de etiqueta inválido.<br>• **MSG-E-17** Límite de etiquetas excedido. |
@@ -95,8 +95,8 @@ tags:
 
 ### Trayectoria alternativa F: El alcance seleccionado y actualizado es "Privado"
 
-- **F-1.** En la pantalla "Actualizar información general" genera de forma automática un enlace directo y un código de invitación exclusivo para el evento, indispensable para el registro de asistentes.
-- **F-2.** Despliega en pantalla el enlace y código de invitación generados para que el organizador pueda copiarlos, integrándolos en el mensaje de éxito.
+- **F-1.** En la pantalla "Modificar detalles de un evento" (`UI16`) habilita la sección de "Asistentes (Tus invitados)", permitiendo al Organizador agregar correos de destinatarios con cuenta activa, reenviar la invitación por correo respetando el *cooldown* de 8 horas o revocar invitaciones eliminando al usuario del padrón.
+- **F-2.** Al agregar un invitado o reenviar su invitación, el sistema notifica de inmediato por correo electrónico al usuario con los detalles del evento privado, habilitando su visualización en la cartelera para que pueda reservar su lugar.
 - **F-3.** Retoma el flujo en el paso 8 de la trayectoria principal.
 
 *Fin de la trayectoria.*

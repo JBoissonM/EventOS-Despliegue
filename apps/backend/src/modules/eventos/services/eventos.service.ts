@@ -81,11 +81,32 @@ export class EventosService {
         usuarioActual?.tipoCuenta === TipoCuentaUsuario.SUBDIRECCION ||
         usuarioActual?.tipoCuenta === TipoCuentaUsuario.ADMINISTRADOR);
 
+    let eventosPrivadosInvitados = new Set<number>();
+    if (tieneSesion) {
+      const invitadosRaw = await this.dataSource.query(
+        `SELECT "idEvento" FROM "invitacionEvento" WHERE "idUsuario" = $1`,
+        [usuarioActual!.sub],
+      );
+      eventosPrivadosInvitados = new Set(
+        invitadosRaw.map((r: any) => Number(r.idEvento)),
+      );
+    }
+
     const cartelera = [];
 
     for (const evento of eventos) {
       if (evento.idAlcance === AlcanceEvento.PRIVADO) {
-        continue;
+        if (!tieneSesion) {
+          continue;
+        }
+        const esOrganizador = evento.idOrganizador === usuarioActual?.sub;
+        const esDirectivo =
+          usuarioActual?.tipoCuenta === TipoCuentaUsuario.SUBDIRECCION ||
+          usuarioActual?.tipoCuenta === TipoCuentaUsuario.ADMINISTRADOR;
+        const estaInvitado = eventosPrivadosInvitados.has(evento.idEvento);
+        if (!esOrganizador && !esDirectivo && !estaInvitado) {
+          continue;
+        }
       }
 
       if (!tieneSesion && evento.idAlcance !== AlcanceEvento.PUBLICO) {
@@ -99,10 +120,6 @@ export class EventosService {
       const subeventosVigentes = (evento.subEventos || []).filter((sub) => {
         if (sub.estado === EstadoSubEvento.CANCELADO) return false;
         if (!sub.fecha || sub.fecha.fecha < fechaHoy) return false;
-
-        if (!tieneSesion && sub.accesoQR) {
-          return false;
-        }
         return true;
       });
 
@@ -176,7 +193,37 @@ export class EventosService {
         (sub) => sub.estado !== EstadoSubEvento.CANCELADO && !sub.accesoQR,
       );
 
-    if (!tieneSesion && !esAccesoLibre) {
+    if (evento.idAlcance === AlcanceEvento.PRIVADO) {
+      if (!tieneSesion) {
+        throw new NotFoundException(
+          'El evento no existe o no se encuentra disponible.',
+        );
+      }
+      const esOrganizador = evento.idOrganizador === usuarioActual?.sub;
+      const esDirectivo =
+        usuarioActual?.tipoCuenta === TipoCuentaUsuario.SUBDIRECCION ||
+        usuarioActual?.tipoCuenta === TipoCuentaUsuario.ADMINISTRADOR;
+
+      const invitadoRaw = await this.dataSource.query(
+        `SELECT 1 FROM "invitacionEvento" WHERE "idEvento" = $1 AND "idUsuario" = $2 LIMIT 1`,
+        [evento.idEvento, usuarioActual!.sub],
+      );
+      const estaInvitado = invitadoRaw.length > 0;
+
+      const logisticaRaw = await this.dataSource.query(
+        `SELECT 1 FROM "eventoPersonalLogistica" WHERE "idEvento" = $1 AND "idUsuario" = $2 LIMIT 1`,
+        [evento.idEvento, usuarioActual!.sub],
+      );
+      const esLogistica = logisticaRaw.length > 0;
+
+      if (!esOrganizador && !esDirectivo && !estaInvitado && !esLogistica) {
+        throw new NotFoundException(
+          'El evento no existe o no se encuentra disponible.',
+        );
+      }
+    }
+
+    if (!tieneSesion && evento.idAlcance !== AlcanceEvento.PUBLICO) {
       throw new ForbiddenException(
         'Debes iniciar sesión o registrarte para consultar eventos que requieren cuenta.',
       );

@@ -1,108 +1,31 @@
-import { useState, useEffect } from "react";
-import { useNavigate } from "react-router";
 import { Button } from "../../components/atoms/Button/Button";
 import { Input } from "../../components/atoms/Input/Input";
-
-interface UsuarioSistema {
-  idUsuario: number;
-  nombre: string;
-  correo: string;
-  rol: string;
-}
+import { useGestionUsuarios } from "../admin/hooks/useGestionUsuarios";
+import { Search } from "lucide-react";
 
 export function GestionUsuarios() {
-  const navigate = useNavigate();
-  const [usuarios, setUsuarios] = useState<UsuarioSistema[]>([]);
-  const [filtroRol, setFiltroRol] = useState("Todos");
-  const [busqueda, setBusqueda] = useState("");
-  const [loading, setLoading] = useState(false);
-
-  const [modalConfirmacion, setModalConfirmacion] = useState(false);
-  const [modalExito, setModalExito] = useState(false);
-  const [usuarioSeleccionado, setUsuarioSeleccionado] = useState<UsuarioSistema | null>(null);
-  const [mensajeExito, setMensajeExito] = useState("");
-
-  const getToken = () => {
-    const usuario = JSON.parse(localStorage.getItem("usuario") || "{}");
-    return usuario.token || localStorage.getItem("token") || "";
-  };
-
-  const cargarUsuarios = async () => {
-    setLoading(true);
-    try {
-      const params = new URLSearchParams();
-      if (busqueda.trim()) {
-        params.append("buscar", busqueda.trim());
-      }
-      if (filtroRol !== "Todos") {
-        params.append("rol", filtroRol);
-      }
-
-      const queryString = params.toString() ? `?${params.toString()}` : "";
-      const response = await fetch(`http://localhost:3000/api/usuarios/admin/cuentas${queryString}`, {
-        headers: {
-          Authorization: `Bearer ${getToken()}`,
-        },
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setUsuarios(data);
-      } else {
-        const errData = await response.json().catch(() => ({}));
-        console.error("Error al cargar usuarios:", errData.message || response.statusText);
-      }
-    } catch (err) {
-      console.error("Error de conexión al cargar usuarios", err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    const delayDebounceFn = setTimeout(() => {
-      cargarUsuarios();
-    }, 300);
-
-    return () => clearTimeout(delayDebounceFn);
-  }, [busqueda, filtroRol]);
-
-  const abrirModalEliminar = (usuario: UsuarioSistema) => {
-    setUsuarioSeleccionado(usuario);
-    setModalConfirmacion(true);
-  };
-
-  const confirmarEliminacion = async () => {
-    if (!usuarioSeleccionado) return;
-
-    try {
-      const response = await fetch(`http://localhost:3000/api/usuarios/admin/cuentas/${usuarioSeleccionado.idUsuario}`, {
-        method: "DELETE",
-        headers: {
-          Authorization: `Bearer ${getToken()}`,
-        },
-      });
-
-      const data = await response.json().catch(() => ({}));
-
-      if (!response.ok) {
-        throw new Error(data.message || "No se pudo realizar la operación.");
-      }
-
-      setUsuarios((prev) => prev.filter((u) => u.idUsuario !== usuarioSeleccionado.idUsuario));
-      setModalConfirmacion(false);
-      setMensajeExito(`Se ha eliminado el usuario ${usuarioSeleccionado.nombre} exitosamente.`);
-      setModalExito(true);
-    } catch (err: any) {
-      setModalConfirmacion(false);
-      alert(err.message || "Ocurrió un error al intentar eliminar el usuario.");
-    }
-  };
+  const {
+    usuarios,
+    filtroRol,
+    setFiltroRol,
+    busqueda,
+    setBusqueda,
+    loading,
+    modalConfirmacion,
+    modalExito,
+    usuarioSeleccionado,
+    mensajeExito,
+    abrirModalEliminar,
+    cerrarModalConfirmacion,
+    cerrarModalExito,
+    confirmarEliminacion,
+    handleVolverAlMenu,
+  } = useGestionUsuarios();
 
   return (
     <div className="space-y-6 font-merriweather text-gray-800 w-full p-0">
       <div className="mb-2">
-        <button onClick={() => navigate("/menu-admin")} className="flex items-center text-sm font-semibold text-gray-700 hover:text-gray-900 transition-colors">
+        <button onClick={handleVolverAlMenu} className="flex items-center text-sm font-semibold text-gray-700 hover:text-gray-900 transition-colors">
           <span className="font-merriweather text-[16px] mr-3">← Volver al menú</span>
         </button>
       </div>
@@ -116,9 +39,7 @@ export function GestionUsuarios() {
           <div className="flex items-center border border-gray-300 rounded-md bg-white px-2 py-1.5 shadow-sm w-full sm:w-80">
             <Input type="text" placeholder="Buscar por nombre o correo..." value={busqueda} onChange={(e) => setBusqueda(e.target.value)} className="border-none p-0 focus:ring-0 outline-none bg-transparent"/>
             <span className="text-gray-500">
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor" className="w-5 h-5">
-                <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607z"/>
-              </svg>
+              <Search className="w-5 h-5" />
             </span>
           </div>
 
@@ -185,7 +106,7 @@ export function GestionUsuarios() {
               ¿Desea eliminar al usuario <span className="font-semibold">{usuarioSeleccionado.nombre}</span>?
             </p>
             <div className="flex justify-end space-x-3 pt-2">
-              <Button text="Cancelar" type="button" variant="outline" onClick={() => setModalConfirmacion(false)} className="px-4 py-2 text-xs rounded-md"/>
+              <Button text="Cancelar" type="button" variant="outline" onClick={cerrarModalConfirmacion} className="px-4 py-2 text-xs rounded-md"/>
               <Button text="Aceptar" type="button" variant="primary" onClick={confirmarEliminacion} className="px-4 py-2 text-xs rounded-md"/>
             </div>
           </div>
@@ -200,7 +121,7 @@ export function GestionUsuarios() {
             </h2>
             <p className="text-sm text-gray-700">{mensajeExito}</p>
             <div className="flex justify-end pt-2">
-              <Button text="Aceptar" type="button" variant="primary" onClick={() => setModalExito(false)} className="px-5 py-2 text-xs rounded-md"/>
+              <Button text="Aceptar" type="button" variant="primary" onClick={cerrarModalExito} className="px-5 py-2 text-xs rounded-md"/>
             </div>
           </div>
         </div>

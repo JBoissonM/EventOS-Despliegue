@@ -1,79 +1,27 @@
-import { useState } from "react";
-import { useNavigate } from "react-router";
 import { Button } from "../../components/atoms/Button/Button";
 import { Input } from "../../components/atoms/Input/Input";
 import { FormField } from "../../components/molecules/FormField";
 import { InputFile } from "../../components/atoms/InputFile/InputFile";
+import { useVerificacion } from "../account/hooks/useVerificacion";
 
 export function Verificacion() {
-  const navigate = useNavigate();
-  const [tipoPerfil, setTipoPerfil] = useState("Estudiante");
-  const [formData, setFormData] = useState({
-    infoAdicional: "",
-    archivo: null as File | null,
-  });
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-
-  const getToken = () => {
-    const usuario = JSON.parse(localStorage.getItem("usuario") || "{}");
-    return usuario.token || localStorage.getItem("token") || "";
-  };
-
-  const handleTipoPerfilChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    setTipoPerfil(e.target.value);
-    setFormData((prev) => ({ ...prev, infoAdicional: "" }));
-  };
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      setFormData((prev) => ({ ...prev, archivo: e.target.files![0] }));
-    }
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError("");
-
-    if (!formData.archivo) {
-      setError("Por favor adjunta el archivo PDF correspondiente.");
-      return;
-    }
-
-    setLoading(true);
-    try {
-      const data = new FormData();
-      data.append("tipoPerfil", tipoPerfil);
-      data.append("informacionAdicional", formData.infoAdicional);
-      data.append("documentoPDF", formData.archivo);
-
-      const response = await fetch("http://localhost:3000/api/usuarios/verificar", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${getToken()}`,
-        },
-        body: data,
-      });
-
-      const result = await response.json();
-
-      if (!response.ok) {
-        throw new Error(result.message || "Error al enviar la solicitud de verificación.");
-      }
-
-      navigate("/perfil");
-    } catch (err: any) {
-      setError(err.message || "Error de conexión con el servidor.");
-    } finally {
-      setLoading(false);
-    }
-  };
+  const {
+    tipoPerfil,
+    formData,
+    loading,
+    error,
+    handleTipoPerfilChange,
+    handleFileChange,
+    handleInfoAdicionalChange,
+    handleSubmit,
+    handleVolverAlPerfil,
+  } = useVerificacion();
 
   return (
     <div className="space-y-6 font-merriweather text-gray-800 w-full p-0">
       
       <div className="mb-2">
-        <button onClick={() => navigate("/perfil")} className="flex items-center text-sm font-semibold text-gray-700 hover:text-gray-900 transition-colors">
+        <button onClick={handleVolverAlPerfil} className="flex items-center text-sm font-semibold text-gray-700 hover:text-gray-900 transition-colors">
           <span className="font-merriweather text-[16px] mr-3">← Volver al perfil</span>
         </button>
       </div>
@@ -127,19 +75,19 @@ export function Verificacion() {
             <div className=" -mb-6 grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
               {tipoPerfil === "Empresa" && (
                 <FormField label="Nombre de empresa o dependencia" htmlFor="infoAdicional">
-                  <Input id="infoAdicional" type="text" placeholder="Indica el nombre de la empresa" value={formData.infoAdicional} onChange={(e) => setFormData({ ...formData, infoAdicional: e.target.value })}/>
+                  <Input id="infoAdicional" type="text" placeholder="Indica el nombre de la empresa" value={formData.infoAdicional} onChange={handleInfoAdicionalChange}/>
                 </FormField>
               )} 
               
               {tipoPerfil === "Profesor" && (
                 <FormField label="Número de empleado" htmlFor="infoAdicional">
-                  <Input id="infoAdicional" type="text" placeholder="Ingresa tu número de empleado" value={formData.infoAdicional} onChange={(e) => setFormData({ ...formData, infoAdicional: e.target.value })}/>
+                  <Input id="infoAdicional" type="text" placeholder="Ingresa tu número de empleado" value={formData.infoAdicional} onChange={handleInfoAdicionalChange}/>
                 </FormField>
               )} 
               
               {tipoPerfil === "Estudiante" && (
                 <FormField label="Número de boleta" htmlFor="infoAdicional">
-                  <Input id="infoAdicional" type="text" placeholder="Ingresa tu número de boleta" value={formData.infoAdicional} onChange={(e) => setFormData({ ...formData, infoAdicional: e.target.value })}/>
+                  <Input id="infoAdicional" type="text" placeholder="Ingresa tu número de boleta" value={formData.infoAdicional} onChange={handleInfoAdicionalChange}/>
                 </FormField>
               )}
 
