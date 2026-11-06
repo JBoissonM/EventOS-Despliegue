@@ -3,10 +3,13 @@ import {
   BadRequestException,
   ConflictException,
   UnauthorizedException,
+  NotFoundException,
+  InternalServerErrorException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
+import { resolveMx } from 'dns/promises';
 import { UsuarioEntity } from './entities/usuario.entity';
 import {
   TipoCuentaUsuario,
@@ -23,7 +26,7 @@ import { MailService } from '../reservas/services/mail.service';
 @Injectable()
 export class AuthService {
   private readonly SOLO_LETRAS_REGEX = /^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s]+$/;
-  // Regla de complejidad: mínimo 8 caracteres, al menos una letra y un número
+  private readonly EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
   private readonly PASSWORD_COMPLEJIDAD_REGEX =
     /^(?=.*[a-zA-Z])(?=.*\d).{8,}$/;
 
@@ -34,6 +37,27 @@ export class AuthService {
     private readonly dataSource: DataSource,
     private readonly mailService: MailService,
   ) {}
+
+  // Verifica que el correo tenga formato válido y que su dominio exista y tenga servidores de correo (MX)
+  private async verificarDominioCorreoValido(correo: string): Promise<void> {
+    if (!this.EMAIL_REGEX.test(correo)) {
+      throw new BadRequestException(
+        'Advertencia: Ingrese un correo válido. (MSG-10)',
+      );
+    }
+
+    const dominio = correo.split('@')[1];
+    try {
+      const registrosMx = await resolveMx(dominio);
+      if (!registrosMx || registrosMx.length === 0) {
+        throw new Error('Sin registros MX');
+      }
+    } catch {
+      throw new BadRequestException(
+        `El dominio del correo (@${dominio}) no existe o no cuenta con un servidor de correo válido. Verifica tu dirección.`,
+      );
+    }
+  }
 
   async registrar(dto: {
     nombre: string;
@@ -57,7 +81,7 @@ export class AuthService {
       !contrasenaRaw.trim()
     ) {
       throw new BadRequestException(
-        'Por favor, completa todos los campos obligatorios resaltados para continuar.',
+        'Por favor, completa todos los campos obligatorios resaltados para continuar (MSG-17).',
       );
     }
 
@@ -82,6 +106,9 @@ export class AuthService {
         'El nombre y los apellidos solo pueden contener letras, sin números ni símbolos especiales.',
       );
     }
+
+    // Validar que el formato y el dominio del correo realmente existan
+    await this.verificarDominioCorreoValido(correo);
 
     const existe = await this.usuarioRepository.findOne({
       where: { correo },
@@ -116,6 +143,13 @@ export class AuthService {
 
     const guardado = await this.usuarioRepository.save(nuevoUsuario);
     const { contrasena: _contrasena, ...resultado } = guardado;
+
+    // Enviar correo de confirmación de registro
+    void this.mailService.enviarCorreoBienvenidaRegistro({
+      destinatario: guardado.correo,
+      nombreUsuario: `${guardado.nombre} ${guardado.apellidoPa}`.trim(),
+      tipoCuenta: guardado.tipoCuenta,
+    });
 
     return {
       mensaje: 'Usuario registrado con éxito',
@@ -201,7 +235,7 @@ export class AuthService {
           await this.usuarioRepository.save(usuario);
 
           throw new UnauthorizedException(
-            'Demasiados intentos fallidos. La cuenta de Administrador ha sido bloqueada temporalmente por 30 minutos',
+            'Demasiados intentos fallidos. La cuenta de Administrador ha sido bloqueada temporalmente por 30 minutos.',
           );
         }
 
@@ -254,18 +288,26 @@ export class AuthService {
       );
     }
 
-    const respuestaGenerica = {
-      mensaje:
-        'Si el correo electrónico se encuentra registrado, recibirás un enlace para restablecer tu contraseña.',
-    };
+    if (!this.EMAIL_REGEX.test(correo)) {
+      throw new BadRequestException(
+        'Advertencia: Ingrese un correo válido.',
+      );
+    }
 
     const usuario = await this.usuarioRepository.findOne({
       where: { correo },
     });
 
-    // Respuesta genérica contra enumeración de cuentas si no existe o está inactivo
-    if (!usuario || !usuario.estatus || !usuario.contrasena) {
-      return respuestaGenerica;
+    if (!usuario || !usuario.contrasena) {
+      throw new NotFoundException(
+        'El correo electrónico ingresado no se encuentra registrado en el sistema.',
+      );
+    }
+
+    if (!usuario.estatus) {
+      throw new BadRequestException(
+        'La cuenta asociada a este correo se encuentra inactiva.',
+      );
     }
 
     const payload = {
@@ -287,13 +329,22 @@ export class AuthService {
     const nombreUsuario =
       `${usuario.nombre} ${usuario.apellidoPa}`.trim() || 'Usuario';
 
-    void this.mailService.enviarCorreoRecuperacionContrasena({
-      destinatario: usuario.correo,
-      nombreUsuario,
-      enlaceRecuperacion,
-    });
+    try {
+      await this.mailService.enviarCorreoRecuperacionContrasena({
+        destinatario: usuario.correo,
+        nombreUsuario,
+        enlaceRecuperacion,
+      });
+    } catch {
+      throw new InternalServerErrorException(
+        'El correo no se pudo enviar, inténtelo de nuevo más tarde.',
+      );
+    }
 
-    return respuestaGenerica;
+    return {
+      mensaje:
+        'Correo enviado con éxito. Revisa tu bandeja de entrada para restablecer tu contraseña.',
+    };
   }
 
   //Validar vigencia e integridad del token
@@ -414,7 +465,7 @@ export class AuthService {
       );
     }
 
-    // 4. Hashear nueva contraseña, invalidar token y levantar bloqueo si existía
+    //Hashear nueva contraseña, invalidar token y levantar bloqueo si existía
     const saltRounds = 10;
     usuario.contrasena = await bcrypt.hash(nuevaContrasena, saltRounds);
     usuario.intentosFallidos = 0;
