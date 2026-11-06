@@ -411,4 +411,58 @@ export class MailService {
       this.logger.error(`Fallo al enviar notificación al organizador ${datos.destinatario}`, error);
     }
   }
+
+  async enviarInvitacionEventoPrivado(datos: {
+    destinatario: string;
+    nombreUsuario: string;
+    nombreEvento: string;
+    descripcionEvento: string;
+    organizador: string;
+    enlaceEvento: string;
+  }): Promise<void> {
+    const html = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden;">
+        <div style="background-color: #6b1d2f; color: #ffffff; padding: 20px; text-align: center;">
+          <h2 style="margin: 0;">Invitación a Evento Privado - EventOS</h2>
+        </div>
+        
+        <div style="padding: 24px; color: #334155;">
+          <p>Hola <strong>${datos.nombreUsuario}</strong>,</p>
+          <p>El organizador <strong>${datos.organizador}</strong> te ha invitado a participar en el siguiente evento privado institucional:</p>
+          
+          <div style="margin: 20px 0; padding: 16px; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px;">
+            <h3 style="margin: 0 0 8px 0; color: #6b1d2f; font-size: 18px;">${datos.nombreEvento}</h3>
+            <p style="margin: 0; color: #475569; font-size: 14px;">${datos.descripcionEvento}</p>
+          </div>
+
+          <p>Al estar registrado en la lista de invitados, este evento ahora se encuentra disponible en tu cartelera para que puedas consultar sus actividades y reservar tu lugar.</p>
+
+          <div style="text-align: center; margin: 32px 0;">
+            <a href="${datos.enlaceEvento}" style="background-color: #6b1d2f; color: #ffffff; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px; display: inline-block;">
+              Ver detalles y reservar mi lugar
+            </a>
+          </div>
+
+          <p style="font-size: 12px; color: #64748b; margin-top: 24px; border-top: 1px solid #e2e8f0; padding-top: 12px;">
+            Inicia sesión con tu cuenta en EventOS para acceder a la cartelera y tramitar tu boleto digital.
+          </p>
+        </div>
+      </div>
+    `;
+
+    try {
+      await this.transporter.sendMail({
+        from: process.env.SMTP_FROM || process.env.SMTP_USER,
+        to: datos.destinatario,
+        subject: `Invitación al evento: ${datos.nombreEvento} - EventOS`,
+        html,
+      });
+      this.logger.log(`Invitación a evento privado enviada a ${datos.destinatario}`);
+    } catch (error) {
+      this.logger.error(
+        `Fallo al enviar invitación a evento privado a ${datos.destinatario}`,
+        error,
+      );
+    }
+  }
 }

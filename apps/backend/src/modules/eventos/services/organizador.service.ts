@@ -7,7 +7,6 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, In, Repository } from 'typeorm';
-import { randomUUID } from 'crypto';
 import {
   AlcanceEvento,
   EstadoBoleto,
@@ -255,7 +254,7 @@ export class OrganizadorService {
     let invitadosDetallados: InvitadoEventoItem[] | undefined = undefined;
     if (evento.idAlcance === AlcanceEvento.PRIVADO) {
       const invitaciones = await this.invitacionRepository.find({
-        where: { idEvento, estado: 'Activa' },
+        where: { idEvento },
         relations: { usuario: true },
         order: { idInvitacionEvento: 'ASC' },
       });
@@ -655,7 +654,6 @@ export class OrganizadorService {
       where: {
         idEvento,
         idUsuario: usuarioDestinatario.idUsuario,
-        estado: 'Activa',
       },
     });
 
@@ -668,7 +666,7 @@ export class OrganizadorService {
     const cupoMaximo = evento.subEventos?.[0]?.recinto?.aforo ?? 0;
     if (cupoMaximo > 0) {
       const totalInvitadosActivos = await this.invitacionRepository.count({
-        where: { idEvento, estado: 'Activa' },
+        where: { idEvento },
       });
       if (totalInvitadosActivos >= cupoMaximo) {
         throw new ConflictException(
@@ -677,16 +675,33 @@ export class OrganizadorService {
       }
     }
 
-    const tokenInvitacion = randomUUID();
     const nuevaInvitacion = this.invitacionRepository.create({
       idEvento,
       idUsuario: usuarioDestinatario.idUsuario,
-      tokenInvitacion,
-      estado: 'Activa',
       fechaUltimoEnvio: new Date(),
     });
 
     const guardada = await this.invitacionRepository.save(nuevaInvitacion);
+
+    const organizador = await this.usuarioRepository.findOneBy({
+      idUsuario,
+    });
+    const nombreOrganizador = organizador
+      ? `${organizador.nombre} ${organizador.apellidoPa}`.trim()
+      : 'Organizador';
+
+    const frontendBaseUrl =
+      process.env.FRONTEND_URL || 'http://localhost:5173';
+    const enlaceEvento = `${frontendBaseUrl}/eventos/${idEvento}`;
+
+    void this.mailService.enviarInvitacionEventoPrivado({
+      destinatario: usuarioDestinatario.correo,
+      nombreUsuario: `${usuarioDestinatario.nombre} ${usuarioDestinatario.apellidoPa}`.trim(),
+      nombreEvento: evento.nombre,
+      descripcionEvento: evento.descripcion,
+      organizador: nombreOrganizador,
+      enlaceEvento,
+    });
 
     const nombreCompleto = `${usuarioDestinatario.nombre} ${usuarioDestinatario.apellidoPa}${usuarioDestinatario.apellidoMa ? ' ' + usuarioDestinatario.apellidoMa : ''}`;
 
@@ -697,7 +712,6 @@ export class OrganizadorService {
         idUsuario: guardada.idUsuario,
         nombreCompleto,
         correo: usuarioDestinatario.correo,
-        tokenInvitacion: guardada.tokenInvitacion,
         fechaUltimoEnvio: guardada.fechaUltimoEnvio.toISOString(),
         puedeReenviar: false,
         horasRestantesCooldown: 8,
@@ -736,7 +750,6 @@ export class OrganizadorService {
       where: {
         idInvitacionEvento: idInvitacion,
         idEvento,
-        estado: 'Activa',
       },
       relations: { usuario: true },
     });
@@ -759,14 +772,34 @@ export class OrganizadorService {
       );
     }
 
-    invitacion.tokenInvitacion = randomUUID();
     invitacion.fechaUltimoEnvio = new Date();
     await this.invitacionRepository.save(invitacion);
+
+    if (invitacion.usuario) {
+      const organizador = await this.usuarioRepository.findOneBy({
+        idUsuario,
+      });
+      const nombreOrganizador = organizador
+        ? `${organizador.nombre} ${organizador.apellidoPa}`.trim()
+        : 'Organizador';
+
+      const frontendBaseUrl =
+        process.env.FRONTEND_URL || 'http://localhost:5173';
+      const enlaceEvento = `${frontendBaseUrl}/eventos/${idEvento}`;
+
+      void this.mailService.enviarInvitacionEventoPrivado({
+        destinatario: invitacion.usuario.correo,
+        nombreUsuario: `${invitacion.usuario.nombre} ${invitacion.usuario.apellidoPa}`.trim(),
+        nombreEvento: evento.nombre,
+        descripcionEvento: evento.descripcion,
+        organizador: nombreOrganizador,
+        enlaceEvento,
+      });
+    }
 
     return {
       mensaje: 'Operación realizada con éxito.',
       idInvitacionEvento: invitacion.idInvitacionEvento,
-      tokenInvitacion: invitacion.tokenInvitacion,
       fechaUltimoEnvio: invitacion.fechaUltimoEnvio.toISOString(),
       horasRestantesCooldown: 8,
       puedeReenviar: false,
@@ -792,24 +825,14 @@ export class OrganizadorService {
       );
     }
 
-    const invitacion = await this.invitacionRepository.findOne({
-      where: {
-        idInvitacionEvento: idInvitacion,
-        idEvento,
-      },
+    await this.invitacionRepository.delete({
+      idInvitacionEvento: idInvitacion,
+      idEvento,
     });
-
-    if (!invitacion) {
-      throw new NotFoundException('No se encontró la invitación solicitada.');
-    }
-
-    invitacion.estado = 'Revocada';
-    await this.invitacionRepository.save(invitacion);
 
     return {
       mensaje: 'Operación realizada con éxito.',
-      idInvitacionEvento: invitacion.idInvitacionEvento,
-      estado: 'Revocada',
+      idInvitacionEvento: idInvitacion,
     };
   }
 

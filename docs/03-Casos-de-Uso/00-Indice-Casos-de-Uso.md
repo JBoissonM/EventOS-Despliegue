@@ -75,7 +75,7 @@ tags:
 | **CU-27** | [CU-27 Actualizar información general del evento (extend de CU-26)](./CU27-Actualizar-informacion-general-del-evento.md) | Organizador | Modificar descripción, alcance (Público, Interno, Privado) y etiquetas temáticas del evento (`UI16`). |
 | **CU-28** | [CU-28 Solicitar requerimientos técnicos (extend de CU-26)](./CU28-Solicitar-requerimientos-tecnicos.md) | Organizador | Registrar la cantidad de equipos de cómputo funcionales requeridos para un evento en laboratorio (`UI17`). |
 | **CU-29** | [CU-29 Cancelar evento propio (extend de CU-24)](./CU29-Cancelar-evento-propio.md) | Organizador | Cancelar un evento propio especificando justificación obligatoria, notificando a los asistentes. |
-| **CU-30** | [CU-30 Emitir boletos directos (extend de CU-24)](./CU30-Emitir-boletos-directos.md) | Organizador | Emitir boletos directos individuales para destinatarios con cuenta activa. |
+| **CU-30** | [CU-30 Invitar asistentes a eventos privados (extend de CU-24)](./CU30-Emitir-boletos-directos.md) | Organizador | Registrar y notificar por correo a usuarios con cuenta activa como invitados a eventos privados (`UI15`, `UI16`). |
 | **CU-31** | [CU-31 Asignar personal de logística](./CU31-Asignar-personal-de-logistica.md) | Organizador | Seleccionar usuarios activos del listado del sistema para asignarlos como personal de logística del evento (`UI27`). |
 | **CU-32** | [CU-32 Registrar personal de logística](./CU32-Registrar-personal-de-logistica.md) | Organizador | Registrar de forma independiente personal de logística con invitación por token de 48 horas (`UI27`, `UI24`). |
 

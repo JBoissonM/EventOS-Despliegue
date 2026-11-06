@@ -178,9 +178,8 @@ CREATE TABLE "invitacionEvento" (
   "idInvitacionEvento" integer GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   "idEvento" integer NOT NULL REFERENCES evento("idEvento") ON DELETE CASCADE,
   "idUsuario" integer NOT NULL REFERENCES usuario("idUsuario"),
-  "tokenInvitacion" varchar(255) NOT NULL,
   "fechaUltimoEnvio" timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  estado varchar(20) NOT NULL DEFAULT 'Activa'
+  UNIQUE ("idEvento", "idUsuario")
 );
 
 -- =======================================================
