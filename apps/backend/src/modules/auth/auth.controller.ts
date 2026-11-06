@@ -9,7 +9,7 @@ import {
   UseGuards,
   Req,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiBody, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 import { RegistroDto } from './dto/registro.dto';
@@ -41,6 +41,7 @@ export class AuthController {
     summary:
       'Solicitar correo con enlace de recuperación de contraseña (15 min)',
   })
+  @ApiBody({ type: SolicitarRecuperacionDto })
   @Post('recuperar-contrasena')
   @HttpCode(HttpStatus.OK)
   async solicitarRecuperacion(@Body() body: SolicitarRecuperacionDto) {
@@ -51,6 +52,11 @@ export class AuthController {
     summary:
       'Validar vigencia e integridad del token de recuperación',
   })
+  @ApiQuery({
+    name: 'token',
+    required: true,
+    description: 'Token JWT recibido en el correo',
+  })
   @Get('restablecer-contrasena/validar')
   @HttpCode(HttpStatus.OK)
   async validarTokenRecuperacion(@Query('token') token: string) {
@@ -60,6 +66,7 @@ export class AuthController {
   @ApiOperation({
     summary: 'Restablecer contraseña con token de un solo uso',
   })
+  @ApiBody({ type: RestablecerContrasenaDto })
   @Post('restablecer-contrasena')
   @HttpCode(HttpStatus.OK)
   async restablecerContrasena(@Body() body: RestablecerContrasenaDto) {
