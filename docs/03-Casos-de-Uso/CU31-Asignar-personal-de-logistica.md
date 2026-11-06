@@ -28,7 +28,7 @@ tags:
 | **Actor** | Organizador |
 | **Propósito** | Permitir al organizador buscar opciones entre los usuarios del sistema para asignarlos como parte del personal de logística de su evento ya agendado. |
 | **Entradas** | Click en el botón “Asignar” sobre un candidato de la lista de usuarios del sistema. |
-| **Salidas** | Se mostrará en pantalla el mensaje MSG-I-08 Operación realizada con éxito.<br>Actualización del contador de logística asignada vs logística requerido. |
+| **Salidas** | • Pantalla **UI27** "Agregar Personal de Logística".<br>• Se mostrará en pantalla el mensaje MSG-I-08 Operación realizada con éxito.<br>• Actualización del contador de logística asignada vs logística requerido. |
 | **Precondiciones** | Que el organizador tenga un evento en estado “Aprobado” o “Activo”.<br>Que haya usuarios activos en el sistema. |
 | **Postcondiciones** | Después de asignar al usuario como personal de logística, el sistema asigna el permiso temporal de “Personal de Logística” a ese usuario, exclusivamente para ese evento. |
 | **Errores** | Se mostrará el MSG-E-08 Error de conexión con la base de datos en caso de fallo de red. |
@@ -38,7 +38,7 @@ tags:
 ### Trayectoria Principal
 
 1. Selecciona la opción “Asignar personal de logística”, dentro de la pantalla UI15 Panel de Administración y Detalles del Evento.
-2. Consulta en la base de datos y muestra una tabla con los usuarios activos en el sistema, desplegando su Nombre y Ocupación (Alumno, Profesor, etc.), junto con el contador de logística actual.
+2. Consulta en la base de datos y muestra la pantalla **UI27** "Agregar Personal de Logística" con una tabla con los usuarios activos en el sistema, desplegando su Nombre y Ocupación (Alumno, Profesor, etc.), junto con el contador de logística actual.
 3. Oprime el botón “Asignar” ubicado en la fila del candidato deseado.
 4. Actualiza en la base de datos el estado del usuario como “Asignado” en su apartado de logística.
 5. Asigna el rol y los permisos de “Personal de Logística” al usuario, vinculándolos exclusivamente para este evento.

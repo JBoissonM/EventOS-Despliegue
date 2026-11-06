@@ -17,7 +17,7 @@ tags:
 > - [Requerimientos y Reglas de Negocio](../01-Requerimientos-y-Reglas-de-Negocio.md)
 > - [Catálogos de Pantallas y Mensajes](../02-Actores-y-Catalogos.md)
 
-El público general, con o sin cuenta, puede consultar la cartelera y los detalles de eventos públicos publicados; los usuarios autenticados pueden consultar además los eventos autorizados para su alcance.
+El público general, con o sin cuenta, puede consultar la cartelera y los detalles de eventos públicos publicados; los usuarios autenticados pueden consultar además los eventos autorizados para su alcance (incluyendo eventos internos para usuarios con dominio institucional y eventos privados donde el usuario haya sido incorporado a la lista de invitados).
 
 **Descripción:**
 
@@ -41,7 +41,7 @@ El público general, con o sin cuenta, puede consultar la cartelera y los detall
 
 1. El Público General o un Asistente accede a UI04 "Cartelera de Eventos" directamente desde la plataforma; si inició sesión, también puede acceder desde UI03.
 2. El sistema consulta los eventos públicos publicados sin exigir una sesión; si existe una sesión, además verifica el alcance permitido al usuario.
-3. Obtiene la lista de eventos visibles según su alcance, sin mostrar eventos privados a visitantes anónimos. [Trayectoria A] [Trayectoria E]
+3. Obtiene la lista de eventos visibles según su alcance: muestra eventos públicos a todos, eventos internos únicamente a usuarios con dominio institucional y eventos privados exclusivamente a usuarios autenticados registrados en la lista de invitados del evento o a su organizador. [Trayectoria A] [Trayectoria E]
 4. Despliega la cartelera con los eventos disponibles mostrando su información general (nombre, fecha, categoría, lugar).
 5. El actor visualiza la lista de eventos en UI04 "Cartelera de Eventos" y puede aplicar filtros o consultar su detalle. [Trayectoria B] [Trayectoria F]
 
