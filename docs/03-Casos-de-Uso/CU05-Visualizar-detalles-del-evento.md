@@ -43,7 +43,7 @@ Permitir al público general y a los usuarios de la plataforma visualizar los de
 
 1. El actor selecciona [Ver detalles] de un evento visible desde UI04 "Cartelera de Eventos". El personal de logística también puede abrir un evento asignado desde UI18 "Panel de Eventos Asignados".
 2. El sistema obtiene el identificador y consulta los datos del evento sin exigir inicio de sesión cuando sea público; si proviene de UI18, verifica la asignación al personal de logística. [Trayectoria A] [Trayectoria B]
-3. El sistema verifica que el evento exista, esté publicado y sea visible para el actor de acuerdo con su alcance. [Trayectoria C]
+3. El sistema verifica que el evento exista, esté publicado y sea visible para el actor de acuerdo con su alcance (si es alcance Privado, comprueba que el usuario autenticado esté registrado en la lista de invitados del evento, sea su organizador o personal asignado). [Trayectoria C]
 4. Muestra UI05 "Detalles del Evento" con nombre, descripción, fecha, horario, ponentes, recinto y modalidad de acceso. Si es de acceso libre, informa que no necesita boleto; si requiere boleto, habilita [Reservar lugar].
 5. El actor consulta los detalles. Puede solicitar una reserva cuando el evento requiera boleto [Trayectoria E]. Solo el personal de logística autenticado y asignado puede seleccionar [Escanear QR]. [Trayectoria D]
 

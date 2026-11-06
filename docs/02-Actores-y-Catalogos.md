@@ -27,7 +27,7 @@ Este actor interactúa con la plataforma para consultar la cartelera (`CU-04`) y
 
 ### Organizador
 
-Este actor es responsable de la propuesta, creación y administración operativa de los eventos bajo su responsabilidad (privilegio otorgado por evento conforme a `RN-02`), pudiendo pertenecer a la comunidad institucional, a un club estudiantil o a una entidad externa. Sus capacidades incluyen consultar y administrar sus eventos (`CU-24` en `UI14`/`UI15`), reprogramar o reubicar su logística (`CU-25` en `UI16`), actualizar la información general (`CU-26`, `CU-27`), solicitar requerimientos técnicos de cómputo en laboratorios (`CU-28` en `UI17`), agregar ponentes (`CU-10` en `UI29`), emitir boletos directos (`CU-30`), asignar o registrar personal de logística (`CU-31`, `CU-32` en `UI27`) y cancelar sus eventos especificando un motivo obligatorio (`CU-29`).
+Este actor es responsable de la propuesta, creación y administración operativa de los eventos bajo su responsabilidad (privilegio otorgado por evento conforme a `RN-02`), pudiendo pertenecer a la comunidad institucional, a un club estudiantil o a una entidad externa. Sus capacidades incluyen consultar y administrar sus eventos (`CU-24` en `UI14`/`UI15`), reprogramar o reubicar su logística (`CU-25` en `UI16`), actualizar la información general (`CU-26`, `CU-27`), solicitar requerimientos técnicos de cómputo en laboratorios (`CU-28` en `UI17`), agregar ponentes (`CU-10` en `UI29`), invitar asistentes a eventos privados (`CU-30`), asignar o registrar personal de logística (`CU-31`, `CU-32` en `UI27`) y cancelar sus eventos especificando un motivo obligatorio (`CU-29`).
 
 ### Subdirección de Servicios Educativos
 
