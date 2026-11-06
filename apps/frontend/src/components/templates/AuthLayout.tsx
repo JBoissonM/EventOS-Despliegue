@@ -10,7 +10,7 @@ export function AuthLayout({ title, children, generalError }: AuthLayoutProps) {
   return (
     <div className="flex min-h-[calc(100vh-1000px)] items-center justify-center bg-white p-4">
       <div className="w-full max-w-md rounded-lg bg-white p-5 shadow-sm border border-gray-100">
-        <h1 className="mb-10 text-center text-3xl font-merriweather font-bold text-[36px] text-gray-900">
+        <h1 className="mb-5 text-center text-3xl font-merriweather font-bold text-[36px] text-gray-900">
           {title}
         </h1>
 
