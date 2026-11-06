@@ -120,10 +120,6 @@ export class EventosService {
       const subeventosVigentes = (evento.subEventos || []).filter((sub) => {
         if (sub.estado === EstadoSubEvento.CANCELADO) return false;
         if (!sub.fecha || sub.fecha.fecha < fechaHoy) return false;
-
-        if (!tieneSesion && sub.accesoQR) {
-          return false;
-        }
         return true;
       });
 
@@ -227,7 +223,7 @@ export class EventosService {
       }
     }
 
-    if (!tieneSesion && !esAccesoLibre) {
+    if (!tieneSesion && evento.idAlcance !== AlcanceEvento.PUBLICO) {
       throw new ForbiddenException(
         'Debes iniciar sesión o registrarte para consultar eventos que requieren cuenta.',
       );

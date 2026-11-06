@@ -465,4 +465,55 @@ export class MailService {
       );
     }
   }
+
+  async enviarCorreoRecuperacionContrasena(datos: {
+    destinatario: string;
+    nombreUsuario: string;
+    enlaceRecuperacion: string;
+  }): Promise<void> {
+    const html = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden;">
+        <div style="background-color: #6b1d2f; color: #ffffff; padding: 20px; text-align: center;">
+          <h2 style="margin: 0;">Recuperación de Contraseña - EventOS</h2>
+        </div>
+        
+        <div style="padding: 24px; color: #334155;">
+          <p>Hola <strong>${datos.nombreUsuario}</strong>,</p>
+          <p>Hemos recibido una solicitud para restablecer la contraseña de tu cuenta en <strong>EventOS</strong>.</p>
+          <p>Haz clic en el siguiente botón para crear una nueva contraseña:</p>
+
+          <div style="text-align: center; margin: 32px 0;">
+            <a href="${datos.enlaceRecuperacion}" style="background-color: #6b1d2f; color: #ffffff; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px; display: inline-block;">
+              Restablecer mi contraseña
+            </a>
+          </div>
+
+          <p style="font-size: 13px; color: #dc2626; text-align: center;">
+            * Este enlace es de un solo uso y expirará en <strong>15 minutos</strong>.
+          </p>
+
+          <p style="font-size: 12px; color: #64748b; margin-top: 24px; border-top: 1px solid #e2e8f0; padding-top: 12px;">
+            Si tú no solicitaste este cambio, puedes ignorar este correo con seguridad; tu contraseña actual no será modificada.
+          </p>
+        </div>
+      </div>
+    `;
+
+    try {
+      await this.transporter.sendMail({
+        from: process.env.SMTP_FROM || process.env.SMTP_USER,
+        to: datos.destinatario,
+        subject: 'Restablecer contraseña - EventOS',
+        html,
+      });
+      this.logger.log(
+        `Correo de recuperación de contraseña enviado a ${datos.destinatario}`,
+      );
+    } catch (error) {
+      this.logger.error(
+        `Fallo al enviar correo de recuperación a ${datos.destinatario}`,
+        error,
+      );
+    }
+  }
 }
