@@ -445,3 +445,13 @@ export interface JefeDepartamentoItem {
   correoInstitucional: string;
   esJefeAcademia: boolean;
 }
+
+export interface SolicitarRecuperacionPayload {
+  correo: string;
+}
+
+export interface RestablecerContrasenaPayload {
+  token: string;
+  nuevaContrasena: string;
+  confirmarContrasena: string;
+}
