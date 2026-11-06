@@ -18,6 +18,8 @@ import { JefeDepartamento } from "../features/admin/JefeDepartamento";
 import { GestionUsuarios } from "../features/admin/Gestion-Usuarios";
 import { BitacoraGeneral } from "../features/admin/Bitacora";
 import { MenuPrincipalAdministracion } from "../features/admin/menu-admin";
+import { SolicitarRecuperacion } from "../features/RecuperacionContrasena/SolicitarRecuperacion";
+import { RestablecerContrasena } from "../features/RecuperacionContrasena/RestablecerContrasena";
 
 import { EventCatalogPage } from "../features/event-catalog/pages/EventCatalogPage";
 import { EventDetailsLayout } from "../features/event-details/pages/EventDetailsLayout";
@@ -41,6 +43,8 @@ export function AppRouter() {
           <Route path="/registro" element={<Registro />} />
           <Route path="/detalles-solicitud/" element={<DetallesSolicitud />} />
           <Route path="/cartelera" element={<EventCatalogPage />} />
+          <Route path="/recuperar-contrasena" element={<SolicitarRecuperacion />} />
+          <Route path="/restablecer-contrasena" element={<RestablecerContrasena />} />
         </Route>
 
         <Route element={<EventDetailsLayout />}>
