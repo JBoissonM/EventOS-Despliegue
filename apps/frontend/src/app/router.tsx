@@ -29,6 +29,8 @@ import { SolicitudesAprobadas } from "../features/educational-services/Solicitud
 import { MisEventos } from "../features/organizer/MisEventos";
 
 import { AdministracionEvento } from "../features/organizer/AdministracionEvento";
+import { EditarEvento } from "../features/organizer/EditarEvento";
+
 
 export function AppRouter() {
   return (
@@ -43,32 +45,67 @@ export function AppRouter() {
 
         <Route element={<EventDetailsLayout />}>
           <Route path="/eventos/:idEvento" element={<EventDetailsRoute />} />
-          <Route path="/eventos/:idEvento/actividades/:idSubEvento" element={<SubEventDetailsRoute />} />
-          <Route path="/eventos/:idEvento/actividades/:idSubEvento/reservar" element={<ReservationRoute />} />
+          <Route
+            path="/eventos/:idEvento/actividades/:idSubEvento"
+            element={<SubEventDetailsRoute />}
+          />
+          <Route
+            path="/eventos/:idEvento/actividades/:idSubEvento/reservar"
+            element={<ReservationRoute />}
+          />
         </Route>
 
         {/*Solicitud evento para subdirección y asistentes*/}
-        <Route element={<ProtectedRoute allowedRoles={["Subdirección","Asistente","Usuario Externo","Usuario Interno",]}/>}>
+        <Route
+          element={
+            <ProtectedRoute
+              allowedRoles={[
+                "Subdirección",
+                "Asistente",
+                "Usuario Externo",
+                "Usuario Interno",
+              ]}
+            />
+          }>
           <Route element={<DashboardLayout />}>
             <Route path="/solicitud-evento" element={<SolicitudEvento />} />
+            <Route
+              path="/organizador/administrar-evento/:idEvento"
+              element={<AdministracionEvento />} />
+            <Route path="/organizador/editar-evento/:idEvento" element={<EditarEvento />}/>
           </Route>
         </Route>
 
         {/*Pantalla Perfil compartida*/}
-        <Route element={<ProtectedRoute allowedRoles={["Administrador","Subdirección","Asistente","Usuario Externo","Usuario Interno",]}/>}>
+        <Route
+          element={
+            <ProtectedRoute
+              allowedRoles={[
+                "Administrador",
+                "Subdirección",
+                "Asistente",
+                "Usuario Externo",
+                "Usuario Interno",
+              ]}
+            />
+          }>
           <Route element={<DashboardLayout />}>
             <Route path="/perfil" element={<Perfil />} />
           </Route>
         </Route>
 
         {/* Rutas para asistente*/}
-        <Route element={<ProtectedRoute allowedRoles={["Asistente", "Usuario Externo", "Usuario Interno"]}/>}>
+        <Route
+          element={
+            <ProtectedRoute
+              allowedRoles={["Asistente", "Usuario Externo", "Usuario Interno"]}
+            />
+          }>
           <Route element={<DashboardLayout />}>
             <Route path="/menu-asistente" element={<MenuAsistente />} />
             <Route path="/asistente/cartelera" element={<EventCatalogPage />} />
-            <Route path="/organizador/mis-eventos" element={<MisEventos />}/>
+            <Route path="/organizador/mis-eventos" element={<MisEventos />} />
             <Route path="/verificacion" element={<Verificacion />} />
-            <Route path="/organizador/administrar-evento/:idEvento" element={<AdministracionEvento />}/>
           </Route>
         </Route>
 
@@ -77,20 +114,41 @@ export function AppRouter() {
           <Route element={<DashboardLayout />}>
             <Route path="/gestion-espacios" element={<GestionEspacios />} />
             <Route path="/gestion-equipos/:id" element={<GestionEquipos />} />
-            <Route path="admin/jefe-departamento" element={<JefeDepartamento />}/>
-            <Route path="admin/gestion-usuarios" element={<GestionUsuarios />}/>
+            <Route
+              path="admin/jefe-departamento"
+              element={<JefeDepartamento />}
+            />
+            <Route
+              path="admin/gestion-usuarios"
+              element={<GestionUsuarios />}
+            />
             <Route path="admin/bitacora" element={<BitacoraGeneral />} />
-            <Route path="/menu-admin" element={<MenuPrincipalAdministracion />} />
+            <Route
+              path="/menu-admin"
+              element={<MenuPrincipalAdministracion />}
+            />
           </Route>
         </Route>
 
         {/* Rutas para Subdirección*/}
         <Route element={<ProtectedRoute allowedRoles={["Subdirección"]} />}>
           <Route element={<DashboardLayout />}>
-            <Route path="/detalles-solicitud/:id" element={<DetallesSolicitud />}/>
-            <Route path="/subdireccion/lista-solicitudes" element={<ListadoSolicitudes />}/>
-            <Route path="/subdireccion/menu-principal" element={<MenuSubdireccion />}/>
-            <Route path="/subdireccion/solicitudes-aprobadas" element={<SolicitudesAprobadas />}/>
+            <Route
+              path="/detalles-solicitud/:id"
+              element={<DetallesSolicitud />}
+            />
+            <Route
+              path="/subdireccion/lista-solicitudes"
+              element={<ListadoSolicitudes />}
+            />
+            <Route
+              path="/subdireccion/menu-principal"
+              element={<MenuSubdireccion />}
+            />
+            <Route
+              path="/subdireccion/solicitudes-aprobadas"
+              element={<SolicitudesAprobadas />}
+            />
           </Route>
         </Route>
 

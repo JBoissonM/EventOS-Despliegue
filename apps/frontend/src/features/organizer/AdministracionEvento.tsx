@@ -15,16 +15,24 @@ import type { Columna } from "../../components/organisms/Table/Table";
 import { EventBanner } from "../event-details/components/molecules/EventBanner";
 import { SpaceRequerimentsDialog } from "../../components/organisms/SpaceRequirementsDialog/SpaceRequerimentsDialog";
 import { useNavigate } from "react-router";
-import Input from "../../components/atoms/Input/Input";
+
+import { ArrowLeft } from "lucide-react";
 
 type TablaPonente = {
   id: number;
+  nombre: string;
   correo: string;
 };
 
 type TablaPersonalLogistica = PersonalLogisticaItem;
 
 const columnasPonente: Columna<TablaPonente>[] = [
+  {
+    id: "nombre",
+    encabezado: "Nombre",
+    render: (ponente) => ponente.nombre,
+    className: "min-w-[8rem] max-w-[8rem] break-all px-3",
+  },
   {
     id: "correo",
     encabezado: "Correo",
@@ -347,6 +355,7 @@ export function AdministracionEvento() {
     datosEvento?.subEventos.flatMap((subevento) =>
       subevento.ponentes.map((ponente) => ({
         id: ponente.idPonente,
+        nombre: `${ponente.nombre} ${ponente.apellidoPa} ${ponente.apellidoMa}`,
         correo: ponente.correo,
       })),
     ) ?? [];
@@ -357,20 +366,7 @@ export function AdministracionEvento() {
         id="contenedorReturn"
         className="flex gap-2 cursor-pointer"
         onClick={() => navigate(`/organizador/mis-eventos`)}>
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          width="24"
-          height="24"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-          className="lucide lucide-undo-2 preview-icon">
-          <path d="M9 14 4 9l5-5" />
-          <path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5a5.5 5.5 0 0 1-5.5 5.5H11" />
-        </svg>
+        <ArrowLeft size={20} aria-hidden="true"></ArrowLeft>
         <span>Volver</span>
       </div>
       <div id="contenedorTituloBanner" className="space-y-4 sm:space-y-5">
@@ -400,17 +396,16 @@ export function AdministracionEvento() {
 
       {datosEvento && (
         <>
+          <div id="contenedorTitulo" className="space-y-2 border border-gray-200 bg-white shadow-md p-5">
+            <span className="font-merriweather text-xl font-bold text-secondary sm:text-2xl">
+              {datosEvento.nombre}
+            </span>
+            <p className="break-words">{datosEvento.descripcion}</p>
+          </div>
           <div
             id="contenedorDatos"
             className="grid min-w-0 grid-cols-1 items-start gap-8 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,0.9fr)] xl:gap-12">
             <div id="contenedorIzquierda" className="w-full min-w-0 space-y-6">
-              <div id="contenedorTitulo" className="space-y-2">
-                <span className="block font-merriweather text-xl font-bold text-secondary sm:text-2xl">
-                  {datosEvento.nombre}
-                </span>
-                <p className="break-words">{datosEvento.descripcion}</p>
-              </div>
-
               <div id="contenedorPonentes">
                 <h2 className="text-xl font-bold sm:text-2xl">Ponentes</h2>
                 {ponentes.length > 0 ? (
@@ -457,18 +452,9 @@ export function AdministracionEvento() {
                 <article
                   key={subevento.idSubEvento}
                   className="grid min-w-0 grid-cols-1 gap-x-6 gap-y-5 rounded-lg border border-gray-200 bg-white p-4 shadow-sm sm:grid-cols-2 sm:p-6">
-                  <div className="col-span-1 flex min-w-0 flex-col gap-2 sm:col-span-2">
-                    <h2 className="text-lg font-bold">{subevento.nombre}</h2>
-                    <p className="break-words text-gray-700">
-                      {subevento.descripcion}
-                    </p>
-                  </div>
                   <div className="flex min-w-0 flex-col gap-2">
                     <span className="font-bold">Espacio</span>
-                    <span>{subevento.recinto
-                      ?.nombre}
-                    </span>
-                    
+                    <span>{subevento.recinto?.nombre}</span>
                   </div>
                   <div className="flex min-w-0 flex-col gap-2">
                     <span className="font-bold">Fecha</span>
@@ -485,7 +471,7 @@ export function AdministracionEvento() {
                   <div className="flex min-w-0 flex-col gap-2">
                     <span className="font-bold">Modalidad de cupo</span>
                     <span>
-                      {subevento.accesoQR ? "Acceso con boleto" : "Acceso"}
+                      {subevento.accesoQR ? "Acceso con boleto" : "Acceso libre"}
                     </span>
                   </div>
                   <div className="flex min-w-0 flex-col gap-2">
@@ -519,19 +505,25 @@ export function AdministracionEvento() {
           </div>
 
           <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:justify-end">
-            {subevento?.recinto && subevento.recinto.nombre !== "Auditorio Principal" &&
-            subevento.recinto.nombre !== "Sala 14" && (
-              <Button
-                text="Ver detalles de laboratorio"
-                variant="primary"
-                type="button"
-                onClick={() => setMostrarModal(true)}
-              />
-            )}
+            {subevento?.recinto &&
+              subevento.recinto.nombre !== "Auditorio Principal" &&
+              subevento.recinto.nombre !== "Sala 14" && (
+                <Button
+                  text="Ver detalles de laboratorio"
+                  variant="primary"
+                  type="button"
+                  onClick={() => setMostrarModal(true)}
+                />
+              )}
             {subevento?.estado !== "Finalizado" && (
               <Button text="Cancelar evento" variant="primary" type="button" />
             )}
-            <Button text="Modificar evento" variant="primary" type="button" />
+            <Button
+              text="Modificar evento"
+              variant="primary"
+              type="button"
+              onClick={() => navigate(`/organizador/editar-evento/${idEvento}`)}
+            />
           </div>
           {subevento?.recinto && (
             <SpaceRequerimentsDialog

@@ -9,6 +9,7 @@ interface FormFieldProps {
   children: ReactNode;
   mensajeAyuda?: string;
   readOnly?: boolean;
+  className?: string;
 }
 
 export function FormField({
@@ -19,10 +20,11 @@ export function FormField({
   children,
   mensajeAyuda,
   readOnly,
+  className
 }: FormFieldProps) {
   return (
     <div className="flex min-w-0 flex-col justify-end gap-0">
-      <Label htmlFor={htmlFor} required={required} readOnly={readOnly}>
+      <Label className={className} htmlFor={htmlFor} required={required} readOnly={readOnly}>
         {label}
       </Label>
       {children}
