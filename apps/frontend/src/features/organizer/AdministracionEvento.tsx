@@ -396,7 +396,9 @@ export function AdministracionEvento() {
 
       {datosEvento && (
         <>
-          <div id="contenedorTitulo" className="space-y-2 border border-gray-200 bg-white shadow-md p-5">
+          <div
+            id="contenedorTitulo"
+            className="space-y-2 border border-gray-200 bg-white shadow-md p-5">
             <span className="font-merriweather text-xl font-bold text-secondary sm:text-2xl">
               {datosEvento.nombre}
             </span>
@@ -471,7 +473,9 @@ export function AdministracionEvento() {
                   <div className="flex min-w-0 flex-col gap-2">
                     <span className="font-bold">Modalidad de cupo</span>
                     <span>
-                      {subevento.accesoQR ? "Acceso con boleto" : "Acceso libre"}
+                      {subevento.accesoQR
+                        ? "Acceso con boleto"
+                        : "Acceso libre"}
                     </span>
                   </div>
                   <div className="flex min-w-0 flex-col gap-2">
@@ -516,14 +520,22 @@ export function AdministracionEvento() {
                 />
               )}
             {subevento?.estado !== "Finalizado" && (
-              <Button text="Cancelar evento" variant="primary" type="button" />
+              <>
+                <Button
+                  text="Cancelar evento"
+                  variant="primary"
+                  type="button"
+                />
+                <Button
+                  text="Modificar evento"
+                  variant="primary"
+                  type="button"
+                  onClick={() =>
+                    navigate(`/organizador/editar-evento/${idEvento}`)
+                  }
+                />
+              </>
             )}
-            <Button
-              text="Modificar evento"
-              variant="primary"
-              type="button"
-              onClick={() => navigate(`/organizador/editar-evento/${idEvento}`)}
-            />
           </div>
           {subevento?.recinto && (
             <SpaceRequerimentsDialog

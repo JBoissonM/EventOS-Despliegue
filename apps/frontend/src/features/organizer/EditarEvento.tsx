@@ -274,10 +274,6 @@ export function EditarEvento() {
     ) ??
     subevento?.recinto ??
     null;
-  const eventoEditable =
-    evento !== null &&
-    evento.subEventos.length === 1 &&
-    !esEventoNoEditable(evento.idEstadoEvento);
   const informacionGeneralModificada = Boolean(
     evento &&
     (nombre !== evento.nombre ||
@@ -345,7 +341,7 @@ export function EditarEvento() {
 
   async function guardarCambios(confirmarMotivoLogistica = false) {
     setIntentoGuardar(true);
-    if (!evento || !subevento || !eventoEditable || !idEvento) return;
+    if (!evento || !subevento || !idEvento) return;
 
     setError(null);
     setMensaje(null);
@@ -585,7 +581,7 @@ export function EditarEvento() {
         <>
           <form onSubmit={manejarEnvio} className="space-y-8">
             <fieldset
-              disabled={!eventoEditable || guardando}
+              disabled={guardando}
               className="space-y-8 border-0 p-0">
               <div
                 id="contenedorDatosIniciales"
@@ -668,7 +664,7 @@ export function EditarEvento() {
                       </div>
                     ) : (
                       <p className="mt-3 text-gray-600">
-                        No hay ponentes registrados para este evento.
+                        No hay ponentes registrados para este .
                       </p>
                     )}
                     <Button
@@ -717,7 +713,7 @@ export function EditarEvento() {
                   agendaOcupada={agendaOcupada}
                   cargandoAgenda={cargandoAgenda}
                   errorAgenda={errorAgenda}
-                  deshabilitado={!eventoEditable || guardando}
+                  deshabilitado={guardando}
                   onCambioLogistica={cambiarLogistica}
                   onCambioAlcance={setAlcance}
                   onCambioJustificacion={setJustificacion}
@@ -730,7 +726,6 @@ export function EditarEvento() {
                 text="Confirmar cambios"
                 type="submit"
                 loading={guardando}
-                disabled={!eventoEditable}
               />
             </div>
             {(mostrarModal || mostrarModalAviso) && (
