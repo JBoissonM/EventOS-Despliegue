@@ -156,7 +156,14 @@ export class ReservationsService {
             }
 
             if (eventoPrincipal.idAlcance === AlcanceEvento.PRIVADO) {
-                throw new ForbiddenException('Este evento requiere una invitación válida para reservar.');
+                const invitacionRaw = await manager.query(
+                    `SELECT 1 FROM "invitacionEvento" WHERE "idEvento" = $1 AND "idUsuario" = $2 LIMIT 1`,
+                    [eventoPrincipal.idEvento, idUsuario],
+                );
+                const esOrganizador = eventoPrincipal.idOrganizador === idUsuario;
+                if (invitacionRaw.length === 0 && !esOrganizador) {
+                    throw new ForbiddenException('Este evento requiere una invitación válida para reservar.');
+                }
             }
 
             const fechaEvento = await manager.findOne(FechaEntity, { 
