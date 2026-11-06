@@ -77,3 +77,33 @@ export async function apiRequest<T>(
 
   return data as T;
 }
+export async function apiRequestPdf(path: string): Promise<Blob> {
+  const token = localStorage.getItem("token");
+  const baseUrl = API_BASE_URL.replace(/\/+$/, "");
+  const normalizedPath = path.replace(/^\/+/, "");
+  const headers = new Headers({ Accept: "application/pdf" });
+  if (token) headers.set("Authorization", `Bearer ${token}`);
+
+  const response = await fetch(`${baseUrl}/${normalizedPath}`, {
+    method: "GET",
+    headers,
+    cache: "no-store",
+  });
+
+  if (!response.ok) {
+    const data: unknown = await response.json().catch(() => null);
+    let message = `Error HTTP ${response.status}`;
+    if (data && typeof data === "object" && "message" in data) {
+      const value = data.message;
+      if (typeof value === "string") message = value;
+      else if (Array.isArray(value)) message = value.map(String).join(", ");
+    }
+    throw new ApiError(response.status, message);
+  }
+
+  const contentType = response.headers.get("Content-Type") ?? "";
+  if (!contentType.toLowerCase().includes("application/pdf")) {
+    throw new Error("El servidor no devolvió un archivo PDF válido.");
+  }
+  return response.blob();
+}

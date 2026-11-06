@@ -16,26 +16,27 @@ export interface DigitalTicketViewProps {
   startTime: string;
   endTime: string;
   venue: string;
-  attendeeName: string;
+  attendeeName?: string;
   status: TicketStatus;
   assignment?: TicketAssignment;
   qrImageUrl?: string | null;
   onBack: () => void;
   onDownloadPdf?: () => void;
+  onPreviewPdf?: () => void;
+  isLoadingPreview?: boolean;
+  isDownloadingPdf?: boolean;
 }
 
 const statusLabels: Record<TicketStatus, string> = {
   active: "Activo",
   "checked-in": "Ingresado",
   cancelled: "Cancelado",
-  expired: "Expirado",
 };
 
 const statusVariants = {
   active: "success",
   "checked-in": "secondary",
   cancelled: "error",
-  expired: "neutral",
 } as const;
 
 export function DigitalTicketView({
@@ -51,6 +52,9 @@ export function DigitalTicketView({
                                     qrImageUrl,
                                     onBack,
                                     onDownloadPdf,
+    onPreviewPdf,
+    isLoadingPreview = false,
+    isDownloadingPdf = false,
                                   }: DigitalTicketViewProps) {
   const isActive = status === "active";
 
@@ -64,8 +68,8 @@ export function DigitalTicketView({
           : null;
 
   const qrUnavailableMessage = isActive
-    ? "El código QR de este boleto aún no está disponible."
-    : "Este boleto no tiene un código QR de acceso activo.";
+    ? "No fue posible obtener el código QR de este boleto. Contacta al organizador."
+    : "El código QR de este boleto no está habilitado para el ingreso.";
 
   return (
     <section className="mx-auto max-w-6xl space-y-8">
@@ -82,11 +86,10 @@ export function DigitalTicketView({
         </h1>
       </header>
 
-      <div className="grid grid-cols-1 items-center gap-10 rounded-xl border border-eventos-neutral bg-white p-6 md:grid-cols-2 md:p-10">
-        {/* Ticket information */}
-        <div className="space-y-6">
+      <div className="grid min-w-0 grid-cols-1 items-center gap-6 rounded-xl border border-eventos-divider bg-eventos-surface p-4 sm:p-6 md:grid-cols-2 md:gap-10 md:p-10">
+        <div className="min-w-0 space-y-6">
           <div className="space-y-2">
-            <h2 className="font-merriweather text-2xl font-bold text-secondary">
+            <h2 className="break-words font-merriweather text-2xl font-bold text-secondary">
               {eventName}
             </h2>
 
@@ -114,10 +117,12 @@ export function DigitalTicketView({
               </dd>
             </div>
 
-            <div>
-              <dt className="font-semibold">Nombre</dt>
-              <dd>{attendeeName}</dd>
-            </div>
+            {attendeeName && (
+              <div>
+                <dt className="font-semibold">Nombre</dt>
+                <dd>{attendeeName}</dd>
+              </div>
+            )}
 
             <div>
               <dt className="font-semibold">Espacio del evento</dt>
@@ -133,7 +138,6 @@ export function DigitalTicketView({
           </dl>
         </div>
 
-        {/* QR code */}
         <QRDisplay
           imageUrl={qrImageUrl}
           isUsable={isActive}
@@ -142,10 +146,21 @@ export function DigitalTicketView({
       </div>
 
       <div className="flex flex-wrap gap-3">
-        {isActive && onDownloadPdf && (
+        {isActive && qrImageUrl && onPreviewPdf && (
+          <Button
+            text="Vista previa PDF"
+            onClick={onPreviewPdf}
+            loading={isLoadingPreview}
+            loadingText="Abriendo..."
+          />
+        )}
+
+        {isActive && qrImageUrl && onDownloadPdf && (
           <Button
             text="Descargar PDF"
             onClick={onDownloadPdf}
+            loading={isDownloadingPdf}
+            loadingText="Descargando..."
           />
         )}
 

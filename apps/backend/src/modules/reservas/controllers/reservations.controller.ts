@@ -1,5 +1,6 @@
-import { Controller, Post, Body, Get, Param, ParseIntPipe, Patch, UseGuards, Req } from '@nestjs/common';
+import { Controller, Post, Body, Get, Param, ParseIntPipe, Patch, UseGuards, Req, Header, StreamableFile } from '@nestjs/common';
 import { ReservationsService } from '../services/reservations.service';
+import { TicketPdfService } from '../services/ticket-pdf.service';
 import { CreateReservationDto } from '../dto/createReservation.dto';
 import { UnauthorizedException, ForbiddenException } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
@@ -8,7 +9,10 @@ import { RolesGuard } from '../../auth/roles.guard';
 @ApiTags('Reservations')
 @Controller('reservations')
 export class ReservationsController {
-  constructor(private readonly reservationsService: ReservationsService) {}
+  constructor(
+    private readonly reservationsService: ReservationsService,
+    private readonly ticketPdfService: TicketPdfService,
+  ) {}
 
   
   private obtenerIdUsuarioAutenticado(req: any): number {
@@ -40,6 +44,23 @@ export class ReservationsController {
   ) {
     const idUsuario = this.obtenerIdUsuarioAutenticado(req);
     return await this.reservationsService.obtenerDetalleBoleto(idUsuario, idBoleto);
+  }
+
+  @ApiOperation({ summary: 'Descargar boleto digital en PDF' })
+  @ApiBearerAuth()
+  @UseGuards(RolesGuard)
+  @Header('Cache-Control', 'private, no-store')
+  @Get('mis-boletos/:idBoleto/pdf')
+  async descargarBoletoPdf(
+    @Req() req: any,
+    @Param('idBoleto', ParseIntPipe) idBoleto: number,
+  ): Promise<StreamableFile> {
+    const idUsuario = this.obtenerIdUsuarioAutenticado(req);
+    const contenido = await this.ticketPdfService.generar(idUsuario, idBoleto);
+    return new StreamableFile(contenido, {
+      type: 'application/pdf',
+      disposition: `attachment; filename="eventos-boleto-${idBoleto}.pdf"`,
+    });
   }
 
   // Consultar lugares y asientos libres (Público para UI05 / UI05.1)
