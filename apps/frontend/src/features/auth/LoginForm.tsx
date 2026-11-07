@@ -52,6 +52,11 @@ export function LoginForm() {
         <Button fullWidth size="md" variant="primary" className="mt-2" type="submit" text="Iniciar Sesión" loadingText="Iniciando sesión..." loading={loading}/>
 
         <div className="mt-1 text-center">
+          <TextLink to={("/recuperar-contrasena")} className="text-sky-500 hover:text-sky-600 font-merriweather font-semibold text-[16px]">
+            ¿Olvidaste tu contraseña?
+          </TextLink>
+        </div>
+        <div className="mt-1 text-center">
           <TextLink to={getAuthPathWithReturnUrl("/registro", returnPath)} className="text-sky-500 hover:text-sky-600 font-merriweather font-semibold text-[16px]">
             ¿No tienes cuenta? Regístrate
           </TextLink>

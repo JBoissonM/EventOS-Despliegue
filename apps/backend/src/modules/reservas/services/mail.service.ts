@@ -514,6 +514,48 @@ export class MailService {
         `Fallo al enviar correo de recuperación a ${datos.destinatario}`,
         error,
       );
+      throw error;
+    }
+  }
+
+  async enviarCorreoBienvenidaRegistro(datos: {
+    destinatario: string;
+    nombreUsuario: string;
+    tipoCuenta: string;
+  }): Promise<void> {
+    const html = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden;">
+        <div style="background-color: #6b1d2f; color: #ffffff; padding: 20px; text-align: center;">
+          <h2 style="margin: 0;">¡Bienvenido a EventOS!</h2>
+        </div>
+        
+        <div style="padding: 24px; color: #334155;">
+          <p>Hola <strong>${datos.nombreUsuario}</strong>,</p>
+          <p>Tu correo electrónico ha sido verificado y tu cuenta en <strong>EventOS</strong> fue registrada exitosamente con el perfil de <strong>${datos.tipoCuenta}</strong>.</p>
+          <p>Ya puedes iniciar sesión en la plataforma para consultar la cartelera de eventos y reservar tus boletos digitales.</p>
+
+          <p style="font-size: 12px; color: #64748b; margin-top: 24px; border-top: 1px solid #e2e8f0; padding-top: 12px;">
+            EventOS — Escuela Superior de Cómputo (IPN).
+          </p>
+        </div>
+      </div>
+    `;
+
+    try {
+      await this.transporter.sendMail({
+        from: process.env.SMTP_FROM || process.env.SMTP_USER,
+        to: datos.destinatario,
+        subject: 'Confirmación de registro de cuenta - EventOS',
+        html,
+      });
+      this.logger.log(
+        `Correo de confirmación de registro enviado a ${datos.destinatario}`,
+      );
+    } catch (error) {
+      this.logger.error(
+        `Fallo al enviar correo de bienvenida a ${datos.destinatario}`,
+        error,
+      );
     }
   }
 }

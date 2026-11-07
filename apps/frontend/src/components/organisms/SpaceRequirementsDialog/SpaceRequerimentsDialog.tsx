@@ -114,7 +114,7 @@ export function SpaceRequerimentsDialog({
         return equipo.estado === true ? (
           <Badge variant="success">Activo</Badge>
         ) : (
-          <Badge variant="warning">Inactivo</Badge>
+          <Badge variant="error">Inactivo</Badge>
         );
       },
     },
