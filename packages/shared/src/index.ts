@@ -455,3 +455,7 @@ export interface RestablecerContrasenaPayload {
   nuevaContrasena: string;
   confirmarContrasena: string;
 }
+
+export interface ConfirmarRegistroPayload {
+  token: string;
+}
