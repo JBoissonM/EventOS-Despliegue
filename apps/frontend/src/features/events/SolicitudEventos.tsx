@@ -1,15 +1,14 @@
 import { SeccionDatosEvento } from "../../components/organisms/SolicitudEventos/SeccionDatosEvento";
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { SeccionSubeventos } from "../../components/organisms/SolicitudEventos/SeccionSubeventos";
 import Button from "../../components/atoms/Button/Button";
 import { useNavigate } from "react-router";
 import { Modal } from "../../components/molecules/Modal";
-import {
-  EstadoVerificacion,
-  RecintoId,
-  type SubeventoPayload,
-} from "@eventos/shared";
+import { RecintoId, type SubeventoPayload } from "@eventos/shared";
 import { ModalMotivoUrgente } from "../../components/organisms/ModalMotivoUrgente/ModalMotivoUrgente";
+import { apiRequest } from "../../lib/apiClient";
+
+import { ArrowLeft } from "lucide-react";
 
 export type SubeventoFormData = SubeventoPayload & { id: number };
 
@@ -20,6 +19,11 @@ export interface FormularioSolicitudData {
   descripcion: string;
   rutaPoster: File | null;
   subEventos: SubeventoFormData[];
+}
+
+interface EstadoPerfilVerificacion {
+  cuenta?: string;
+  verificacionVigente?: boolean;
 }
 
 export type CampoFormulario = Exclude<
@@ -56,6 +60,7 @@ export interface PropsSubeventosFormulario {
 }
 
 let siguienteIdSubevento = 0;
+const MAX_SUBEVENTOS = 10;
 
 const crearSubevento = (): SubeventoFormData => ({
   id: siguienteIdSubevento++,
@@ -122,17 +127,19 @@ function validarSubeventos(
   return subEventos.map((subevento, index) => {
     const errors: ErroresSubevento = {};
 
-    if (!subevento.nombre.trim()) {
-      errors.nombre = "El nombre del subevento es obligatorio";
-    } else if (subevento.nombre.trim().length > 150) {
-      errors.nombre =
-        "El nombre del subevento no debe exceder los 150 caracteres";
-    }
-    if (!subevento.descripcion.trim()) {
-      errors.descripcion = "La descripción del subevento es obligatoria";
-    } else if (subevento.descripcion.trim().length > 500) {
-      errors.descripcion =
-        "La descripción del subevento no debe exceder los 500 caracteres";
+    if (subEventos.length > 1) {
+      if (!subevento.nombre.trim()) {
+        errors.nombre = "El nombre del subevento es obligatorio";
+      } else if (subevento.nombre.trim().length > 150) {
+        errors.nombre =
+          "El nombre del subevento no debe exceder los 150 caracteres";
+      }
+      if (!subevento.descripcion.trim()) {
+        errors.descripcion = "La descripción del subevento es obligatoria";
+      } else if (subevento.descripcion.trim().length > 500) {
+        errors.descripcion =
+          "La descripción del subevento no debe exceder los 500 caracteres";
+      }
     }
 
     if (!subevento.fecha) {
@@ -196,6 +203,7 @@ function validarSubeventos(
 }
 
 export function SolicitudEvento() {
+  const navigate = useNavigate();
   const [form, setForm] = useState<FormularioSolicitudData>({
     nombre: "",
     idAlcance: "",
@@ -204,6 +212,17 @@ export function SolicitudEvento() {
     rutaPoster: null,
     subEventos: [crearSubevento()],
   });
+
+  const volverAlMenu = () => {
+  const usuario = JSON.parse(localStorage.getItem("usuario") ?? "{}");
+  const tipoCuenta = String(usuario.tipoCuenta ?? "").toLowerCase();
+
+  navigate(
+    tipoCuenta.includes("subdirección") || tipoCuenta.includes("subdireccion")
+      ? "/subdireccion/menu-principal"
+      : "/organizador/mis-eventos",
+  );
+};
 
   const [touched, setTouched] = useState<CamposTocados>({});
   const [subeventTouched, setSubeventTouched] = useState<
@@ -217,9 +236,46 @@ export function SolicitudEvento() {
   const [mensajeError, setMensajeError] = useState("");
   const [modalUrgente, setModalUrgente] = useState(false);
   const [motivoUrgente, setMotivoUrgente] = useState("");
+  const [estadoVerificacion, setEstadoVerificacion] = useState<
+    "cargando" | "verificado" | "requerida" | "error"
+  >("cargando");
+  const [errorVerificacion, setErrorVerificacion] = useState("");
   const errors = validarFormulario(form);
   const subeventErrors = validarSubeventos(form.subEventos);
-  const navigate = useNavigate();
+
+  useEffect(() => {
+    const controller = new AbortController();
+    const verificarCuenta = async () => {
+      if (!localStorage.getItem("token")) {
+        setErrorVerificacion("No hay una sesión iniciada.");
+        setEstadoVerificacion("error");
+        return;
+      }
+
+      try {
+        const perfil = await apiRequest<EstadoPerfilVerificacion>(
+          "usuarios/perfil",
+          { signal: controller.signal },
+        );
+        if (controller.signal.aborted) return;
+
+        const verificado =
+          perfil.cuenta === "Verificado" || perfil.verificacionVigente === true;
+        setEstadoVerificacion(verificado ? "verificado" : "requerida");
+      } catch (error) {
+        if (controller.signal.aborted) return;
+        setErrorVerificacion(
+          error instanceof Error
+            ? error.message
+            : "No se pudo consultar el estado de verificación.",
+        );
+        setEstadoVerificacion("error");
+      }
+    };
+
+    void verificarCuenta();
+    return () => controller.abort();
+  }, []);
 
   const updateField = (field: CampoTextoFormulario, value: string) =>
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -298,11 +354,18 @@ export function SolicitudEvento() {
   };
 
   const addSubevento = () => {
+    if (form.subEventos.length >= MAX_SUBEVENTOS) return;
+
     setForm((prev) => ({
       ...prev,
-      subEventos: [...prev.subEventos, crearSubevento()],
+      subEventos:
+        prev.subEventos.length >= MAX_SUBEVENTOS
+          ? prev.subEventos
+          : [...prev.subEventos, crearSubevento()],
     }));
-    setSubeventTouched((prev) => [...prev, {}]);
+    setSubeventTouched((prev) =>
+      prev.length >= MAX_SUBEVENTOS ? prev : [...prev, {}],
+    );
   };
 
   const removeSubevento = (index: number) => {
@@ -319,12 +382,8 @@ export function SolicitudEvento() {
 
   const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    const usuario = JSON.parse(localStorage.getItem("usuario") ?? "null");
-    if (usuario?.esVerificado !== EstadoVerificacion.VERIFICADO) {
-      setMensajeError(
-        "Tu cuenta debe estar verificada para solicitar un evento.",
-      );
-      setModal("error");
+    if (estadoVerificacion !== "verificado") {
+      setEstadoVerificacion("requerida");
       return;
     }
     setMensajeError("");
@@ -368,6 +427,12 @@ export function SolicitudEvento() {
   };
 
   const confirmarModal = async () => {
+    if (estadoVerificacion !== "verificado") {
+      setEstadoVerificacion("requerida");
+      setModal(null);
+      return;
+    }
+
     setMensajeError("");
     setModal(null);
 
@@ -382,8 +447,14 @@ export function SolicitudEvento() {
       JSON.stringify(
         form.subEventos.map(
           (subevento): SubeventoPayload => ({
-            nombre: subevento.nombre,
-            descripcion: subevento.descripcion,
+            nombre:
+              form.subEventos.length === 1
+                ? form.nombre.trim()
+                : subevento.nombre.trim(),
+            descripcion:
+              form.subEventos.length === 1
+                ? form.descripcion.trim()
+                : subevento.descripcion.trim(),
             idRecinto: subevento.idRecinto,
             fecha: subevento.fecha,
             horaInicio: subevento.horaInicio,
@@ -433,114 +504,142 @@ export function SolicitudEvento() {
     setModal("exito");
   };
 
+  if (estadoVerificacion === "cargando") {
+    return (
+      <p role="status" className="mx-auto w-full max-w-8xl px-4 py-8">
+        Verificando el estado de tu cuenta...
+      </p>
+    );
+  }
+
   return (
     <section className="mx-auto w-full max-w-8xl space-y-6 px-4 sm:px-6 lg:px-8">
       <div
         id="contenedorReturn"
         className="flex gap-2 cursor-pointer"
-        onClick={() => navigate(`/subdireccion/menu-principal`)}>
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          width="24"
-          height="24"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-          className="lucide lucide-undo-2 preview-icon">
-          <path d="M9 14 4 9l5-5" />
-          <path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5a5.5 5.5 0 0 1-5.5 5.5H11" />
-        </svg>
+        onClick={volverAlMenu}>
+        <ArrowLeft size={20}></ArrowLeft>
         <span>Volver</span>
       </div>
       <h1 className="font-merriweather text-2xl font-bold sm:text-[36px]">
         Solicitud de evento
       </h1>
-      <form onSubmit={handleSubmit} className="space-y-7">
-        <SeccionDatosEvento
-          form={form}
-          actualizarCampo={updateField}
-          actualizarPoster={updatePoster}
-          errores={errors}
-          touched={touched}
-          esTocado={markTouched}
-        />
-        <SeccionSubeventos
-          subEventos={form.subEventos}
-          erroresSubeventos={subeventErrors}
-          subeventoTocado={subeventTouched}
-          updateSubevento={updateSubevento}
-          markSubeventoTouched={markSubeventoTouched}
-          addSubevento={addSubevento}
-          removeSubevento={removeSubevento}
-        />
-        <div className="flex sm:justify-start">
-          <Button
-            text="Solicitar evento"
-            type="submit"
-            className="w-full sm:w-auto"
+      {estadoVerificacion === "verificado" && (
+        <form onSubmit={handleSubmit} className="space-y-7">
+          <SeccionDatosEvento
+            form={form}
+            actualizarCampo={updateField}
+            actualizarPoster={updatePoster}
+            errores={errors}
+            touched={touched}
+            esTocado={markTouched}
           />
-        </div>
+          <SeccionSubeventos
+            subEventos={form.subEventos}
+            erroresSubeventos={subeventErrors}
+            subeventoTocado={subeventTouched}
+            updateSubevento={updateSubevento}
+            markSubeventoTouched={markSubeventoTouched}
+            addSubevento={addSubevento}
+            removeSubevento={removeSubevento}
+          />
+          <div className="flex sm:justify-start">
+            <Button
+              text="Solicitar evento"
+              type="submit"
+              className="w-full sm:w-auto"
+            />
+          </div>
 
-        <Modal
-          titulo={
-            modal === "error"
-              ? `Error`
-              : modal === "exito"
-                ? `Operación exitosa`
-                : `Confirmar solicitud`
-          }
-          contenido={
-            modal === "error"
-              ? mensajeError ||
-                "Por favor, completa todos los campos obligatorios resaltados para continuar"
-              : modal === "exito"
-                ? "La solicitud se ha procesado éxitosamente y será evaluada por Subdirección de Servicios Académicos"
-                : "¿Desea enviar la solicitud de este evento?"
-          }
-          mostrarModal={modal !== null}
-          cerrarModal={() => setModal(null)}>
-          <div className="flex flex-col-reverse justify-end gap-3 sm:flex-row">
-            {modal === "error" || modal === "exito" ? (
-              <Button
-                text="Aceptar"
-                onClick={() => setModal(null)}
-                className="w-full sm:w-auto"
-              />
-            ) : (
-              <>
+          <Modal
+            titulo={
+              modal === "error"
+                ? `Error`
+                : modal === "exito"
+                  ? `Operación exitosa`
+                  : `Confirmar solicitud`
+            }
+            contenido={
+              modal === "error"
+                ? mensajeError ||
+                  "Por favor, completa todos los campos obligatorios resaltados para continuar"
+                : modal === "exito"
+                  ? "La solicitud se ha procesado éxitosamente y será evaluada por Subdirección de Servicios Académicos"
+                  : "¿Desea enviar la solicitud de este evento?"
+            }
+            mostrarModal={modal !== null}
+            cerrarModal={() => setModal(null)}>
+            <div className="flex flex-col-reverse justify-end gap-3 sm:flex-row">
+              {modal === "error" || modal === "exito" ? (
                 <Button
-                  text="Cancelar"
-                  variant="danger"
+                  text="Aceptar"
                   onClick={() => setModal(null)}
                   className="w-full sm:w-auto"
                 />
-                <Button
-                  text="Aceptar"
-                  variant="success"
-                  onClick={confirmarModal}
-                  className="w-full sm:w-auto"
-                />
-              </>
-            )}
-          </div>
-        </Modal>
+              ) : (
+                <>
+                  <Button
+                    text="Cancelar"
+                    variant="danger"
+                    onClick={() => setModal(null)}
+                    className="w-full sm:w-auto"
+                  />
+                  <Button
+                    text="Aceptar"
+                    variant="success"
+                    onClick={confirmarModal}
+                    className="w-full sm:w-auto"
+                  />
+                </>
+              )}
+            </div>
+          </Modal>
 
-        {modalUrgente && (
-          <ModalMotivoUrgente
-            mostrar={modalUrgente}
-            motivo={motivoUrgente}
-            onMotivoChange={setMotivoUrgente}
-            cerrar={() => setModalUrgente(false)}
-            continuar={() => {
-              setModalUrgente(false);
-              setModal("confirmacion");
-            }}
+          {modalUrgente && (
+            <ModalMotivoUrgente
+              mostrar={modalUrgente}
+              motivo={motivoUrgente}
+              onMotivoChange={setMotivoUrgente}
+              cerrar={() => setModalUrgente(false)}
+              continuar={() => {
+                setModalUrgente(false);
+                setModal("confirmacion");
+              }}
+            />
+          )}
+        </form>
+      )}
+      <Modal
+        titulo={
+          estadoVerificacion === "requerida"
+            ? "Verificación necesaria"
+            : "No se pudo verificar tu cuenta"
+        }
+        contenido={
+          estadoVerificacion === "requerida"
+            ? "Necesitas tener tu cuenta verificada para solicitar un evento. Verifica tu identidad para continuar."
+            : errorVerificacion
+        }
+        mostrarModal={
+          estadoVerificacion === "requerida" || estadoVerificacion === "error"
+        }
+        cerrarModal={() => navigate("/perfil")}>
+        <div className="flex justify-end gap-3">
+          <Button
+            text="Ir a mi perfil"
+            variant="secondary"
+            type="button"
+            onClick={() => navigate("/perfil")}
           />
-        )}
-      </form>
+          {estadoVerificacion === "requerida" && (
+            <Button
+              text="Ir a verificación"
+              type="button"
+              onClick={() => navigate("/verificacion")}
+            />
+          )}
+        </div>
+      </Modal>
     </section>
   );
 }

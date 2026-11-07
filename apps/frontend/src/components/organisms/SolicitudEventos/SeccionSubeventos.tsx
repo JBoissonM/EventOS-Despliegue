@@ -4,6 +4,8 @@ import { FormHeader } from "../../molecules/FormHeader";
 import type { PropsSubeventosFormulario } from "../../../features/events/SolicitudEventos";
 import { CardSubevento } from "./CardSubevento";
 
+const MAX_SUBEVENTOS = 10;
+
 export function SeccionSubeventos({
   subEventos,
   erroresSubeventos: subeventErrors,
@@ -41,7 +43,11 @@ export function SeccionSubeventos({
     <section className="space-y-5 sm:space-y-6 rounded-xl border border-gray-200 shadow-md p-5 bg-white">
       <FormHeader
         titulo="Fecha y lugar del evento"
-        descripcion="Selecciona el recinto, la fecha, el horario y la modalidad de acceso. El sistema validará que el espacio no esté ocupado en ese horario. Si tu evento dura varios días o tiene varias sesiones, usa el botón [Agregar nueva fecha] para registrar cada bloque."
+        descripcion={`Selecciona el recinto, la fecha, el horario y la modalidad de acceso. El sistema validará que el espacio no esté ocupado en ese horario. Si tu evento dura varios días o tiene varias sesiones, usa el botón [Agregar nueva fecha] para registrar cada bloque. ${
+          subEventos.length === 1
+            ? "Con una sola fecha, el nombre y la descripción del subevento serán los mismos que los del evento."
+            : "Con varias fechas, cada subevento debe tener su propio nombre y descripción."
+        }`}
       />
 
       {subEventos.map((subevento, index) => {
@@ -66,6 +72,7 @@ export function SeccionSubeventos({
                 updateSubevento={updateSubevento}
                 markSubeventoTouched={markSubeventoTouched}
                 canRemove={subEventos.length > 1}
+                canEdit={subEventos.length > 1}
                 isDeleting={isDeleting}
                 onRemove={() => handleRemove(subevento.id)}
               />              
@@ -73,13 +80,13 @@ export function SeccionSubeventos({
           </div>
         );
       })}
-
       <div className="flex justify-stretch sm:justify-end">
         <Button
           text="Agregar nueva fecha"
           id="botonAgregarFecha"
           type="button"
           className="w-full sm:w-auto"
+          disabled={subEventos.length >= MAX_SUBEVENTOS}
           onClick={addSubevento}
         />
       </div>

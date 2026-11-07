@@ -36,6 +36,7 @@ type CardSubeventoProps = CardSubeventoBaseProps &
         markSubeventoTouched: (index: number, field: CampoSubevento) => void;
         onRemove: () => void;
         canRemove: boolean;
+        canEdit: boolean;
       }
   );
 
@@ -281,10 +282,10 @@ export function CardSubevento(props: CardSubeventoProps) {
         required={subevento.idRecinto !== RecintoId.SALA_14}
         errorMessage={touched.accesoQR ? errors.accesoQR : undefined}
         mensajeAyuda={
-          subevento.idRecinto === RecintoId.SALA_14 
+          subevento.idRecinto === RecintoId.SALA_14
             ? "Al elegir la sala 14 automáticamente el acceso es libre"
             : subevento.idRecinto === RecintoId.LABORATORIO_A ||
-                subevento.idRecinto === RecintoId.LABORATORIO_B 
+                subevento.idRecinto === RecintoId.LABORATORIO_B
               ? "Al elegir un laboratorio el cupo pasa a ser limitado"
               : ""
         }>
@@ -329,7 +330,7 @@ export function CardSubevento(props: CardSubeventoProps) {
         )}
         {!readOnly && (
           <Button
-            text="Ver detalles de espacio"
+            text="Ver detalles del laboratorio"
             type="button"
             disabled={
               subevento.idRecinto === RecintoId.SALA_14 ||
@@ -353,13 +354,17 @@ export function CardSubevento(props: CardSubeventoProps) {
       />
       {!readOnly && (
         <div className="col-span-full flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <Button
-            text="Nombre y descripción del subevento"
-            id={`botonVerInformacion-${subevento.id}`}
-            type="button"
-            className="w-full sm:w-auto"
-            onClick={() => setMostrarModalSubevento(true)}
-          />
+          {props.canEdit && index > 0 ? (
+            <Button
+              text="Nombre y descripción del subevento"
+              id={`botonVerInformacion-${subevento.id}`}
+              type="button"
+              className="w-full sm:w-auto"
+              onClick={() => setMostrarModalSubevento(true)}
+            />
+          ) : (
+            <div className="hidden sm:block sm:flex-1" aria-hidden="true" />
+          )}
           <ModalSubevento
             mostrar={mostrarModalSubevento}
             nombre={subevento.nombre}
