@@ -1,185 +1,342 @@
-import React, { useState, useEffect } from "react";
-import { Button } from "../../components/atoms/Button/Button";
-import { Calendar } from "lucide-react";
+import { useMemo, useState } from "react";
+import { Link, useNavigate } from "react-router";
+import { CatalogEventCard } from "../event-catalog/components/CatalogEventCard";
+import { useEventCatalog } from "../event-catalog/hooks/useEventCatalog";
+import { TicketCard } from "../tickets/components/molecules/TicketCard";
+import { EstadoSubEvento } from "@eventos/shared";
+import { useMyTickets } from "../tickets/hooks/useMyTickets";
+import { ticketsService } from "../tickets/services/tickets.service";
+import { mapTicketToCard } from "../tickets/utils/mapTicketToCard";
+import { ConfirmationDialog } from "../../components/organisms/ConfirmationDialog/ConfirmationDialog";
+import { ApiError } from "../../lib/apiClient";
 
 export function MenuAsistente() {
-  const [eventosProximos, setEventosProximos] = useState<any[]>([]);
-  const [miAgenda, setMiAgenda] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
+  const { events, status, error, retry } = useEventCatalog();
+  const agenda = useMyTickets();
 
-  useEffect(() => {
-    // Prueba con datos precargados
-    setTimeout(() => {
-      setEventosProximos([
-        {
-          id: 1,
-          titulo: "Numeros Complejos",
-          imagen: "https://images.unsplash.com/photo-1635070041078-e363dbe005cb?w=500&auto=format&fit=crop&q=60",
-          fecha: "28/10/2026",
-          horario: "10:00-12:00hrs",
-          espacio: "Auditorio",
-          tipo: "Público",
-        },
-        {
-            id: 2,
-            titulo: "Economía Circular",
-            imagen: "https://images.unsplash.com/photo-1542601906990-b4d3fb778b09?w=500&auto=format&fit=crop&q=60",
-            fecha: "29/10/2026",
-            horario: "15:00-19:00hrs",
-            espacio: "Sala 14",
-            tipo: "Público",
-        },
-        {
-            id: 3,
-            titulo: "Taller de Computación",
-            imagen: "https://images.unsplash.com/photo-1517694712202-14dd9538aa97?w=500&auto=format&fit=crop&q=60",
-            fecha: "30/10/2026",
-            horario: "10:00-13:00hrs",
-            espacio: "Laboratorio 1105",
-            tipo: "Público",
-        },    
-      ]);
-      
-      setMiAgenda([
-        {
-            id: 1,
-            subtitulo: "Feria de Sistemas Computacionales",
-            titulo: "Taller IA",
-            imagen: "https://images.unsplash.com/photo-1531482615713-2afd69097998?w=500&auto=format&fit=crop&q=60",
-            fecha: "28/10/2026",
-            horario: "17:00-18:00 hrs",
-            espacio: "Laboratorio 1104",
-            tipo: "Público",
-            estado: "Activo",
-        },
-      ]); 
-      
-      setLoading(false);
-    }, 500);
-  }, []);
+  const [selectedTicketId, setSelectedTicketId] = useState<string | null>(null);
+  const [isCancelling, setIsCancelling] = useState(false);
+  const [cancelError, setCancelError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
-  if (loading) {
-    return <div className="p-8 text-center font-merriweather text-gray-600">Cargando menú...</div>;
-  }
+
+  const eventosProximos = useMemo(() => {
+    const partes = new Intl.DateTimeFormat("en-US", {
+      timeZone: "America/Mexico_City",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      hourCycle: "h23",
+    }).formatToParts(new Date());
+
+    const obtenerParte = (tipo: string) =>
+      partes.find((parte) => parte.type === tipo)?.value ?? "00";
+
+    const fechaActual = `${obtenerParte("year")}-${obtenerParte("month")}-${obtenerParte("day")}`;
+    const horaActual = `${obtenerParte("hour")}:${obtenerParte("minute")}`;
+
+    return events
+      .flatMap((evento) => {
+        const actividadesVigentes = (evento.subEventos ?? [])
+          .filter((actividad) => {
+            if (actividad.estado === EstadoSubEvento.CANCELADO) {
+              return false;
+            }
+
+            const fecha = actividad.fecha?.fecha?.slice(0, 10);
+            const horaFin = actividad.fecha?.horaFin?.slice(0, 5);
+
+            if (!fecha || !horaFin) {
+              return false;
+            }
+
+            return (
+              fecha > fechaActual ||
+              (fecha === fechaActual && horaFin > horaActual)
+            );
+          })
+          .map((actividad) => ({
+            actividad,
+            orden: `${actividad.fecha?.fecha?.slice(0, 10) ?? ""}T${actividad.fecha?.horaInicio?.slice(0, 5) ?? ""}`,
+          }))
+          .sort((primera, segunda) =>
+            primera.orden.localeCompare(segunda.orden),
+          );
+
+        if (actividadesVigentes.length === 0) {
+          return [];
+        }
+
+        return [
+          {
+            evento: {
+              ...evento,
+              subEventos: actividadesVigentes.map(
+                ({ actividad }) => actividad,
+              ),
+            },
+            siguienteActividad: actividadesVigentes[0].orden,
+          },
+        ];
+      })
+      .sort(
+        (primero, segundo) =>
+          primero.siguienteActividad.localeCompare(
+            segundo.siguienteActividad,
+          ) || primero.evento.idEvento - segundo.evento.idEvento,
+      )
+      .slice(0, 3)
+      .map(({ evento }) => evento);
+  }, [events]);
+
+  const agendaItems = useMemo(() => {
+    const partes = new Intl.DateTimeFormat("en-US", {
+      timeZone: "America/Mexico_City",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      hourCycle: "h23",
+    }).formatToParts(new Date());
+
+    const obtenerParte = (tipo: string) =>
+      partes.find((parte) => parte.type === tipo)?.value ?? "00";
+
+    const fechaActual = `${obtenerParte("year")}-${obtenerParte("month")}-${obtenerParte("day")}`;
+    const horaActual = `${obtenerParte("hour")}:${obtenerParte("minute")}`;
+
+    return agenda.tickets
+      .map(mapTicketToCard)
+      .filter((ticket) => {
+        if (ticket.status !== "active" || !ticket.dateIso) {
+          return false;
+        }
+
+        return (
+          ticket.dateIso > fechaActual ||
+          (ticket.dateIso === fechaActual && ticket.endTime > horaActual)
+        );
+      })
+      .sort(
+        (primero, segundo) =>
+          primero.dateIso!.localeCompare(segundo.dateIso!) ||
+          primero.startTime.localeCompare(segundo.startTime),
+      )
+      .slice(0, 3);
+  }, [agenda.tickets]);
+
+  const selectedTicket = agendaItems.find(
+    (ticket) => ticket.id === selectedTicketId,
+  );
+
+  const confirmCancel = async () => {
+    if (!selectedTicket || isCancelling) return;
+
+    setIsCancelling(true);
+    setCancelError(null);
+    setSuccessMessage(null);
+
+    try {
+      await ticketsService.cancelTicket(Number(selectedTicket.id));
+      setSelectedTicketId(null);
+      setSuccessMessage("Tu asistencia se canceló correctamente.");
+      agenda.refresh();
+    } catch (cause: unknown) {
+      setCancelError(
+        cause instanceof ApiError
+          ? cause.message
+          : "No fue posible cancelar tu asistencia. Intenta nuevamente.",
+      );
+      setSelectedTicketId(null);
+    } finally {
+      setIsCancelling(false);
+    }
+  };
 
   return (
-    <div className="space-y-10 font-merriweather text-gray-800">
-      
+    <div className="space-y-10 font-merriweather text-eventos-body-text">
       <section>
-        <h2 className="text-xl font-bold text-gray-900 mb-6 font-merriweather">
-          Eventos Próximos
-        </h2>
+        <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
+          <h2 className="text-xl font-bold text-eventos-ink">
+            Eventos Próximos
+          </h2>
 
-        {eventosProximos.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <Link
+            to="/asistente/cartelera"
+            className="text-sm font-semibold text-eventos-primary underline-offset-4 hover:underline"
+          >
+            Ver cartelera completa
+          </Link>
+        </div>
+
+        {status === "loading" && (
+          <p
+            role="status"
+            className="py-8 text-center text-eventos-muted-text"
+          >
+            Cargando eventos próximos...
+          </p>
+        )}
+
+        {status === "error" && (
+          <div
+            role="alert"
+            className="flex flex-col items-center gap-3 rounded-lg border border-eventos-panel-border p-8 text-center"
+          >
+            <p>{error}</p>
+
+            <button
+              type="button"
+              onClick={retry}
+              className="rounded-md bg-eventos-primary px-4 py-2 text-sm font-semibold text-eventos-on-primary hover:bg-eventos-action-hover"
+            >
+              Reintentar
+            </button>
+          </div>
+        )}
+
+        {status === "success" && eventosProximos.length > 0 && (
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
             {eventosProximos.map((evento) => (
-              <div 
-                key={evento.id} 
-                className="bg-white rounded-md border border-gray-300 shadow-sm overflow-hidden flex flex-col justify-between p-4"
-              >
-                <div>
-                  <div className="h-40 w-full mb-4 overflow-hidden rounded bg-gray-100">
-                    <img src={evento.imagen} alt={evento.titulo} className="w-full h-full object-cover" />
-                  </div>
-                  <div className="mb-2">
-                    <span className="inline-block bg-[#f9ebee] text-[#8a3b53] text-xs font-semibold px-2.5 py-0.5 rounded border border-[#e6d0d5]">
-                      {evento.tipo}
-                    </span>
-                  </div>
-                  <h3 className="font-bold text-lg text-gray-900 mb-3 font-merriweather">
-                    {evento.titulo}
-                  </h3>
-                  <div className="text-xs text-gray-600 space-y-1 mb-6">
-                    <p><span className="font-semibold">Fecha:</span> {evento.fecha}</p>
-                    <p><span className="font-semibold">Horario:</span> {evento.horario}</p>
-                    <p><span className="font-semibold">Espacio:</span> {evento.espacio}</p>
-                  </div>
-                </div>
-                <div className="flex justify-end">
-                  <Button 
-                    text="Ver detalles" 
-                    variant="primary" 
-                    size="sm"
-                    className="bg-primary hover:bg-[#4a1c2d] text-white text-xs px-4 py-2 rounded"
-                    onClick={() => console.log(`Ver detalles de ${evento.titulo}`)}
-                  />
-                </div>
-              </div>
+              <CatalogEventCard
+                key={evento.idEvento}
+                event={evento}
+                headingLevel="h3"
+              />
             ))}
           </div>
-        ) : (
-          <div className="flex flex-col items-center justify-center py-12 bg-white rounded-lg border border-dashed border-gray-300 shadow-sm">
-            <Calendar className="w-14 h-14 text-gray-700 mb-3" />
-            <p className="font-bold text-lg text-gray-900 font-merriweather">Sin eventos próximos</p>
+        )}
+
+        {status === "success" && eventosProximos.length === 0 && (
+          <div className="rounded-xl border border-dashed border-eventos-panel-border bg-eventos-surface px-5 py-12 text-center">
+            <p className="text-lg font-bold text-eventos-ink">
+              Sin eventos próximos
+            </p>
+
+            <Link
+              to="/asistente/cartelera"
+              className="mt-3 inline-block text-sm font-semibold text-eventos-primary hover:underline"
+            >
+              Ir a la cartelera
+            </Link>
           </div>
         )}
       </section>
 
-      <section className="pt-4">
-        <h2 className="text-xl font-bold text-gray-900 mb-6 font-merriweather">
-          Mi Agenda
-        </h2>
+      <section className="space-y-5 pt-4">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <h2 className="text-xl font-bold text-eventos-ink">
+            Mi Agenda
+          </h2>
 
-        {miAgenda.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {miAgenda.map((agenda) => (
-              <div 
-                key={agenda.id} 
-                className="bg-white rounded-md border border-gray-300 shadow-sm overflow-hidden flex flex-col justify-between p-4"
-              >
-                <div>
-                  <div className="h-40 w-full mb-4 overflow-hidden rounded bg-gray-100">
-                    <img src={agenda.imagen} alt={agenda.titulo} className="w-full h-full object-cover" />
-                  </div>
-                  
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="inline-block bg-[#f9ebee] text-[#8a3b53] text-xs font-semibold px-2.5 py-0.5 rounded border border-[#e6d0d5]">
-                      {agenda.tipo}
-                    </span>
-                    <span className="inline-block bg-emerald-100 text-emerald-800 text-xs font-semibold px-2.5 py-0.5 rounded border border-emerald-200">
-                      {agenda.estado}
-                    </span>
-                  </div>
+          <Link
+            to="/asistente/boletos"
+            className="text-sm font-semibold text-eventos-primary underline-offset-4 hover:underline"
+          >
+            Ver mis boletos
+          </Link>
+        </div>
 
-                  <p className="text-xs text-teal-800 font-medium mb-1">{agenda.subtitulo}</p>
-                  <h3 className="font-bold text-lg text-gray-900 mb-3 font-merriweather">
-                    {agenda.titulo}
-                  </h3>
-                  <div className="text-xs text-gray-600 space-y-1 mb-6">
-                    <p><span className="font-semibold">Fecha:</span> {agenda.fecha}</p>
-                    <p><span className="font-semibold">Horario:</span> {agenda.horario}</p>
-                    <p><span className="font-semibold">Espacio:</span> {agenda.espacio}</p>
-                  </div>
-                </div>
+        {cancelError && (
+          <p
+            role="alert"
+            className="rounded-lg border border-eventos-error p-3 text-sm text-eventos-error"
+          >
+            {cancelError}
+          </p>
+        )}
 
-                <div className="flex items-center justify-between gap-2 pt-2">
-                  <Button 
-                    text="Ver QR" 
-                    variant="primary" 
-                    size="sm"
-                    className="bg-primary hover:bg-[#4a1c2d] text-white text-xs px-3 py-1.5 rounded w-auto"
-                    onClick={() => console.log("Ver QR")}
-                  />
-                  <Button 
-                    text="Cancelar Asistencia" 
-                    variant="primary" 
-                    size="sm"
-                    className="bg-primary hover:bg-[#4a1c2d] text-white text-xs px-3 py-1.5 rounded w-auto"
-                    onClick={() => console.log("Cancelar Asistencia")}
-                  />
-                </div>
-              </div>
+        {successMessage && (
+          <p
+            role="status"
+            className="rounded-lg border border-eventos-success p-3 text-sm text-eventos-success"
+          >
+            {successMessage}
+          </p>
+        )}
+
+        {agenda.status === "loading" && (
+          <p
+            role="status"
+            className="py-8 text-center text-eventos-muted-text"
+          >
+            Cargando tu agenda...
+          </p>
+        )}
+
+        {agenda.status === "error" && (
+          <div
+            role="alert"
+            className="flex flex-col items-center gap-3 rounded-lg border border-eventos-panel-border p-8 text-center"
+          >
+            <p>{agenda.error}</p>
+
+            <button
+              type="button"
+              onClick={agenda.refresh}
+              className="rounded-md bg-eventos-primary px-4 py-2 text-sm font-semibold text-eventos-on-primary hover:bg-eventos-action-hover"
+            >
+              Reintentar
+            </button>
+          </div>
+        )}
+
+        {agenda.status === "success" && agendaItems.length > 0 && (
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
+            {agendaItems.map((ticket) => (
+              <TicketCard
+                key={ticket.id}
+                {...ticket}
+                onViewQr={() =>
+                  navigate(`/asistente/boletos/${ticket.id}`)
+                }
+                onCancel={() => {
+                  setCancelError(null);
+                  setSuccessMessage(null);
+                  setSelectedTicketId(ticket.id);
+                }}
+              />
             ))}
           </div>
-        ) : (
-          <div className="flex flex-col items-center justify-center py-12 bg-white rounded-lg border border-dashed border-gray-300 shadow-sm">
-            <Calendar className="w-14 h-14 text-gray-700 mb-3" />
-            <p className="font-bold text-lg text-gray-900 font-merriweather">Sin eventos agendados</p>
-            <p className="text-xs text-gray-500 mt-1 font-merriweather">Explora los eventos disponibles y regístrate</p>
+        )}
+
+        {agenda.status === "success" && agendaItems.length === 0 && (
+          <div className="rounded-xl border border-dashed border-eventos-panel-border bg-eventos-surface px-5 py-12 text-center">
+            <p className="text-lg font-bold text-eventos-ink">
+              Sin eventos agendados
+            </p>
+
+            <p className="mt-2 text-sm text-eventos-muted-text">
+              No tienes asistencias activas próximas.
+            </p>
+
+            <Link
+              to="/asistente/cartelera"
+              className="mt-3 inline-block text-sm font-semibold text-eventos-primary hover:underline"
+            >
+              Explorar eventos
+            </Link>
           </div>
         )}
       </section>
 
+      <ConfirmationDialog
+        isOpen={Boolean(selectedTicket)}
+        title="Cancelar asistencia"
+        description={`¿Estás seguro de que deseas cancelar tu asistencia a ${selectedTicket?.subEventName ?? selectedTicket?.eventName ?? "esta actividad"}? Esta acción liberará tu lugar.`}
+        confirmText="Confirmar cancelación"
+        cancelText="Volver"
+        variant="danger"
+        isLoading={isCancelling}
+        onConfirm={() => void confirmCancel()}
+        onCancel={() => {
+          if (!isCancelling) setSelectedTicketId(null);
+        }}
+      />
     </div>
   );
 }
