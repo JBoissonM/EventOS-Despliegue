@@ -415,7 +415,7 @@ export function SolicitudEvento() {
 
     const hayFechaUrgente = form.subEventos.some((subevento) => {
       const dias = diferenciaFechas(subevento.fecha);
-      return dias !== null && dias >= 0 && dias < 7;
+      return dias !== null && dias >= 0 && dias <= 7;
     });
 
     if (hayFechaUrgente) {
