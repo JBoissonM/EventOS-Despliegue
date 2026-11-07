@@ -442,6 +442,9 @@ export function SolicitudEvento() {
     datos.append("descripcion", form.descripcion.trim());
     datos.append("justificacion", form.justificacion.trim());
     datos.append("idAlcance", form.idAlcance);
+    if (motivoUrgente.trim()) {
+      datos.append("motivoUrgencia", motivoUrgente.trim());
+    }
     datos.append(
       "subeventos",
       JSON.stringify(
@@ -500,6 +503,7 @@ export function SolicitudEvento() {
     });
     setTouched({});
     setSubeventTouched([{}]);
+    setMotivoUrgente("");
     setMensajeError("");
     setModal("exito");
   };
