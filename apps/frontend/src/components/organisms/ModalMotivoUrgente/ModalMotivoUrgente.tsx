@@ -7,6 +7,8 @@ import Button from "../../atoms/Button/Button";
 export interface ModalMotivoUrgenteProps {
   mostrar: boolean;
   motivo: string;
+  maxLength?: number;
+  contenido?: string;
   onMotivoChange: (motivo: string) => void;
   cerrar: () => void;
   continuar: () => void;
@@ -16,11 +18,13 @@ export function ModalMotivoUrgente({
   mostrar,
   cerrar,
   motivo,
+  maxLength = 500,
+  contenido = "Debido a que la fecha de inicio de su evento se encuentra dentro de los próximos 7 días, deberá ingresar los motivos por los cuales su solicitud se realiza con carácter de urgencia.",
   onMotivoChange,
   continuar,
 }: ModalMotivoUrgenteProps) {
   const [intentoContinuar, setIntentoContinuar] = useState(false);
-  const motivoInvalido = !motivo.trim();
+  const motivoInvalido = !motivo.trim() || motivo.length > maxLength;
 
   const handleContinuar = () => {
     setIntentoContinuar(true);
@@ -34,17 +38,17 @@ export function ModalMotivoUrgente({
   return (
     <Modal
       titulo="Aviso"
-      contenido="Debido a que la fecha de inicio de su evento se encuentra dentro de los próximos 7 días, deberá ingresar  los motivos por los cuales su solicitud se realiza con carácter de urgencia."
+      contenido={contenido}
       mostrarModal={mostrar}
       cerrarModal={cerrar}>
       <div className="space-y-4">
         <FormField label="Motivo de la urgencia" required>
           <span id="ayudaMotivoUrgente" className="text-xs text-gray-600">
-            Máximo 500 caracteres.
+            Máximo {maxLength} caracteres.
           </span>
           <TextArea
             id="campoMotivoUrgente"
-            maxLength={500}
+            maxLength={maxLength}
             rows={4}
             className="resize-none h-50"
             value={motivo}
@@ -55,7 +59,9 @@ export function ModalMotivoUrgente({
           />
           {intentoContinuar && motivoInvalido && (
             <p role="alert" className="text-sm text-red-700">
-              Escribe el motivo de la urgencia para continuar.
+              {maxLength === 0
+                ? "Reduce el motivo de modificación para dejar espacio a la justificación de urgencia."
+                : "Escribe el motivo de la urgencia para continuar."}
             </p>
           )}
         </FormField>

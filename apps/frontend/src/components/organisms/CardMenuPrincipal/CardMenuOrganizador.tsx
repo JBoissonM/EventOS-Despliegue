@@ -98,7 +98,7 @@ export function CardMenuPrincipal({
           type="button"
           onClick={() => { tieneUnSubevento 
             ? navigate(`/organizador/administrar-evento/${idEvento}`)
-            : navigate(`/organizador/mis-eventos`)}}
+            : navigate(`/organizador/administrar-evento-subeventos/${idEvento}`)}}
             />
       </div>
     </article>

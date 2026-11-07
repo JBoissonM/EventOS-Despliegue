@@ -26,13 +26,48 @@ import { EventBanner } from "../event-details/components/molecules/EventBanner";
 import Badge from "../../components/atoms/Badge/Badge";
 import { FormField } from "../../components/molecules/FormField";
 import { Modal } from "../../components/molecules/Modal";
-import { ModalMotivo } from "./organism/ModalMotivo";
+import {
+  MARCADOR_MOTIVO_URGENCIA,
+  ModalMotivo,
+} from "./organism/ModalMotivo";
+import { ModalMotivoUrgente } from "../../components/organisms/ModalMotivoUrgente/ModalMotivoUrgente";
 
 type TablaPonente = {
   id: number;
   nombre: string;
   correo: string;
 };
+
+function separarMotivoUrgencia(motivo: string) {
+  const indice = motivo.lastIndexOf(MARCADOR_MOTIVO_URGENCIA);
+  if (indice < 0) {
+    return { motivoModificacion: motivo, motivoUrgente: "" };
+  }
+
+  return {
+    motivoModificacion: motivo.slice(0, indice),
+    motivoUrgente: motivo.slice(indice + MARCADOR_MOTIVO_URGENCIA.length),
+  };
+}
+
+function diasHastaFecha(fecha: string): number | null {
+  const [anio, mes, dia] = fecha.split("-").map(Number);
+  if (!anio || !mes || !dia) return null;
+
+  const hoy = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Mexico_City",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  })
+    .format(new Date())
+    .split("-")
+    .map(Number);
+
+  const fechaUTC = Date.UTC(anio, mes - 1, dia);
+  const hoyUTC = Date.UTC(hoy[0], hoy[1] - 1, hoy[2]);
+  return (fechaUTC - hoyUTC) / 86_400_000;
+}
 
 const columnasPonente: Columna<TablaPonente>[] = [
   {
@@ -41,12 +76,6 @@ const columnasPonente: Columna<TablaPonente>[] = [
     render: (ponente) => ponente.nombre,
     className: "min-w-[12rem] break-all px-3",
   },
-  /*  {
-    id: "correo",
-    encabezado: "Correo",
-    render: (ponente) => ponente.correo,
-    className: "min-w-[10rem] max-w-[10rem] break-all px-3",
-  }, */
   {
     id: "acciones",
     encabezado: "Acción",
@@ -82,13 +111,18 @@ function obtenerMensajeError(error: unknown): string {
 
 function obtenerValoresLogistica(
   evento: EventoOrganizadorDetalle,
+  idSubEvento?: number,
 ): EditLogisticsValues {
-  const subevento = evento.subEventos[0];
+  const subevento = idSubEvento
+    ? evento.subEventos.find((item) => item.idSubEvento === idSubEvento)
+    : evento.subEventos[0];
   if (!subevento) {
     throw new Error("El evento no tiene un subevento que se pueda modificar.");
   }
   const propuesta =
-    evento.solicitudModificacionPendiente?.subeventosPropuestos[0];
+    evento.solicitudModificacionPendiente?.subeventosPropuestos.find(
+      (item) => item.idSubEvento === subevento.idSubEvento,
+    );
 
   return {
     idRecinto: String(
@@ -120,7 +154,11 @@ function esEventoNoEditable(estado?: EstadoEvento): boolean {
 
 export function EditarEvento() {
   const navigate = useNavigate();
-  const { idEvento } = useParams();
+  const { idEvento, idSubEvento } = useParams();
+  const idSubEventoSeleccionado = idSubEvento ? Number(idSubEvento) : undefined;
+  const rutaAdministracion = idSubEventoSeleccionado
+    ? `/organizador/administrar-evento-subeventos/${idEvento}`
+    : `/organizador/administrar-evento/${idEvento}`;
   const [evento, setEvento] = useState<EventoOrganizadorDetalle | null>(null);
   const [recintos, setRecintos] = useState<Recinto[]>([]);
   const [agendaOcupada, setAgendaOcupada] = useState<HorarioOcupado[]>([]);
@@ -138,8 +176,10 @@ export function EditarEvento() {
   const [alcance, setAlcance] = useState<AlcanceEvento | "">("");
   const [mostrarModal, setMostrarModal] = useState(false);
   const [mostrarModalAviso, setMostrarModalAviso] = useState(false);
+  const [mostrarModalUrgente, setMostrarModalUrgente] = useState(false);
   const [mostrarModalRegreso, setMostrarModalRegreso] = useState(false);
   const [intentoMotivo, setIntentoMotivo] = useState(false);
+  const [motivoUrgente, setMotivoUrgente] = useState("");
   const [logistica, setLogistica] = useState<EditLogisticsValues>({
     idRecinto: "",
     fecha: "",
@@ -168,6 +208,14 @@ export function EditarEvento() {
         setCargando(false);
         return;
       }
+      if (
+        idSubEvento !== undefined &&
+        (!/^\d+$/.test(idSubEvento) || Number(idSubEvento) < 1)
+      ) {
+        setError("El ID del subevento no es válido.");
+        setCargando(false);
+        return;
+      }
       if (!localStorage.getItem("token")) {
         setError("Sesión no iniciada.");
         setCargando(false);
@@ -191,15 +239,49 @@ export function EditarEvento() {
           { signal: controller.signal },
         );
         if (controller.signal.aborted) return;
+        if (
+          idSubEventoSeleccionado !== undefined &&
+          !detalle.subEventos.some(
+            (item) => item.idSubEvento === idSubEventoSeleccionado,
+          )
+        ) {
+          throw new Error("El subevento no pertenece a este evento.");
+        }
 
         setEvento(detalle);
-        setNombre(detalle.nombre);
-        setDescripcion(detalle.descripcion);
+        const subeventoSeleccionado =
+          idSubEventoSeleccionado !== undefined
+            ? detalle.subEventos.find(
+                (item) => item.idSubEvento === idSubEventoSeleccionado,
+              )
+            : undefined;
+        const propuestaSubevento =
+          subeventoSeleccionado &&
+          detalle.solicitudModificacionPendiente?.subeventosPropuestos.find(
+            (item) => item.idSubEvento === subeventoSeleccionado.idSubEvento,
+          );
+        setNombre(propuestaSubevento?.nombre ?? subeventoSeleccionado?.nombre ?? detalle.nombre);
+        setDescripcion(
+          propuestaSubevento?.descripcion ??
+            subeventoSeleccionado?.descripcion ??
+            detalle.descripcion,
+        );
         setJustificacion(detalle.justificacion ?? "");
         setAlcance(detalle.idAlcance ?? "");
-        const valoresLogistica = obtenerValoresLogistica(detalle);
-        setLogistica(valoresLogistica);
-        setLogisticaInicial(valoresLogistica);
+        const valoresLogistica = obtenerValoresLogistica(
+          detalle,
+          idSubEventoSeleccionado,
+        );
+        const motivos = separarMotivoUrgencia(
+          valoresLogistica.motivoModificacion,
+        );
+        const valoresConMotivo = {
+          ...valoresLogistica,
+          motivoModificacion: motivos.motivoModificacion,
+        };
+        setLogistica(valoresConMotivo);
+        setLogisticaInicial(valoresConMotivo);
+        setMotivoUrgente(motivos.motivoUrgente);
         setArchivoPoster(null);
       } catch (errorCarga) {
         if (!controller.signal.aborted) {
@@ -215,7 +297,7 @@ export function EditarEvento() {
 
     void cargar();
     return () => controller.abort();
-  }, [idEvento]);
+  }, [idEvento, idSubEvento, idSubEventoSeleccionado]);
 
   useEffect(() => {
     if (!logistica.idRecinto || !logistica.fecha) {
@@ -258,7 +340,16 @@ export function EditarEvento() {
     return () => controller.abort();
   }, [idEvento, logistica.fecha, logistica.idRecinto]);
 
-  const subevento = evento?.subEventos[0] ?? null;
+  const subevento = idSubEventoSeleccionado
+    ? evento?.subEventos.find(
+        (item) => item.idSubEvento === idSubEventoSeleccionado,
+      ) ?? null
+    : evento?.subEventos[0] ?? null;
+  const subeventoPropuesto = idSubEventoSeleccionado
+    ? evento?.solicitudModificacionPendiente?.subeventosPropuestos.find(
+        (item) => item.idSubEvento === idSubEventoSeleccionado,
+      )
+    : undefined;
   const ponentes: TablaPonente[] =
     subevento?.ponentes.map((ponente) => ({
       id: ponente.idPonente,
@@ -276,11 +367,13 @@ export function EditarEvento() {
     null;
   const informacionGeneralModificada = Boolean(
     evento &&
-    (nombre !== evento.nombre ||
-      descripcion !== evento.descripcion ||
-      justificacion !== (evento.justificacion ?? "") ||
-      alcance !== (evento.idAlcance ?? "") ||
-      archivoPoster),
+    (idSubEventoSeleccionado === undefined
+      ? nombre !== evento.nombre ||
+        descripcion !== evento.descripcion ||
+        justificacion !== (evento.justificacion ?? "") ||
+        alcance !== (evento.idAlcance ?? "") ||
+        archivoPoster
+      : false),
   );
   const camposLogisticosModificados = Boolean(
     subevento &&
@@ -289,8 +382,26 @@ export function EditarEvento() {
       logistica.fecha !== logisticaInicial.fecha ||
       logistica.horaInicio !== logisticaInicial.horaInicio ||
       logistica.horaFin !== logisticaInicial.horaFin ||
-      logistica.accesoQR !== logisticaInicial.accesoQR),
+      logistica.accesoQR !== logisticaInicial.accesoQR ||
+      (idSubEventoSeleccionado !== undefined &&
+        (nombre !== (subeventoPropuesto?.nombre ?? subevento.nombre) ||
+          descripcion !==
+            (subeventoPropuesto?.descripcion ?? subevento.descripcion)))),
   );
+  const cambioLogisticoOperativo = Boolean(
+    subevento &&
+      logisticaInicial &&
+      (logistica.idRecinto !== logisticaInicial.idRecinto ||
+        logistica.fecha !== logisticaInicial.fecha ||
+        logistica.horaInicio !== logisticaInicial.horaInicio ||
+        logistica.horaFin !== logisticaInicial.horaFin),
+  );
+  const diasParaFechaPropuesta = diasHastaFecha(logistica.fecha);
+  const esModificacionUrgente =
+    cambioLogisticoOperativo &&
+    diasParaFechaPropuesta !== null &&
+    diasParaFechaPropuesta >= 0 &&
+    diasParaFechaPropuesta <= 7;
   const logisticaModificada =
     camposLogisticosModificados ||
     Boolean(
@@ -331,7 +442,11 @@ export function EditarEvento() {
     }
 
     setMostrarModal(false);
-    setMostrarModalAviso(true);
+    if (esModificacionUrgente) {
+      setMostrarModalUrgente(true);
+    } else {
+      setMostrarModalAviso(true);
+    }
   }
 
   function confirmarEnvioLogistica() {
@@ -351,16 +466,27 @@ export function EditarEvento() {
       return;
     }
 
-    if (!nombre.trim() || !descripcion.trim() || !justificacion.trim()) {
+    if (
+      !nombre.trim() ||
+      !descripcion.trim() ||
+      (idSubEventoSeleccionado === undefined && !justificacion.trim())
+    ) {
       setError(
         "Por favor, completa todos los campos obligatorios resaltados para continuar",
       );
+      return;
+    }
+    if (nombre.trim().length > 150) {
+      setError("El nombre no puede exceder 150 caracteres.");
       return;
     }
     if (descripcion.trim().length > 500) {
       setError("La descripción no puede exceder 500 caracteres.");
       return;
     }
+    const motivoModificacionCompleto = esModificacionUrgente
+      ? `${logistica.motivoModificacion.trim()}${MARCADOR_MOTIVO_URGENCIA}${motivoUrgente.trim()}`
+      : logistica.motivoModificacion.trim();
     if (logisticaModificada) {
       if (cargandoAgenda || errorAgenda) {
         setError(
@@ -395,6 +521,16 @@ export function EditarEvento() {
       ) {
         return;
       }
+      if (esModificacionUrgente && !motivoUrgente.trim()) {
+        setError("Escribe el motivo de urgencia para continuar.");
+        return;
+      }
+      if (motivoModificacionCompleto.length > 500) {
+        setError(
+          "Reduce el motivo de modificación o el de urgencia para que ambos no excedan 500 caracteres en total.",
+        );
+        return;
+      }
     }
 
     setMostrarModal(false);
@@ -404,8 +540,13 @@ export function EditarEvento() {
     try {
       if (informacionGeneralModificada) {
         const payload: ActualizarInfoGeneralPayload = {};
-        if (nombre !== evento.nombre) payload.nombre = nombre.trim();
-        if (descripcion !== evento.descripcion) {
+        if (idSubEventoSeleccionado === undefined && nombre !== evento.nombre) {
+          payload.nombre = nombre.trim();
+        }
+        if (
+          idSubEventoSeleccionado === undefined &&
+          descripcion !== evento.descripcion
+        ) {
           payload.descripcion = descripcion.trim();
         }
         if (justificacion !== (evento.justificacion ?? "")) {
@@ -436,12 +577,18 @@ export function EditarEvento() {
 
       if (logisticaModificada) {
         const payload: ModificarLogisticaPayload = {
-          motivoModificacion: logistica.motivoModificacion.trim(),
+          motivoModificacion: motivoModificacionCompleto,
           subeventos: [
             {
               idSubEvento: subevento.idSubEvento,
-              nombre: subevento.nombre,
-              descripcion: subevento.descripcion,
+              nombre:
+                idSubEventoSeleccionado !== undefined
+                  ? nombre.trim()
+                  : subevento.nombre,
+              descripcion:
+                idSubEventoSeleccionado !== undefined
+                  ? descripcion.trim()
+                  : subevento.descripcion,
               idRecinto: Number(logistica.idRecinto),
               accesoQR: logistica.accesoQR === "true",
               fecha: logistica.fecha,
@@ -459,14 +606,40 @@ export function EditarEvento() {
 
       const detalleActualizado = await obtenerDetalleActualizado();
       const valoresLogisticaActualizados =
-        obtenerValoresLogistica(detalleActualizado);
+        obtenerValoresLogistica(detalleActualizado, idSubEventoSeleccionado);
+      const motivosActualizados = separarMotivoUrgencia(
+        valoresLogisticaActualizados.motivoModificacion,
+      );
+      const valoresActualizadosConMotivo = {
+        ...valoresLogisticaActualizados,
+        motivoModificacion: motivosActualizados.motivoModificacion,
+      };
+      const subeventoActualizado = idSubEventoSeleccionado
+        ? detalleActualizado.subEventos.find(
+            (item) => item.idSubEvento === idSubEventoSeleccionado,
+          )
+        : undefined;
+      const propuestaActualizada =
+        subeventoActualizado &&
+        detalleActualizado.solicitudModificacionPendiente?.subeventosPropuestos.find(
+          (item) => item.idSubEvento === subeventoActualizado.idSubEvento,
+        );
       setEvento(detalleActualizado);
-      setNombre(detalleActualizado.nombre);
-      setDescripcion(detalleActualizado.descripcion);
+      setNombre(
+        propuestaActualizada?.nombre ??
+          subeventoActualizado?.nombre ??
+          detalleActualizado.nombre,
+      );
+      setDescripcion(
+        propuestaActualizada?.descripcion ??
+          subeventoActualizado?.descripcion ??
+          detalleActualizado.descripcion,
+      );
       setJustificacion(detalleActualizado.justificacion ?? "");
       setAlcance(detalleActualizado.idAlcance ?? "");
-      setLogistica(valoresLogisticaActualizados);
-      setLogisticaInicial(valoresLogisticaActualizados);
+      setLogistica(valoresActualizadosConMotivo);
+      setLogisticaInicial(valoresActualizadosConMotivo);
+      setMotivoUrgente(motivosActualizados.motivoUrgente);
       setArchivoPoster(null);
       setMensaje(
         logisticaModificada
@@ -516,7 +689,7 @@ export function EditarEvento() {
         onClick={
           logisticaModificada || informacionGeneralModificada
             ? () => setMostrarModalRegreso(true)
-            : () => navigate(`/organizador/administrar-evento/${idEvento}`)
+            : () => navigate(rutaAdministracion)
         }>
         <ArrowLeft size={20} aria-hidden="true" />
         <span>Volver</span>
@@ -540,7 +713,7 @@ export function EditarEvento() {
               variant="success"
               type="button"
               onClick={() =>
-                navigate(`/organizador/administrar-evento/${idEvento}`)
+                navigate(rutaAdministracion)
               }
             />
           </div>
@@ -549,7 +722,9 @@ export function EditarEvento() {
 
       <div id="contenedorTituloBanner" className="space-y-4 sm:space-y-5">
         <h1 className="font-merriweather text-2xl font-semibold leading-tight sm:text-3xl lg:text-4xl">
-          Modificar detalles del evento
+          {idSubEventoSeleccionado !== undefined
+            ? "Modificar detalles de la actividad"
+            : "Modificar detalles del evento"}
         </h1>
         {evento?.posterUrl && (
           <EventBanner eventName={evento.nombre} posterUrl={evento.posterUrl} />
@@ -733,11 +908,16 @@ export function EditarEvento() {
                 mostrarModal={mostrarModal}
                 mostrarModalAviso={mostrarModalAviso}
                 intentoMotivo={intentoMotivo}
+                esUrgente={esModificacionUrgente}
                 logistica={logistica}
                 onCerrar={() => setMostrarModal(false)}
                 onCerrarAviso={() => {
                   setMostrarModalAviso(false);
-                  setMostrarModal(true);
+                  if (esModificacionUrgente) {
+                    setMostrarModalUrgente(true);
+                  } else {
+                    setMostrarModal(true);
+                  }
                 }}
                 onCambioMotivo={(motivo) =>
                   cambiarLogistica("motivoModificacion", motivo)
@@ -746,6 +926,21 @@ export function EditarEvento() {
                 onConfirmar={confirmarEnvioLogistica}
               />
             )}
+            <ModalMotivoUrgente
+              mostrar={mostrarModalUrgente}
+              motivo={motivoUrgente}
+              maxLength={500}
+              contenido="La fecha propuesta está dentro de los próximos 7 días. Explica por qué la modificación se solicita con carácter urgente."
+              cerrar={() => {
+                setMostrarModalUrgente(false);
+                setMostrarModal(true);
+              }}
+              onMotivoChange={setMotivoUrgente}
+              continuar={() => {
+                setMostrarModalUrgente(false);
+                setMostrarModalAviso(true);
+              }}
+            />
           </form>
         </>
       )}
