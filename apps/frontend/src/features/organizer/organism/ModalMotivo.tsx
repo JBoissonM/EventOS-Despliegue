@@ -5,10 +5,13 @@ import { Button } from "../../../components/atoms/Button/Button";
 
 import type { EditLogisticsValues } from "./EditLogisticsSection";
 
+export const MARCADOR_MOTIVO_URGENCIA = "\n\nMotivo de urgencia: ";
+
 export interface ModalMotivoProps {
   mostrarModal: boolean;
   mostrarModalAviso: boolean;
   intentoMotivo: boolean;
+  esUrgente: boolean;
   logistica: EditLogisticsValues;
   onCerrar: () => void;
   onCerrarAviso: () => void;
@@ -20,6 +23,7 @@ export function ModalMotivo({
   mostrarModal,
   mostrarModalAviso,
   intentoMotivo,
+  esUrgente,
   logistica,
   onCerrar,
   onCerrarAviso,
@@ -48,7 +52,11 @@ export function ModalMotivo({
             id="contenedorMotivo"
             className="h-50 resize-none"
             value={logistica.motivoModificacion}
-            maxLength={500}
+            maxLength={
+              esUrgente
+                ? 500 - MARCADOR_MOTIVO_URGENCIA.length - 1
+                : 500
+            }
             hasError={
               (intentoMotivo && !logistica.motivoModificacion.trim()) ||
               logistica.motivoModificacion.trim().length >= 500
@@ -56,6 +64,12 @@ export function ModalMotivo({
             onChange={(event) => onCambioMotivo(event.currentTarget.value)}
           />
         </FormField>
+        {esUrgente && (
+          <p className="text-sm text-amber-800" role="status">
+            La fecha propuesta está dentro de los próximos 7 días; se solicitará
+            una justificación de urgencia antes de enviar.
+          </p>
+        )}
         <div className="flex justify-end gap-3">
           <Button
             text="Volver"

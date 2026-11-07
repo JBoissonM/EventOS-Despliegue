@@ -242,7 +242,7 @@ export function EditLogisticsSection({
           <FormField
             className="!font-bold !text-black"
             label="Banner del evento"
-            mensajeAyuda="Resolución: 2048 x 1152 ">
+            mensajeAyuda="Resolución: 2048 x 1152">
             <InputFile
               key={archivoPoster?.name ?? posterUrl ?? "poster"}
               id="campoPoster"
