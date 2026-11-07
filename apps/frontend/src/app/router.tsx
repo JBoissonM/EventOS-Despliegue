@@ -26,6 +26,8 @@ import { EventDetailsLayout } from "../features/event-details/pages/EventDetails
 import { EventDetailsRoute } from "../features/event-details/pages/EventDetailsRoute";
 import { SubEventDetailsRoute } from "../features/event-details/pages/SubEventDetailsRoute";
 import { ReservationRoute } from "../features/reservations/pages/ReservationRoute";
+import { MyTicketsRoute } from "../features/tickets/pages/MyTicketsRoute";
+import { DigitalTicketRoute } from "../features/tickets/pages/DigitalTicketRoute";
 
 import { SolicitudesAprobadas } from "../features/educational-services/SolicitudesAprobadas";
 import { MisEventos } from "../features/organizer/MisEventos";
@@ -109,6 +111,8 @@ export function AppRouter() {
             <Route path="/menu-asistente" element={<MenuAsistente />} />
             <Route path="/asistente/cartelera" element={<EventCatalogPage />} />
             <Route path="/organizador/mis-eventos" element={<MisEventos />} />
+            <Route path="/asistente/boletos" element={<MyTicketsRoute />} />
+            <Route path="/asistente/boletos/:idBoleto" element={<DigitalTicketRoute />} />
             <Route path="/verificacion" element={<Verificacion />} />
           </Route>
         </Route>
