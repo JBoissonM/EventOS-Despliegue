@@ -4,8 +4,6 @@ import { FormHeader } from "../../molecules/FormHeader";
 import type { PropsSubeventosFormulario } from "../../../features/events/SolicitudEventos";
 import { CardSubevento } from "./CardSubevento";
 
-const MAX_SUBEVENTOS = 10;
-
 export function SeccionSubeventos({
   subEventos,
   erroresSubeventos: subeventErrors,
@@ -86,7 +84,6 @@ export function SeccionSubeventos({
           id="botonAgregarFecha"
           type="button"
           className="w-full sm:w-auto"
-          disabled={subEventos.length >= MAX_SUBEVENTOS}
           onClick={addSubevento}
         />
       </div>
