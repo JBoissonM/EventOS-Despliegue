@@ -34,6 +34,8 @@ import { MisEventos } from "../features/organizer/MisEventos";
 
 import { AdministracionEvento } from "../features/organizer/AdministracionEvento";
 import { EditarEvento } from "../features/organizer/EditarEvento";
+import { AdministracionEventoConSubeventos } from "../features/organizer/AdministrarEventoConSubeventos";
+import { EditarEventoConSubeventos } from "../features/organizer/EditarEventoConSubeventos";
 
 
 export function AppRouter() {
@@ -77,8 +79,22 @@ export function AppRouter() {
             <Route path="/solicitud-evento" element={<SolicitudEvento />} />
             <Route
               path="/organizador/administrar-evento/:idEvento"
-              element={<AdministracionEvento />} />
+              element={<AdministracionEvento />}
+            />
+            <Route
+              path="/organizador/administrar-evento/:idEvento/subevento/:idSubEvento"
+              element={<AdministracionEvento />}
+            />
             <Route path="/organizador/editar-evento/:idEvento" element={<EditarEvento />}/>
+            <Route
+              path="/organizador/editar-evento/:idEvento/subevento/:idSubEvento"
+              element={<EditarEvento />}
+            />
+            <Route path="/organizador/administrar-evento-subeventos/:idEvento" element={<AdministracionEventoConSubeventos/>}></Route>
+            <Route
+              path="/organizador/editar-evento-subeventos/:idEvento"
+              element={<EditarEventoConSubeventos />}
+            />
           </Route>
         </Route>
 

@@ -1,5 +1,5 @@
 import { SeccionDatosEvento } from "../../components/organisms/SolicitudEventos/SeccionDatosEvento";
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { SeccionSubeventos } from "../../components/organisms/SolicitudEventos/SeccionSubeventos";
 import Button from "../../components/atoms/Button/Button";
 import { useNavigate } from "react-router";
@@ -89,8 +89,6 @@ function validarFormulario(form: FormularioSolicitudData): ErroresFormulario {
 
   if (!form.rutaPoster) {
     errors.rutaPoster = "El póster del evento es obligatorio.";
-  } else if (form.rutaPoster.size > 5 * 1024 * 1024) {
-    errors.rutaPoster = "El póster no debe exceder los 5 megabytes.";
   }
 
   if (!form.descripcion.trim()) {
@@ -234,6 +232,8 @@ export function SolicitudEvento() {
   );
 
   const [mensajeError, setMensajeError] = useState("");
+  const [posterValidationError, setPosterValidationError] = useState("");
+  const posterValidationRequest = useRef(0);
   const [modalUrgente, setModalUrgente] = useState(false);
   const [motivoUrgente, setMotivoUrgente] = useState("");
   const [estadoVerificacion, setEstadoVerificacion] = useState<
@@ -241,6 +241,9 @@ export function SolicitudEvento() {
   >("cargando");
   const [errorVerificacion, setErrorVerificacion] = useState("");
   const errors = validarFormulario(form);
+  if (form.rutaPoster && posterValidationError) {
+    errors.rutaPoster = posterValidationError;
+  }
   const subeventErrors = validarSubeventos(form.subEventos);
 
   useEffect(() => {
@@ -280,8 +283,34 @@ export function SolicitudEvento() {
   const updateField = (field: CampoTextoFormulario, value: string) =>
     setForm((prev) => ({ ...prev, [field]: value }));
 
-  const updatePoster = (poster: File | null) =>
+  const updatePoster = async (poster: File | null) => {
+    const requestId = ++posterValidationRequest.current;
     setForm((prev) => ({ ...prev, rutaPoster: poster }));
+
+    if (!poster) {
+      setPosterValidationError("");
+      return;
+    }
+
+    setPosterValidationError("Validando las dimensiones del póster...");
+
+    try {
+      const imagen = await createImageBitmap(poster);
+      const { width, height } = imagen;
+      imagen.close();
+
+      if (requestId !== posterValidationRequest.current) return;
+
+      setPosterValidationError(
+        width === 2048 && height === 1152
+          ? ""
+          : `El póster debe medir exactamente 2048 x 1152 píxeles. La imagen seleccionada mide ${width} x ${height} píxeles.`,
+      );
+    } catch {
+      if (requestId !== posterValidationRequest.current) return;
+      setPosterValidationError("No se pudo leer la imagen del póster.");
+    }
+  };
 
   const updateSubevento = (
     index: number,
@@ -503,6 +532,8 @@ export function SolicitudEvento() {
     });
     setTouched({});
     setSubeventTouched([{}]);
+    posterValidationRequest.current += 1;
+    setPosterValidationError("");
     setMotivoUrgente("");
     setMensajeError("");
     setModal("exito");

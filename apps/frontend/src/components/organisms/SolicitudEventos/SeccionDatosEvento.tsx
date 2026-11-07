@@ -83,7 +83,7 @@
               label="Póster del evento"
               htmlFor="campoPoster"
               required
-              mensajeAyuda="El poster debe estar en formato jpg y con un tamaño menor a 5 megabytes"
+              mensajeAyuda="El poster debe estar en formato jpg y con una resolución de 2048 x 1152 píxeles"
               errorMessage={touched.rutaPoster ? errors.rutaPoster : undefined}>
               <InputFile
                 id="campoPoster"

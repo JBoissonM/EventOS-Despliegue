@@ -283,14 +283,27 @@ function formatearHora(hora: string | null | undefined): string {
 }
 
 export function AdministracionEvento() {
-  const { idEvento } = useParams();
+  const { idEvento, idSubEvento } = useParams();
+  const idSubEventoSeleccionado = idSubEvento ? Number(idSubEvento) : undefined;
   const [datosEvento, setDatosEvento] =
     useState<EventoOrganizadorDetalle | null>(null);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [mostrarModal, setMostrarModal] = useState(false);
-  const subevento =
-    datosEvento?.subEventos.length === 1 ? datosEvento.subEventos[0] : null;
+  const subevento = datosEvento
+    ? idSubEventoSeleccionado
+      ? (datosEvento.subEventos.find(
+          (item) => item.idSubEvento === idSubEventoSeleccionado,
+        ) ?? null)
+      : datosEvento.subEventos.length === 1
+        ? datosEvento.subEventos[0]
+        : null
+    : null;
+  const subeventosVisibles = idSubEvento
+    ? subevento
+      ? [subevento]
+      : []
+    : (datosEvento?.subEventos ?? []);
   const personalLogistica =
     subevento && datosEvento ? (datosEvento.personalLogistica ?? []) : [];
   const navigate = useNavigate();
@@ -305,6 +318,14 @@ export function AdministracionEvento() {
 
       if (!idEvento || !/^\d+$/.test(idEvento) || Number(idEvento) < 1) {
         setError("El ID del evento no es válido.");
+        setCargando(false);
+        return;
+      }
+      if (
+        idSubEvento &&
+        (!/^\d+$/.test(idSubEvento) || Number(idSubEvento) < 1)
+      ) {
+        setError("El ID de la actividad no es válido.");
         setCargando(false);
         return;
       }
@@ -349,23 +370,34 @@ export function AdministracionEvento() {
 
     void cargarEvento();
     return () => controller.abort();
-  }, [idEvento]);
+  }, [idEvento, idSubEvento]);
 
-  const ponentes: TablaPonente[] =
-    datosEvento?.subEventos.flatMap((subevento) =>
-      subevento.ponentes.map((ponente) => ({
-        id: ponente.idPonente,
-        nombre: `${ponente.nombre} ${ponente.apellidoPa} ${ponente.apellidoMa}`,
-        correo: ponente.correo,
-      })),
-    ) ?? [];
+  const ponentes: TablaPonente[] = (
+    idSubEvento
+      ? subevento
+        ? [subevento]
+        : []
+      : (datosEvento?.subEventos ?? [])
+  ).flatMap((subevento) =>
+    subevento.ponentes.map((ponente) => ({
+      id: ponente.idPonente,
+      nombre: `${ponente.nombre} ${ponente.apellidoPa} ${ponente.apellidoMa}`,
+      correo: ponente.correo,
+    })),
+  );
 
   return (
     <section className="mx-auto w-full max-w-7xl space-y-8 px-4 sm:px-6 lg:space-y-10 lg:px-8">
       <div
         id="contenedorReturn"
         className="flex gap-2 cursor-pointer"
-        onClick={() => navigate(`/organizador/mis-eventos`)}>
+        onClick={() =>
+          navigate(
+            idSubEvento
+              ? `/organizador/administrar-evento-subeventos/${idEvento}`
+              : "/organizador/mis-eventos",
+          )
+        }>
         <ArrowLeft size={20} aria-hidden="true"></ArrowLeft>
         <span>Volver</span>
       </div>
@@ -404,6 +436,24 @@ export function AdministracionEvento() {
             </span>
             <p className="break-words">{datosEvento.descripcion}</p>
           </div>
+          {idSubEvento && subevento && (
+            <section className="space-y-2 border border-gray-200 bg-white p-5 shadow-md">
+              <h2 className="font-merriweather text-xl font-bold text-secondary sm:text-2xl">
+                {subevento.nombre}
+              </h2>
+              <div>
+                <h3 className="font-bold">Descripción de la actividad</h3>
+                <p className="break-words">{subevento.descripcion}</p>
+              </div>
+            </section>
+          )}
+          {idSubEvento && datosEvento && !subevento && !cargando && (
+            <p
+              role="alert"
+              className="rounded-lg bg-red-50 px-4 py-6 text-red-700">
+              La actividad seleccionada no pertenece a este evento.
+            </p>
+          )}
           <div
             id="contenedorDatos"
             className="grid min-w-0 grid-cols-1 items-start gap-8 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,0.9fr)] xl:gap-12">
@@ -450,7 +500,7 @@ export function AdministracionEvento() {
             </div>
 
             <div id="contenedorDerecha" className="w-full min-w-0 space-y-4">
-              {datosEvento.subEventos.map((subevento) => (
+              {subeventosVisibles.map((subevento) => (
                 <article
                   key={subevento.idSubEvento}
                   className="grid min-w-0 grid-cols-1 gap-x-6 gap-y-5 rounded-lg border border-gray-200 bg-white p-4 shadow-sm sm:grid-cols-2 sm:p-6">
@@ -519,22 +569,29 @@ export function AdministracionEvento() {
                   onClick={() => setMostrarModal(true)}
                 />
               )}
-            {subevento?.estado !== "Finalizado" && (
+            {subevento?.estado !== "Finalizado" && !idSubEvento && (
               <>
                 <Button
                   text="Cancelar evento"
                   variant="primary"
                   type="button"
                 />
-                <Button
-                  text="Modificar evento"
-                  variant="primary"
-                  type="button"
-                  onClick={() =>
-                    navigate(`/organizador/editar-evento/${idEvento}`)
-                  }
-                />
               </>
+            )}
+
+            {subevento?.estado !== "Finalizado" && (
+              <Button
+                text={idSubEvento ? "Modificar actividad" : "Modificar Evento"}
+                variant="primary"
+                type="button"
+                onClick={() =>
+                  navigate(
+                    idSubEventoSeleccionado
+                      ? `/organizador/editar-evento/${idEvento}/subevento/${idSubEventoSeleccionado}`
+                      : `/organizador/editar-evento/${idEvento}`,
+                  )
+                }
+              />
             )}
           </div>
           {subevento?.recinto && (

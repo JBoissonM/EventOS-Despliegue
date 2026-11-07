@@ -136,8 +136,8 @@ export function EventCatalogPage() {
   };
 
   return (
-    <section className="mx-auto w-full max-w-7xl px-2 py-4 font-merriweather sm:px-6 lg:px-8">
-      <div className="mb-10 flex flex-col gap-5 lg:mb-12 lg:flex-row lg:items-center lg:justify-between">
+    <section className="mx-auto w-full max-w-7xl px-2 py-4 font-merriweather sm:px-6 lg:px-8 lg:justify-start">
+      <div className="mb-10 flex flex-col gap-5 lg:mb-12 lg:flex-row lg:items-start lg:justify-between">
         <h1 className="shrink-0 text-3xl font-bold text-eventos-ink">
           Cartelera de Eventos
         </h1>
