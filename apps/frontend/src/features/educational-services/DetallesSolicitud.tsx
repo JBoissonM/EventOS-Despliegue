@@ -604,25 +604,22 @@ export function DetallesSolicitud() {
         <Modal
           titulo="Rechazar solicitud"
           mostrarModal={mostrarModalRechazar}
+          contenido="Ingrese el motivo de rechazo para la solicitud"
           cerrarModal={() => {
             setMostrarModalRechazar(false);
             setErrorAccion(null);
           }}
         >
           <div className="space-y-4">
-            <p className="text-sm text-gray-700 font-merriweather">
-              ¿Desea rechazar la solicitud de este evento? Puede indicar un motivo para el organizador:
-            </p>
             <FormField
               label="Motivo de rechazo"
-              htmlFor="campoMotivoRechazo"
-              mensajeAyuda={`${motivoRechazo.length}/500 caracteres`}
-            >
+              htmlFor="campoMotivoRechazo"            >
               <TextArea
                 id="campoMotivoRechazo"
-                placeholder="Ingresa el motivo del rechazo (opcional)"
-                className="resize-none h-28"
+                placeholder="Ingresa el motivo del rechazo"
+                className="resize-none h-50"
                 value={motivoRechazo}
+                hasError={motivoRechazo.length >= 500 || motivoRechazo.length == 0}
                 onChange={(e) => {
                   setMotivoRechazo(e.target.value);
                   setErrorAccion(null);
@@ -638,7 +635,7 @@ export function DetallesSolicitud() {
             <div className="flex justify-end gap-2 pt-2">
               <Button
                 text="Cancelar"
-                variant="outline"
+                variant="secondary"
                 disabled={procesando}
                 onClick={() => setMostrarModalRechazar(false)}
               />
