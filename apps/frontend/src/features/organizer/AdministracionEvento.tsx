@@ -15,6 +15,7 @@ import type { Columna } from "../../components/organisms/Table/Table";
 import { EventBanner } from "../event-details/components/molecules/EventBanner";
 import { SpaceRequerimentsDialog } from "../../components/organisms/SpaceRequirementsDialog/SpaceRequerimentsDialog";
 import { useNavigate } from "react-router";
+import { apiRequest } from "../../lib/apiClient";
 
 import { ArrowLeft } from "lucide-react";
 
@@ -338,21 +339,10 @@ export function AdministracionEvento() {
       }
 
       try {
-        const response = await fetch(
-          `http://localhost:3000/api/eventos/${idEvento}/detalle-organizador`,
-          {
-            headers: { Authorization: `Bearer ${token}` },
-            signal: controller.signal,
-          },
+        const respuesta = await apiRequest<unknown>(
+          `eventos/${idEvento}/detalle-organizador`,
+          { signal: controller.signal },
         );
-
-        if (!response.ok) {
-          throw new Error(
-            `No se pudieron cargar los detalles del evento (HTTP ${response.status}).`,
-          );
-        }
-
-        const respuesta: unknown = await response.json();
         setDatosEvento(convertirEvento(respuesta));
       } catch (error) {
         if (controller.signal.aborted) return;
@@ -451,7 +441,7 @@ export function AdministracionEvento() {
             <p
               role="alert"
               className="rounded-lg bg-red-50 px-4 py-6 text-red-700">
-              La actividad seleccionada no pertenece a este evento.
+              La actividad seleccionada fue cancelada o no pertenece a este evento.
             </p>
           )}
           <div

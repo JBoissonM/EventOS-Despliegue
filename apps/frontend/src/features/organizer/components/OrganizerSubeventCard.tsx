@@ -10,6 +10,7 @@ export interface OrganizerSubeventCardData {
   nombre: string;
   descripcion: string;
   accesoQR: boolean;
+  estado?: string;
   fecha: {
     fecha: string;
     horaInicio: string;
@@ -84,9 +85,11 @@ export function OrganizerSubeventCard({
         activity={{ ...subevento, idEvento }}
         detailsPath={
           detailsPath ??
-          `/organizador/editar-evento/${idEvento}/subevento/${subevento.idSubEvento}`
+          (onCancel
+            ? `/organizador/editar-evento/${idEvento}/subevento/${subevento.idSubEvento}`
+            : undefined)
         }
-        detailsLabel={detailsLabel}
+        detailsLabel={detailsLabel ?? (onCancel ? "Modificar" : "Ver detalles")}
         {...(onCancel
           ? {
               actionLabel: "Cancelar",

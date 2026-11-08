@@ -60,7 +60,6 @@ export interface PropsSubeventosFormulario {
 }
 
 let siguienteIdSubevento = 0;
-const MAX_SUBEVENTOS = 10;
 
 const crearSubevento = (): SubeventoFormData => ({
   id: siguienteIdSubevento++,
@@ -112,20 +111,33 @@ function validarFormulario(form: FormularioSolicitudData): ErroresFormulario {
 function diferenciaFechas(fechaSeleccionada: string): number | null {
   if (!fechaSeleccionada) return null;
   const [anio, mes, dia] = fechaSeleccionada.split("-").map(Number);
-  const fecha = new Date(anio, mes - 1, dia);
   const hoy = new Date();
   const fechaSeleccionadaUTC = Date.UTC(anio, mes - 1, dia);
   const hoyUTC = Date.UTC(hoy.getFullYear(), hoy.getMonth(), hoy.getDate());
   return (fechaSeleccionadaUTC - hoyUTC) / 86_400_000;
 }
 
+const anioActual = new Date().getFullYear();
+export const FECHA_FIN_SEMESTRE = `${anioActual}-12-19`;
+
+export function diferenciaEntreFechas(f1: string, f2: string): number {
+  if (!f1 || !f2) return 0;
+  const [y1, m1, d1] = f1.split("-").map(Number);
+  const [y2, m2, d2] = f2.split("-").map(Number);
+  const utc1 = Date.UTC(y1, m1 - 1, d1);
+  const utc2 = Date.UTC(y2, m2 - 1, d2);
+  return Math.round((utc2 - utc1) / 86_400_000);
+}
+
 function validarSubeventos(
   subEventos: SubeventoFormData[],
 ): ErroresSubevento[] {
+  const fechaInicioEvento = subEventos[0]?.fecha;
+
   return subEventos.map((subevento, index) => {
     const errors: ErroresSubevento = {};
 
-    if (subEventos.length > 1) {
+    if (subEventos.length > 1 && index > 0) {
       if (!subevento.nombre.trim()) {
         errors.nombre = "El nombre del subevento es obligatorio";
       } else if (subevento.nombre.trim().length > 150) {
@@ -142,6 +154,24 @@ function validarSubeventos(
 
     if (!subevento.fecha) {
       errors.fecha = "Selecciona la fecha del evento";
+    } else {
+      if (subevento.fecha > FECHA_FIN_SEMESTRE) {
+        errors.fecha =
+          "La fecha no debe exceder el fin de semestre (19 de diciembre)";
+      } else if (index > 0 && fechaInicioEvento) {
+        if (subevento.fecha < fechaInicioEvento) {
+          errors.fecha = "La fecha no puede ser anterior al inicio del evento";
+        } else {
+          const diasDiferencia = diferenciaEntreFechas(
+            fechaInicioEvento,
+            subevento.fecha,
+          );
+          if (diasDiferencia > 14) {
+            errors.fecha =
+              "Un evento con varios subeventos no puede durar más de 15 días";
+          }
+        }
+      }
     }
 
     if (!subevento.horaInicio) {
@@ -212,15 +242,15 @@ export function SolicitudEvento() {
   });
 
   const volverAlMenu = () => {
-  const usuario = JSON.parse(localStorage.getItem("usuario") ?? "{}");
-  const tipoCuenta = String(usuario.tipoCuenta ?? "").toLowerCase();
+    const usuario = JSON.parse(localStorage.getItem("usuario") ?? "{}");
+    const tipoCuenta = String(usuario.tipoCuenta ?? "").toLowerCase();
 
-  navigate(
-    tipoCuenta.includes("subdirección") || tipoCuenta.includes("subdireccion")
-      ? "/subdireccion/menu-principal"
-      : "/organizador/mis-eventos",
-  );
-};
+    navigate(
+      tipoCuenta.includes("subdirección") || tipoCuenta.includes("subdireccion")
+        ? "/subdireccion/menu-principal"
+        : "/organizador/mis-eventos",
+    );
+  };
 
   const [touched, setTouched] = useState<CamposTocados>({});
   const [subeventTouched, setSubeventTouched] = useState<
@@ -383,18 +413,11 @@ export function SolicitudEvento() {
   };
 
   const addSubevento = () => {
-    if (form.subEventos.length >= MAX_SUBEVENTOS) return;
-
     setForm((prev) => ({
       ...prev,
-      subEventos:
-        prev.subEventos.length >= MAX_SUBEVENTOS
-          ? prev.subEventos
-          : [...prev.subEventos, crearSubevento()],
+      subEventos: [...prev.subEventos, crearSubevento()],
     }));
-    setSubeventTouched((prev) =>
-      prev.length >= MAX_SUBEVENTOS ? prev : [...prev, {}],
-    );
+    setSubeventTouched((prev) => [...prev, {}]);
   };
 
   const removeSubevento = (index: number) => {
@@ -425,6 +448,8 @@ export function SolicitudEvento() {
     });
     setSubeventTouched(
       form.subEventos.map(() => ({
+        nombre: true,
+        descripcion: true,
         fecha: true,
         horaInicio: true,
         horaFin: true,
@@ -597,7 +622,7 @@ export function SolicitudEvento() {
             contenido={
               modal === "error"
                 ? mensajeError ||
-                  "Por favor, completa todos los campos obligatorios resaltados para continuar"
+                "Por favor, completa todos los campos obligatorios resaltados para continuar"
                 : modal === "exito"
                   ? "La solicitud se ha procesado éxitosamente y será evaluada por Subdirección de Servicios Académicos"
                   : "¿Desea enviar la solicitud de este evento?"

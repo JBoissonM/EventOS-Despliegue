@@ -65,6 +65,7 @@ export function SeccionSubeventos({
                 otrosSubeventos={subEventos.filter(
                   (_, otroIndex) => otroIndex !== index,
                 )}
+                fechaInicioEvento={subEventos[0]?.fecha}
                 errors={subeventErrors[index] ?? {}}
                 touched={subeventTouched[index] ?? {}}
                 updateSubevento={updateSubevento}

@@ -17,6 +17,7 @@ interface CardSubeventoBaseProps {
   subevento: SubeventoFormData;
   index: number;
   otrosSubeventos?: SubeventoFormData[];
+  fechaInicioEvento?: string;
   isDeleting?: boolean;
   nombreRecinto?: string;
 }
@@ -125,6 +126,14 @@ function seTraslapan(
   return horaInicio < otraHoraFin && otraHoraInicio < horaFin;
 }
 
+function sumarDias(fechaStr: string, dias: number): string {
+  if (!fechaStr) return "";
+  const [y, m, d] = fechaStr.split("-").map(Number);
+  const date = new Date(Date.UTC(y, m - 1, d));
+  date.setUTCDate(date.getUTCDate() + dias);
+  return date.toISOString().split("T")[0];
+}
+
 export function CardSubevento(props: CardSubeventoProps) {
   const readOnly = props.readOnly === true;
   const errors = readOnly ? {} : props.errors;
@@ -164,6 +173,19 @@ export function CardSubevento(props: CardSubeventoProps) {
     day: "2-digit",
   }).format(new Date());
 
+  const anioActual = new Date().getFullYear();
+  const FECHA_FIN_SEMESTRE = `${anioActual}-12-19`;
+
+  const fechaInicio = props.fechaInicioEvento;
+  let minFecha = fechaMinima;
+  let maxFecha = FECHA_FIN_SEMESTRE;
+
+  if (index > 0 && fechaInicio) {
+    minFecha = fechaInicio > fechaMinima ? fechaInicio : fechaMinima;
+    const max15Dias = sumarDias(fechaInicio, 14);
+    maxFecha = max15Dias < FECHA_FIN_SEMESTRE ? max15Dias : FECHA_FIN_SEMESTRE;
+  }
+
   return (
     <div className="grid min-w-0 grid-cols-1 gap-4 rounded-md bg-eventos-primary-light p-4 sm:grid-cols-2 sm:p-6 lg:grid-cols-3 lg:px-10 lg:py-8">
       <FormField
@@ -171,13 +193,21 @@ export function CardSubevento(props: CardSubeventoProps) {
         htmlFor={`selectFecha-${index}`}
         readOnly={readOnly}
         required
+        mensajeAyuda={
+          index > 0 && !fechaInicio
+            ? "Selecciona primero la fecha del primer bloque"
+            : index > 0
+              ? "Máximo 15 días a partir de la fecha de inicio"
+              : undefined
+        }
         errorMessage={touched.fecha ? errors.fecha : undefined}>
         <Input
           id={`selectFecha-${index}`}
-          min={fechaMinima}
+          min={minFecha}
+          max={maxFecha}
           type="date"
           value={subevento.fecha}
-          disabled={readOnly}
+          disabled={readOnly || (index > 0 && !fechaInicio)}
           hasError={Boolean(touched.fecha && errors.fecha)}
           onChange={
             readOnly
@@ -283,7 +313,7 @@ export function CardSubevento(props: CardSubeventoProps) {
         errorMessage={touched.accesoQR ? errors.accesoQR : undefined}
         mensajeAyuda={
           subevento.idRecinto === RecintoId.SALA_14
-            ? "Al elegir la sala 14 automáticamente el acceso es libre"
+            ? "Al elegir la sala 14 el acceso es libre"
             : subevento.idRecinto === RecintoId.LABORATORIO_A ||
                 subevento.idRecinto === RecintoId.LABORATORIO_B
               ? "Al elegir un laboratorio el cupo pasa a ser limitado"
@@ -342,6 +372,7 @@ export function CardSubevento(props: CardSubeventoProps) {
           />
         )}
       </FormField>
+
       <SpaceRequerimentsDialog
         mostrar={mostrarModalEspacio}
         laboratorio={
@@ -355,16 +386,19 @@ export function CardSubevento(props: CardSubeventoProps) {
       {!readOnly && (
         <div className="col-span-full flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           {props.canEdit && index > 0 ? (
-            <Button
-              text="Nombre y descripción del subevento"
-              id={`botonVerInformacion-${subevento.id}`}
-              type="button"
-              className="w-full sm:w-auto"
-              onClick={() => setMostrarModalSubevento(true)}
-            />
+            <div id="contenedorBotonesCard">
+              <Button
+                text="Nombre y descripción del subevento"
+                id={`botonVerInformacion-${subevento.id}`}
+                type="button"
+                className="w-full sm:w-auto"
+                onClick={() => setMostrarModalSubevento(true)}
+              />
+            </div>
           ) : (
             <div className="hidden sm:block sm:flex-1" aria-hidden="true" />
           )}
+
           <ModalSubevento
             mostrar={mostrarModalSubevento}
             nombre={subevento.nombre}

@@ -48,7 +48,7 @@ export class SolicitudesService {
     private readonly storageService: StorageService,
     private readonly dataSource: DataSource,
     private readonly mailService: MailService,
-  ) {}
+  ) { }
 
   async verificarUsuario(idUsuario: number): Promise<boolean> {
     const usuario = await this.usuarioRepository.findOneBy({ idUsuario });
@@ -187,6 +187,30 @@ export class SolicitudesService {
 
     this.validarTraslapeInterno(subeventos);
 
+    const anioActual = new Date().getFullYear();
+    const fechaFinSemestre = `${anioActual}-12-19`;
+
+    for (const sub of subeventos) {
+      if (sub.fecha > fechaFinSemestre) {
+        throw new BadRequestException(
+          'La fecha del evento no puede exceder el fin de semestre (19 de diciembre).',
+        );
+      }
+    }
+
+    if (subeventos.length > 1) {
+      const fechas = subeventos.map((s) => s.fecha).sort();
+      const fechaMin = fechas[0];
+      const fechaMax = fechas[fechas.length - 1];
+      const duracionDias = this.calcularDiasDiferencia(fechaMax, fechaMin);
+
+      if (duracionDias > 14) {
+        throw new BadRequestException(
+          'Un evento con varios subeventos no puede exceder los 15 días naturales de duración.',
+        );
+      }
+    }
+
     for (const subeventoActual of subeventos) {
       await this.recintoService.validarRecinto(
         subeventoActual.idRecinto,
@@ -291,9 +315,8 @@ export class SolicitudesService {
       nombre: usuario.nombre,
       apellidoPa: usuario.apellidoPa,
       apellidoMa: usuario.apellidoMa,
-      nombreCompleto: `${usuario.nombre} ${usuario.apellidoPa}${
-        usuario.apellidoMa ? ' ' + usuario.apellidoMa : ''
-      }`,
+      nombreCompleto: `${usuario.nombre} ${usuario.apellidoPa}${usuario.apellidoMa ? ' ' + usuario.apellidoMa : ''
+        }`,
       correo: usuario.correo,
       esVerificado: usuario.esVerificado,
       tipoCuenta: usuario.tipoCuenta,
@@ -381,18 +404,18 @@ export class SolicitudesService {
     const usuarios =
       idsOrganizadores.length > 0
         ? await this.usuarioRepository.find({
-            where: { idUsuario: In(idsOrganizadores) },
-            select: {
-              idUsuario: true,
-              nombre: true,
-              apellidoPa: true,
-              apellidoMa: true,
-              correo: true,
-              esVerificado: true,
-              tipoCuenta: true,
-              esJefeAcademia: true,
-            },
-          })
+          where: { idUsuario: In(idsOrganizadores) },
+          select: {
+            idUsuario: true,
+            nombre: true,
+            apellidoPa: true,
+            apellidoMa: true,
+            correo: true,
+            esVerificado: true,
+            tipoCuenta: true,
+            esJefeAcademia: true,
+          },
+        })
         : [];
 
     const mapaSolicitantes = new Map(
@@ -411,11 +434,11 @@ export class SolicitudesService {
         esModificacion: Boolean(modPendiente),
         solicitudModificacion: modPendiente
           ? {
-              idSolicitudModificacion: modPendiente.idSolicitudModificacion,
-              motivoModificacion: modPendiente.motivoModificacion,
-              subeventosPropuestos: modPendiente.subeventosPropuestos,
-              estado: modPendiente.estado,
-            }
+            idSolicitudModificacion: modPendiente.idSolicitudModificacion,
+            motivoModificacion: modPendiente.motivoModificacion,
+            subeventosPropuestos: modPendiente.subeventosPropuestos,
+            estado: modPendiente.estado,
+          }
           : null,
       };
     });
@@ -471,11 +494,11 @@ export class SolicitudesService {
           ...prop,
           espacio: rec
             ? {
-                idRecinto: rec.idRecinto,
-                nombre: rec.nombre,
-                aforo: rec.aforo,
-                idEstadoRecinto: rec.idEstadoRecinto,
-              }
+              idRecinto: rec.idRecinto,
+              nombre: rec.nombre,
+              aforo: rec.aforo,
+              idEstadoRecinto: rec.idEstadoRecinto,
+            }
             : null,
         };
       });
@@ -499,11 +522,11 @@ export class SolicitudesService {
       esModificacion: Boolean(solicitudPendiente),
       solicitudModificacion: solicitudPendiente
         ? {
-            idSolicitudModificacion: solicitudPendiente.idSolicitudModificacion,
-            motivoModificacion: solicitudPendiente.motivoModificacion,
-            estado: solicitudPendiente.estado,
-            subeventosPropuestos: subeventosPropuestosDetallados,
-          }
+          idSolicitudModificacion: solicitudPendiente.idSolicitudModificacion,
+          motivoModificacion: solicitudPendiente.motivoModificacion,
+          estado: solicitudPendiente.estado,
+          subeventosPropuestos: subeventosPropuestosDetallados,
+        }
         : null,
       subeventos: (evento.subEventos || []).map((sub) => ({
         idSubEvento: sub.idSubEvento,
@@ -514,20 +537,20 @@ export class SolicitudesService {
         idFecha: sub.idFecha,
         fecha: sub.fecha
           ? {
-              idFecha: sub.fecha.idFecha,
-              fecha: sub.fecha.fecha,
-              horaInicio: sub.fecha.horaInicio,
-              horaFin: sub.fecha.horaFin,
-            }
+            idFecha: sub.fecha.idFecha,
+            fecha: sub.fecha.fecha,
+            horaInicio: sub.fecha.horaInicio,
+            horaFin: sub.fecha.horaFin,
+          }
           : null,
         idRecinto: sub.idRecinto,
         espacio: sub.recinto
           ? {
-              idRecinto: sub.recinto.idRecinto,
-              nombre: sub.recinto.nombre,
-              aforo: sub.recinto.aforo,
-              idEstadoRecinto: sub.recinto.idEstadoRecinto,
-            }
+            idRecinto: sub.recinto.idRecinto,
+            nombre: sub.recinto.nombre,
+            aforo: sub.recinto.aforo,
+            idEstadoRecinto: sub.recinto.idEstadoRecinto,
+          }
           : null,
       })),
     };
@@ -573,8 +596,8 @@ export class SolicitudesService {
         for (const propuesto of solicitudPendiente.subeventosPropuestos) {
           const existente = propuesto.idSubEvento
             ? subeventosExistentes.find(
-                (s) => s.idSubEvento === propuesto.idSubEvento,
-              )
+              (s) => s.idSubEvento === propuesto.idSubEvento,
+            )
             : undefined;
 
           let idSubEventoAfectado: number;
@@ -652,6 +675,16 @@ export class SolicitudesService {
             await manager.update(SubEventoEntity, anterior.idSubEvento, {
               estado: EstadoSubEvento.CANCELADO,
             });
+            await manager.query(
+              `UPDATE "boleto"
+               SET "idEstadoBoleto" = $1
+               WHERE "idBoleto" IN (
+                 SELECT ae."idBoleto"
+                 FROM "asistenteEvento" ae
+                 WHERE ae."idSubEvento" = $2 AND ae."idBoleto" IS NOT NULL
+               )`,
+              [EstadoBoleto.CANCELADO, anterior.idSubEvento],
+            );
             await manager.save(BitacoraEventoEntity, {
               idEvento,
               idSubEvento: anterior.idSubEvento,

@@ -576,10 +576,9 @@ export function EditarEvento() {
       }
 
       if (logisticaModificada) {
-        const payload: ModificarLogisticaPayload = {
-          motivoModificacion: motivoModificacionCompleto,
-          subeventos: [
-            {
+        const subeventosAEnviar = evento.subEventos.map((otroSub) => {
+          if (otroSub.idSubEvento === subevento.idSubEvento) {
+            return {
               idSubEvento: subevento.idSubEvento,
               nombre:
                 idSubEventoSeleccionado !== undefined
@@ -594,8 +593,36 @@ export function EditarEvento() {
               fecha: logistica.fecha,
               horaInicio: logistica.horaInicio,
               horaFin: logistica.horaFin,
-            },
-          ],
+            };
+          }
+
+          const propuesta =
+            evento.solicitudModificacionPendiente?.subeventosPropuestos.find(
+              (p) => p.idSubEvento === otroSub.idSubEvento,
+            );
+
+          return {
+            idSubEvento: otroSub.idSubEvento,
+            nombre: propuesta?.nombre ?? otroSub.nombre,
+            descripcion: propuesta?.descripcion ?? otroSub.descripcion,
+            idRecinto: propuesta?.idRecinto ?? otroSub.recinto?.idRecinto ?? 0,
+            accesoQR: propuesta?.accesoQR ?? otroSub.accesoQR,
+            fecha:
+              propuesta?.fecha ?? otroSub.fecha?.fecha.slice(0, 10) ?? "",
+            horaInicio:
+              propuesta?.horaInicio.slice(0, 5) ??
+              otroSub.fecha?.horaInicio.slice(0, 5) ??
+              "",
+            horaFin:
+              propuesta?.horaFin.slice(0, 5) ??
+              otroSub.fecha?.horaFin.slice(0, 5) ??
+              "",
+          };
+        });
+
+        const payload: ModificarLogisticaPayload = {
+          motivoModificacion: motivoModificacionCompleto,
+          subeventos: subeventosAEnviar,
         };
         await apiRequest(`eventos/${idEvento}/logistica`, {
           method: "PATCH",
@@ -806,7 +833,7 @@ export function EditarEvento() {
                     <FormField
                       errorMessage={
                         !descripcion.trim()
-                          ? "La descripción es obligaotria"
+                          ? "La descripción es obligatoria"
                           : ""
                       }>
                       <TextArea
@@ -839,7 +866,7 @@ export function EditarEvento() {
                       </div>
                     ) : (
                       <p className="mt-3 text-gray-600">
-                        No hay ponentes registrados para este .
+                        No hay ponentes registrados para este evento.
                       </p>
                     )}
                     <Button
@@ -889,6 +916,7 @@ export function EditarEvento() {
                   cargandoAgenda={cargandoAgenda}
                   errorAgenda={errorAgenda}
                   deshabilitado={guardando}
+                  mostrarBanner={idSubEventoSeleccionado === undefined}
                   onCambioLogistica={cambiarLogistica}
                   onCambioAlcance={setAlcance}
                   onCambioJustificacion={setJustificacion}

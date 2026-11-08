@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router";
 import { ArrowLeft } from "lucide-react";
 import { EventBanner } from "../event-details/components/molecules/EventBanner";
+import { apiRequest } from "../../lib/apiClient";
 import {
   OrganizerSubeventCard,
   type OrganizerSubeventCardData,
@@ -70,6 +71,7 @@ function convertirSubevento(valor: unknown): OrganizerSubeventCardData {
     nombre: valor.nombre,
     descripcion: valor.descripcion,
     accesoQR: valor.accesoQR,
+    estado: typeof valor.estado === "string" ? valor.estado : undefined,
     fecha,
     recinto,
   };
@@ -129,21 +131,10 @@ export function AdministracionEventoConSubeventos() {
       }
 
       try {
-        const response = await fetch(
-          `http://localhost:3000/api/eventos/${idEvento}/detalle-organizador`,
-          {
-            headers: { Authorization: `Bearer ${token}` },
-            signal: controller.signal,
-          },
+        const respuesta = await apiRequest<unknown>(
+          `eventos/${idEvento}/detalle-organizador`,
+          { signal: controller.signal },
         );
-
-        if (!response.ok) {
-          throw new Error(
-            `No se pudieron cargar los detalles del evento (HTTP ${response.status}).`,
-          );
-        }
-
-        const respuesta: unknown = await response.json();
         setDatosEvento(convertirEvento(respuesta));
       } catch (error) {
         if (controller.signal.aborted) return;
@@ -166,6 +157,7 @@ export function AdministracionEventoConSubeventos() {
   const subeventosCompletos =
     datosEvento?.subEventos.filter(
       (subevento) =>
+        subevento.estado !== "Cancelado" &&
         subevento.nombre.trim().length > 0 &&
         subevento.descripcion.trim().length > 0,
     ) ?? [];
