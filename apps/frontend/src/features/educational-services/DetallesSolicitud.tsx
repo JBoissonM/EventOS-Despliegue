@@ -206,7 +206,6 @@ export function DetallesSolicitud() {
   const [motivoRechazo, setMotivoRechazo] = useState("");
 
   const [mostrarModalCancelar, setMostrarModalCancelar] = useState(false);
-  const [mostrarConfirmarCancelar, setMostrarConfirmarCancelar] = useState(false);
   const [motivoCancelacion, setMotivoCancelacion] = useState("");
 
   const [procesando, setProcesando] = useState(false);
@@ -336,7 +335,6 @@ export function DetallesSolicitud() {
           motivo: motivoLimpio,
         }),
       });
-      setMostrarConfirmarCancelar(false);
       setMostrarModalCancelar(false);
       setModalExito({
         mensaje: "Se ha cancelado exitosamente el evento.",
@@ -695,45 +693,20 @@ export function DetallesSolicitud() {
                 text="Volver"
                 variant="secondary"
                 disabled={procesando}
-                onClick={() => setMostrarModalCancelar(false)}
+                onClick={() => {
+                  setMostrarModalCancelar(false);
+                  setErrorAccion(null);
+                }}
               />
               <Button
                 text="Cancelar evento"
                 variant="danger"
                 disabled={motivoCancelacion.trim().length < 10 || procesando}
-                onClick={() => setMostrarConfirmarCancelar(true)}
+                loading={procesando}
+                loadingText="Cancelando..."
+                onClick={handleConfirmarCancelar}
               />
             </div>
-          </div>
-        </Modal>
-      )}
-
-      {mostrarConfirmarCancelar && (
-        <Modal
-          titulo="Confirmación"
-          contenido="¿Desea cancelar el evento?"
-          mostrarModal={mostrarConfirmarCancelar}
-          cerrarModal={() => setMostrarConfirmarCancelar(false)}
-        >
-          {errorAccion && (
-            <p className="text-sm text-eventos-error mb-4" role="alert">
-              {errorAccion}
-            </p>
-          )}
-          <div className="flex justify-end gap-2">
-            <Button
-              text="Cancelar"
-              variant="secondary"
-              disabled={procesando}
-              onClick={() => setMostrarConfirmarCancelar(false)}
-            />
-            <Button
-              text="Aceptar"
-              variant="danger"
-              loading={procesando}
-              loadingText="Cancelando..."
-              onClick={handleConfirmarCancelar}
-            />
           </div>
         </Modal>
       )}
