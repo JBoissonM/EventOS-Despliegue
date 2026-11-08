@@ -57,7 +57,7 @@ export function CardMenuPrincipal({
                       ? "primary"
                       : "error"
             }>
-            {idEstadoEvento !== undefined && EstadoEvento[idEstadoEvento]}
+            {idEstadoEvento == 3 ? "PENDIENTE" : idEstadoEvento !== undefined && EstadoEvento[idEstadoEvento]}
           </Badge>
         </div>
         <div id="contenedorTexto" className="space-y-2">
@@ -96,10 +96,12 @@ export function CardMenuPrincipal({
           text="Ver detalles"
           variant="primary"
           type="button"
-          onClick={() => { tieneUnSubevento 
-            ? navigate(`/organizador/administrar-evento/${idEvento}`)
-            : navigate(`/organizador/administrar-evento-subeventos/${idEvento}`)}}
-            />
+          onClick={() => {
+            tieneUnSubevento
+              ? navigate(`/organizador/administrar-evento/${idEvento}`)
+              : navigate(`/organizador/administrar-evento-subeventos/${idEvento}`)
+          }}
+        />
       </div>
     </article>
   );
