@@ -419,28 +419,30 @@ export function EditLogisticsSection({
             />
           </FormField>
         </div>
-        <div className="flex min-w-0 flex-col gap-2">
-          <label htmlFor="campoAlcance" className="font-bold">
-            Alcance
-          </label>
-          <Select
-            id="campoAlcance"
-            placeholder="Selecciona una opción"
-            options={ALCANCES}
-            value={alcance === "" ? "" : String(alcance)}
-            disabled={deshabilitado}
-            onChange={(event) => {
-              const valor = Number(event.currentTarget.value);
-              if (
-                valor === AlcanceEvento.PUBLICO ||
-                valor === AlcanceEvento.INTERNO ||
-                valor === AlcanceEvento.PRIVADO
-              ) {
-                onCambioAlcance(valor);
-              }
-            }}
-          />
-        </div>
+        {mostrarBanner && (
+          <div className="flex min-w-0 flex-col gap-2">
+            <label htmlFor="campoAlcance" className="font-bold">
+              Alcance
+            </label>
+            <Select
+              id="campoAlcance"
+              placeholder="Selecciona una opción"
+              options={ALCANCES}
+              value={alcance === "" ? "" : String(alcance)}
+              disabled={deshabilitado}
+              onChange={(event) => {
+                const valor = Number(event.currentTarget.value);
+                if (
+                  valor === AlcanceEvento.PUBLICO ||
+                  valor === AlcanceEvento.INTERNO ||
+                  valor === AlcanceEvento.PRIVADO
+                ) {
+                  onCambioAlcance(valor);
+                }
+              }}
+            />
+          </div>
+        )}
         <div className="flex min-w-0 flex-col gap-2">
           <label htmlFor="campoAforo" className="font-bold">
             Aforo estimado

@@ -294,8 +294,8 @@ export function AdministracionEvento() {
   const subevento = datosEvento
     ? idSubEventoSeleccionado
       ? (datosEvento.subEventos.find(
-          (item) => item.idSubEvento === idSubEventoSeleccionado,
-        ) ?? null)
+        (item) => item.idSubEvento === idSubEventoSeleccionado,
+      ) ?? null)
       : datosEvento.subEventos.length === 1
         ? datosEvento.subEventos[0]
         : null

@@ -55,6 +55,12 @@ const ACCESOS = [
   { value: "false", label: "No" },
 ];
 
+const ALCANCES = [
+  { value: String(AlcanceEvento.PUBLICO), label: "Público" },
+  { value: String(AlcanceEvento.INTERNO), label: "Interno" },
+  { value: String(AlcanceEvento.PRIVADO), label: "Privado" },
+];
+
 const HORAS_INICIO = [
   "07:00",
   "07:30",
@@ -593,20 +599,53 @@ export function EditarEventoConSubeventos() {
           className="space-y-8">
           <fieldset disabled={guardando} className="space-y-8 border-0 p-0">
             <section className="space-y-4 border border-gray-200 bg-white p-5 shadow-md">
-              <div className="w-fit">
-                <FormField
-                  className="!font-bold !text-black"
-                  label="Banner del evento"
-                  mensajeAyuda="Resolución: 2048 x 1152">
-                  <InputFile
-                    id="campoPoster"
-                    accept=".jpg"
-                    disabled={guardando}
-                    onChange={(event) =>
-                      setArchivoPoster(event.currentTarget.files?.[0] ?? null)
-                    }
-                  />
-                </FormField>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 items-start">
+                <div className="w-fit">
+                  <FormField
+                    className="!font-bold !text-black"
+                    label="Banner del evento"
+                    mensajeAyuda="Resolución: 2048 x 1152">
+                    <InputFile
+                      id="campoPoster"
+                      accept=".jpg"
+                      disabled={guardando}
+                      onChange={(event) =>
+                        setArchivoPoster(event.currentTarget.files?.[0] ?? null)
+                      }
+                    />
+                  </FormField>
+                </div>
+                <div id="contenedorAlcance" className="max-w-xs">
+                  <FormField
+                    label="Alcance"
+                    htmlFor="campoAlcance"
+                    className="!font-bold !text-black">
+                    <Select
+                      id="campoAlcance"
+                      placeholder="Selecciona una opción"
+                      options={ALCANCES}
+                      value={
+                        datosGenerales.idAlcance === ""
+                          ? ""
+                          : String(datosGenerales.idAlcance)
+                      }
+                      disabled={guardando}
+                      onChange={(event) => {
+                        const valor = Number(event.currentTarget.value);
+                        if (
+                          valor === AlcanceEvento.PUBLICO ||
+                          valor === AlcanceEvento.INTERNO ||
+                          valor === AlcanceEvento.PRIVADO
+                        ) {
+                          setDatosGenerales({
+                            ...datosGenerales,
+                            idAlcance: valor,
+                          });
+                        }
+                      }}
+                    />
+                  </FormField>
+                </div>
               </div>
               <div id="contenedorNombre" className="relative">
                 <Pencil
