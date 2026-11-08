@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router";
 import { MainLayout } from "../components/templates/MainLayout";
 import { LoginForm } from "../features/auth/LoginForm";
 import { Registro } from "../features/auth/Registro";
+import { ConfirmarRegistro } from "../features/auth/ConfirmarRegistro";
 import { DashboardLayout } from "../components/templates/DashboardLayout";
 import { ProtectedRoute } from "../app/ProtectedRoutes";
 
@@ -48,6 +49,7 @@ export function AppRouter() {
         <Route element={<MainLayout />}>
           <Route path="/login" element={<LoginForm />} />
           <Route path="/registro" element={<Registro />} />
+          <Route path="/confirmar-registro" element={<ConfirmarRegistro />} />
           <Route path="/detalles-solicitud/" element={<DetallesSolicitud />} />
           <Route path="/cartelera" element={<EventCatalogPage />} />
           <Route path="/recuperar-contrasena" element={<SolicitarRecuperacion />} />
@@ -67,14 +69,7 @@ export function AppRouter() {
         </Route>
 
         {/*Solicitud evento para subdirección y asistentes (Organizador)*/}
-        <Route
-          element={
-            <ProtectedRoute allowedRoles={[
-                "Subdirección",
-                "Asistente",
-                "Usuario Externo",
-                "Usuario Interno",
-              ]}/>}>
+        <Route element={<ProtectedRoute allowedRoles={["Subdirección","Asistente","Usuario Externo","Usuario Interno",]}/>}>
           <Route element={<DashboardLayout />}>
             <Route path="/solicitud-evento" element={<SolicitudEvento />} />
             <Route path="/organizador/mis-eventos" element={<MisEventos />} />

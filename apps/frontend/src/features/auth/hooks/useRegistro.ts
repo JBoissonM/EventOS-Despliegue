@@ -30,8 +30,10 @@ export function useRegistro() {
   const [loading, setLoading] = useState(false);
   const [modalExitoAbierto, setModalExitoAbierto] = useState(false);
   const [modalIncompletosAbierto, setModalIncompletosAbierto] = useState(false);
+  const [correoRegistrado, setCorreoRegistrado] = useState("");
 
   const ValidacionContra = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).{8,64}$/;
+  const soloLetrasRegex = /^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s]+$/;
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -54,6 +56,10 @@ export function useRegistro() {
     if (name === "nombre") {
       if (!value.trim()) {
         setErrors((prev) => ({ ...prev, nombre: "El nombre es requerido." }));
+      } else if (value.length > 50) {
+        setErrors((prev) => ({ ...prev, nombre: "El nombre no debe exceder los 50 caracteres." }));
+      } else if (!soloLetrasRegex.test(value)) {
+        setErrors((prev) => ({ ...prev, nombre: "Solo se permiten letras en el nombre." }));
       } else {
         setErrors((prev) => ({ ...prev, nombre: "" }));
       }
@@ -62,6 +68,10 @@ export function useRegistro() {
     if (name === "apellidoPa") {
       if (!value.trim()) {
         setErrors((prev) => ({ ...prev, apellidoPa: "El apellido paterno es requerido." }));
+      } else if (value.length > 50) {
+        setErrors((prev) => ({ ...prev, apellidoPa: "El apellido paterno no debe exceder los 50 caracteres." }));
+      } else if (!soloLetrasRegex.test(value)) {
+        setErrors((prev) => ({ ...prev, apellidoPa: "Solo se permiten letras en el apellido paterno." }));
       } else {
         setErrors((prev) => ({ ...prev, apellidoPa: "" }));
       }
@@ -70,6 +80,10 @@ export function useRegistro() {
     if (name === "apellidoMaterno") {
       if (!value.trim()) {
         setErrors((prev) => ({ ...prev, apellidoMaterno: "El apellido materno es requerido." }));
+      } else if (value.length > 50) {
+        setErrors((prev) => ({ ...prev, apellidoMaterno: "El apellido materno no debe exceder los 50 caracteres." }));
+      } else if (!soloLetrasRegex.test(value)) {
+        setErrors((prev) => ({ ...prev, apellidoMaterno: "Solo se permiten letras en el apellido materno." }));
       } else {
         setErrors((prev) => ({ ...prev, apellidoMaterno: "" }));
       }
@@ -121,7 +135,7 @@ export function useRegistro() {
         correo: "El correo electrónico es requerido.",
         nombre: "El nombre es requerido.",
         apellidoPa: "El apellido paterno es requerido.",
-        apellidoMaterno: "El apellido materno es requerido",
+        apellidoMaterno: "El apellido materno es requerido.",
         contrasena: "La contraseña es requerida.",
         confirmarContrasena: "Confirma tu contraseña.",
         general: "",
@@ -149,15 +163,33 @@ export function useRegistro() {
     if (isNombreEmpty) {
       newNombreError = "El nombre es requerido.";
       hasError = true;
+    } else if (formData.nombre.length > 50) {
+      newNombreError = "El nombre no debe exceder los 50 caracteres.";
+      hasError = true;
+    } else if (!soloLetrasRegex.test(formData.nombre)) {
+      newNombreError = "Solo se permiten letras en el nombre.";
+      hasError = true;
     }
 
     if (isApellidoPaEmpty) {
       newApellidoPaError = "El apellido paterno es requerido.";
       hasError = true;
+    } else if (formData.apellidoPa.length > 50) {
+      newApellidoPaError = "El apellido paterno no debe exceder los 50 caracteres.";
+      hasError = true;
+    } else if (!soloLetrasRegex.test(formData.apellidoPa)) {
+      newApellidoPaError = "Solo se permiten letras en el apellido paterno.";
+      hasError = true;
     }
 
     if (isApellidoMaEmpty) {
       newApellidoMaError = "El apellido materno es requerido.";
+      hasError = true;
+    } else if (formData.apellidoMaterno.length > 50) {
+      newApellidoMaError = "El apellido materno no debe exceder los 50 caracteres.";
+      hasError = true;
+    } else if (!soloLetrasRegex.test(formData.apellidoMaterno)) {
+      newApellidoMaError = "Solo se permiten letras en el apellido materno.";
       hasError = true;
     }
 
@@ -194,10 +226,10 @@ export function useRegistro() {
 
     try {
       const payloadBackend = {
-        nombre: formData.nombre,
-        apellidoPa: formData.apellidoPa,
-        apellidoMa: formData.apellidoMaterno || undefined,
-        correo: formData.correo,
+        nombre: formData.nombre.trim(),
+        apellidoPa: formData.apellidoPa.trim(),
+        apellidoMa: formData.apellidoMaterno.trim() || undefined,
+        correo: formData.correo.trim(),
         contrasena: formData.contrasena,
       };
 
@@ -223,6 +255,7 @@ export function useRegistro() {
         throw new Error(mensajeError);
       }
 
+      setCorreoRegistrado(data.correo || formData.correo.trim());
       setModalExitoAbierto(true);
 
     } catch (error: any) {
@@ -248,6 +281,7 @@ export function useRegistro() {
     loginPath,
     modalExitoAbierto,
     modalIncompletosAbierto,
+    correoRegistrado,
     handleChange,
     handleSubmit,
     handleCerrarModalExito,
