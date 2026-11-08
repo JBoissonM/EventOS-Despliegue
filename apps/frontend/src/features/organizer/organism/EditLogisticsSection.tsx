@@ -335,9 +335,9 @@ export function EditLogisticsSection({
             />
           </FormField>
           {errorAgenda && (
-            <p role="alert" className="text-sm text-red-700">
-              No se pudo consultar la disponibilidad: {errorAgenda}
-            </p>
+            <span role="alert" className="text-sm text-red-700">
+              No se pudo consultar la disponibilidad
+            </span>
           )}
           {!cargandoAgenda &&
             !errorAgenda &&
