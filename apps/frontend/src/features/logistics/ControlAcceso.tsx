@@ -5,9 +5,12 @@ import { Button } from "../../components/atoms/Button/Button";
 
 interface Asistente {
   idBoleto?: number;
+  idUsuario?: number;
   nombre: string;
   ocupacion: string;
-  fechaIngreso?: string;
+  correo?: string;
+  ingresado?: boolean;
+  asiento?: string;
 }
 
 interface ControlAccesoData {
@@ -15,7 +18,7 @@ interface ControlAccesoData {
   nombreEvento: string;
   aforoActual: number;
   aforoMaximo: number;
-  asistentes: Asistente[];
+  listaAsistentes: Asistente[];
 }
 
 export function ControlAcceso() {
@@ -133,8 +136,8 @@ export function ControlAcceso() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200 text-sm">
-                  {data?.asistentes && data.asistentes.length > 0 ? (
-                    data.asistentes.map((asistente, index) => (
+                  {data?.listaAsistentes && data.listaAsistentes.length > 0 ? (
+                    data.listaAsistentes.map((asistente, index) => (
                       <tr key={index} className="hover:bg-gray-50/50">
                         <td className="p-3 text-gray-900 font-medium">{asistente.nombre}</td>
                         <td className="p-3 text-gray-600">{asistente.ocupacion}</td>

@@ -17,6 +17,8 @@ export function EscanearBoleto() {
   const [aforoMaximo, setAforoMaximo] = useState<number>(50);
   const [escaneando, setEscaneando] = useState<boolean>(false);
   const [errorCamara, setErrorCamara] = useState<string | null>(null);
+  
+  const [isReady, setIsReady] = useState<boolean>(false);
 
   const [estadoEscaneo, setEstadoEscaneo] = useState<"valido" | "denegado" | null>(null);
   const [datosAsistente, setDatosAsistente] = useState<AsistenteInfo | null>(null);
@@ -29,7 +31,6 @@ export function EscanearBoleto() {
     return usuario.token || localStorage.getItem("token") || "";
   };
 
-  // Cargar aforo inicial
   useEffect(() => {
     if (!idSubEvento) return;
     fetch(`http://localhost:3000/api/logistica/subeventos/${idSubEvento}/control-acceso`, {
@@ -47,6 +48,13 @@ export function EscanearBoleto() {
       })
       .catch((err) => console.error(err));
   }, [idSubEvento]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setIsReady(true);
+    }, 100);
+    return () => clearTimeout(timer);
+  }, []);
 
   const handleEscanearQr = async (qrValue: string) => {
     if (!qrValue.trim() || escaneando) return;
@@ -70,15 +78,14 @@ export function EscanearBoleto() {
       } else {
         setEstadoEscaneo("valido");
         
-        // Mapeo flexible para capturar cualquier nombre de propiedad que mande el backend
-        const info = resData.asistente || resData;
+        const asistente = resData.asistenteRecienIngresado;
         setDatosAsistente({
-          nombre: info.nombre || info.nombreCompleto || "Asistente",
-          ocupacion: info.ocupacion || info.perfil || info.rol || "Participante",
+          nombre: asistente?.nombre || "Asistente",
+          ocupacion: asistente?.ocupacion || "Participante",
         });
 
-        if (resData.aforoActual !== undefined) {
-          setAforoActual(resData.aforoActual);
+        if (resData.controlAcceso?.aforoActual !== undefined) {
+          setAforoActual(resData.controlAcceso.aforoActual);
         } else {
           setAforoActual((prev) => prev + 1);
         }
@@ -91,50 +98,77 @@ export function EscanearBoleto() {
     }
   };
 
-  // Inicializar el escáner de la cámara en tiempo real
   useEffect(() => {
+    if (!isReady || estadoEscaneo) return;
+
     const scannerId = "reader-qr";
     const html5QrCode = new Html5Qrcode(scannerId);
     scannerRef.current = html5QrCode;
+    let isCancelled = false;
 
-    if (!estadoEscaneo) {
-      html5QrCode
-        .start(
-          { facingMode: "environment" }, // Cámara trasera en dispositivos móviles
-          {
-            fps: 10,
-            qrbox: { width: 240, height: 240 },
+    html5QrCode
+      .start(
+        { facingMode: "environment" },
+        {
+          fps: 10,
+          qrbox: (viewfinderWidth, viewfinderHeight) => {
+            const minEdge = Math.min(viewfinderWidth, viewfinderHeight);
+
+            const minSize = 200;
+            const maxSize = 280;
+
+            let boxSize = Math.floor(minEdge * 0.7);
+
+            if (minEdge < 260) {
+              boxSize = Math.floor(minEdge * 0.8);
+            } else {
+              boxSize = Math.min(Math.max(boxSize, minSize), maxSize);
+            }
+
+            boxSize = Math.max(50, Math.min(boxSize, minEdge - 24));
+
+            return {
+              width: boxSize,
+              height: boxSize,
+            };
           },
-          (decodedText) => {
-            // Se detectó y decodificó un código QR con éxito
-            handleEscanearQr(decodedText);
-          },
-          () => {
-            // Ignorar errores de lectura por fotograma individual
-          }
-        )
-        .catch((err) => {
+        },
+        (decodedText) => {
+          handleEscanearQr(decodedText);
+        },
+        () => {}
+      )
+      .then(() => {
+        if (isCancelled && html5QrCode.isScanning) {
+          html5QrCode.stop().catch((err) => console.error("Error al detener el escáner cancelado:", err));
+        }
+      })
+      .catch((err) => {
+        if (!isCancelled) {
           console.error("Error al iniciar la cámara:", err);
           setErrorCamara("No se pudo iniciar la cámara. Verifica los permisos del navegador.");
-        });
-    }
+        }
+      });
 
     return () => {
+      isCancelled = true;
       if (scannerRef.current && scannerRef.current.isScanning) {
         scannerRef.current
           .stop()
           .catch((err) => console.error("Error al detener el escáner:", err));
       }
     };
-  }, [estadoEscaneo]);
+  }, [isReady, estadoEscaneo]);
 
   return (
     <div className="fixed inset-0 w-screen h-screen bg-black font-merriweather text-white flex flex-col justify-between overflow-hidden">
-      <div id="reader-qr" className="absolute inset-0 w-full h-full z-0 overflow-hidden bg-black object-cover" />
+      
+      <div className="absolute inset-0 w-full h-full z-0 overflow-hidden bg-black flex items-center justify-center">
+        {isReady && <div id="reader-qr" className="w-full max-w-lg overflow-hidden" />}
+      </div>
 
       <main className="relative z-10 flex-1 flex flex-col items-center justify-between px-4 py-8 max-w-md mx-auto w-full text-center pointer-events-none">
         
-        {/* Aforo Actual */}
         <div className="space-y-0.5 pointer-events-auto">
           <div className="text-3xl font-extrabold tracking-tight drop-shadow-md">
             {aforoActual}/{aforoMaximo}
@@ -148,54 +182,36 @@ export function EscanearBoleto() {
           </div>
         )}
 
-        {/* Mensaje inferior y Botón Cancelar */}
         <div className="w-full flex flex-col items-center space-y-4 pointer-events-auto">
           <p className="text-xs italic text-gray-200 drop-shadow bg-black/50 px-4 py-1.5 rounded-full">
             "Centra el código QR del boleto dentro del marco"
           </p>
 
           <div className="w-full max-w-xs">
-            <Button
-              text="Cancelar"
-              variant="primary"
-              onClick={() => navigate(-1)}
-              className="w-full py-3 bg-[#5c1d33] hover:bg-[#4a1c2d] text-white font-semibold rounded-lg shadow-lg transition-colors font-merriweather"
-            />
+            <Button text="Cancelar" variant="primary" onClick={() => navigate(-1)} className="w-full py-3 font-semibold rounded-lg shadow-lg transition-colors font-merriweather"/>
           </div>
         </div>
       </main>
 
-      {/* MODAL POST-ESCANEO: ACCESO VÁLIDO */}
       {estadoEscaneo === "valido" && (
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
-          <div className="bg-white text-gray-900 rounded-2xl p-8 max-w-xs sm:max-w-sm w-full text-center shadow-2xl space-y-6 font-merriweather animate-in fade-in zoom-in-95">
+          <div className="bg-white text-gray-900 rounded-2xl p-8 max-w-xs sm:max-w-sm w-full text-center shadow-2xl space-y-6 font-merriweather">
             <h2 className="text-2xl font-bold text-green-700">Acceso Válido</h2>
             <div className="space-y-1 text-sm sm:text-base">
               <p><strong>Nombre:</strong> {datosAsistente?.nombre}</p>
               <p><strong>Perfil:</strong> {datosAsistente?.ocupacion}</p>
             </div>
-            <Button
-              text="Escanear Siguiente"
-              variant="primary"
-              onClick={() => setEstadoEscaneo(null)}
-              className="w-full py-3 bg-green-700 hover:bg-green-800 text-white font-semibold rounded-lg shadow transition-colors font-merriweather"
-            />
+            <Button text="Escanear Siguiente" variant="primary" onClick={() => setEstadoEscaneo(null)} className="w-full py-3 bg-green-700 hover:bg-green-800 text-white font-semibold rounded-lg shadow transition-colors font-merriweather"/>
           </div>
         </div>
       )}
 
-      {/* MODAL POST-ESCANEO: ACCESO DENEGADO */}
       {estadoEscaneo === "denegado" && (
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
-          <div className="bg-white text-gray-900 rounded-2xl p-8 max-w-xs sm:max-w-sm w-full text-center shadow-2xl space-y-6 font-merriweather animate-in fade-in zoom-in-95">
+          <div className="bg-white text-gray-900 rounded-2xl p-8 max-w-xs sm:max-w-sm w-full text-center shadow-2xl space-y-6 font-merriweather">
             <h2 className="text-2xl font-bold text-red-700">Acceso Denegado</h2>
             <p className="text-sm font-semibold text-gray-800">{mensajeError}</p>
-            <Button
-              text="Reintentar"
-              variant="primary"
-              onClick={() => setEstadoEscaneo(null)}
-              className="w-full py-3 bg-[#5c1d33] hover:bg-[#4a1c2d] text-white font-semibold rounded-lg shadow transition-colors font-merriweather"
-            />
+            <Button text="Reintentar" variant="primary" onClick={() => setEstadoEscaneo(null)} className="w-full py-3 font-semibold rounded-lg shadow transition-colors font-merriweather"/>
           </div>
         </div>
       )}
