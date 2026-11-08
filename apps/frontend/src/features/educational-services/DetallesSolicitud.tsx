@@ -619,7 +619,8 @@ export function DetallesSolicitud() {
                 placeholder="Ingresa el motivo del rechazo"
                 className="resize-none h-50"
                 value={motivoRechazo}
-                hasError={motivoRechazo.length >= 500 || motivoRechazo.length == 0}
+                hasError={motivoRechazo.length >= 500}
+                disabled={procesando}
                 onChange={(e) => {
                   setMotivoRechazo(e.target.value);
                   setErrorAccion(null);
@@ -642,6 +643,7 @@ export function DetallesSolicitud() {
               <Button
                 text="Rechazar"
                 variant="danger"
+                disabled={motivoRechazo.trim().length === 0 || motivoRechazo.length > 500 || procesando}
                 loading={procesando}
                 loadingText="Rechazando..."
                 onClick={handleConfirmarRechazo}
