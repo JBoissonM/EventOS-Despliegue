@@ -11,6 +11,7 @@ import {
   AlcanceEvento,
   EstadoBoleto,
   EstadoEvento,
+  EstadoSubEvento,
   type EventoOrganizadorDetalle,
   type EventoOrganizadorDetalleSubevento,
   type InvitadoEventoItem,
@@ -105,13 +106,16 @@ export class OrganizadorService {
 
     const subEventoIds = eventos
       .flatMap((e) => e.subEventos || [])
+      .filter((s) => s.estado !== EstadoSubEvento.CANCELADO)
       .map((s) => s.idSubEvento);
 
     const boletosPorSubevento =
       await this.contarBoletosValidosPorSubevento(subEventoIds);
 
     return eventos.map((evento) => {
-      const subeventos = [...(evento.subEventos || [])].sort((a, b) => {
+      const subeventos = (evento.subEventos || [])
+        .filter((s) => s.estado !== EstadoSubEvento.CANCELADO)
+        .sort((a, b) => {
         const fechaA = a.fecha?.fecha
           ? `${a.fecha.fecha}T${a.fecha.horaInicio || '00:00'}`
           : '';
@@ -177,7 +181,9 @@ export class OrganizadorService {
       );
     }
 
-    const subeventos = [...(evento.subEventos || [])].sort((a, b) => {
+    const subeventos = (evento.subEventos || [])
+      .filter((s) => s.estado !== EstadoSubEvento.CANCELADO)
+      .sort((a, b) => {
       const fechaA = a.fecha?.fecha
         ? `${a.fecha.fecha}T${a.fecha.horaInicio || '00:00'}`
         : '';

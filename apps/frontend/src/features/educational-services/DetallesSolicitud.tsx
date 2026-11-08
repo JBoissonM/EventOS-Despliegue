@@ -1,109 +1,139 @@
 import { useEffect, useState } from "react";
-import { useParams } from "react-router";
-import { AlcanceEvento } from "@eventos/shared";
+import { useParams, useNavigate, useLocation } from "react-router";
+import { AlcanceEvento, EstadoEvento } from "@eventos/shared";
+import {
+  ArrowLeft,
+  AlertTriangle,
+  MapPin,
+  CalendarDays,
+  Clock,
+  Users,
+} from "lucide-react";
 import Button from "../../components/atoms/Button/Button";
-import { CardSubevento } from "../../components/organisms/SolicitudEventos/CardSubevento";
-import { SeccionDatosPrellenados } from "../../components/organisms/DetallesSolicitud/SeccionDatosPrellenados";
-import type { SubeventoFormData } from "../events/SolicitudEventos";
 import { Modal } from "../../components/molecules/Modal";
-import { useNavigate } from "react-router";
+import { FormField } from "../../components/molecules/FormField";
+import { TextArea } from "../../components/atoms/TextArea/TextArea";
+import { apiRequest } from "../../lib/apiClient";
+import { EventBanner } from "../event-details/components/molecules/EventBanner";
+import Input from "../../components/atoms/Input/Input";
 
+export interface SubeventoDetalleItem {
+  id: number;
+  nombre: string;
+  descripcion: string;
+  accesoQR: boolean;
+  nombreRecinto: string;
+  aforo: number | string;
+  fecha: string;
+  horaInicio: string;
+  horaFin: string;
+}
 
 export interface DatosPrellenados {
   nombreSolicitante: string;
   idAlcance: string;
+  alcanceTexto: string;
   descripcion: string;
   nombre: string;
   justificacion: string;
-  subEventos: SubeventoDetalle[];
+  idEstadoEvento?: number;
+  esUrgente?: boolean;
+  motivoUrgencia?: string | null;
+  posterUrl?: string | null;
+  esModificacion?: boolean;
+  motivoModificacion?: string | null;
+  subEventos: SubeventoDetalleItem[];
 }
 
-interface SubeventoDetalle extends SubeventoFormData {
-  nombreRecinto?: string;
-}
+const ALCANCES: Record<string | number, string> = {
+  [AlcanceEvento.PUBLICO]: "Público",
+  [AlcanceEvento.INTERNO]: "Interno",
+  [AlcanceEvento.PRIVADO]: "Privado",
+};
 
 function esRegistro(valor: unknown): valor is Record<string, unknown> {
   return typeof valor === "object" && valor !== null;
 }
 
-function obtenerTexto(
-  registro: Record<string, unknown>,
-  campo: string,
-): string {
-  const valor = registro[campo];
-  if (typeof valor !== "string") {
-    throw new Error(
-      `La respuesta no contiene un texto válido para "${campo}".`,
-    );
+function formatearFecha(fechaStr?: string | null): string {
+  if (!fechaStr) return "-";
+  const limpia = fechaStr.split("T")[0];
+  const partes = limpia.split("-");
+  if (partes.length === 3) {
+    const [anio, mes, dia] = partes;
+    return `${dia.padStart(2, "0")}/${mes.padStart(2, "0")}/${anio}`;
   }
-  return valor;
+  return fechaStr;
 }
 
-function obtenerNumero(
-  registro: Record<string, unknown>,
-  campo: string,
-): number {
-  const valor = registro[campo];
-  if (typeof valor !== "number") {
-    throw new Error(
-      `La respuesta no contiene un número válido para "${campo}".`,
-    );
-  }
-  return valor;
+function formatearHora(horaStr?: string | null): string {
+  if (!horaStr) return "-";
+  const limpia = horaStr.slice(0, 5);
+  return `${limpia} hrs`;
 }
 
-function obtenerHora(registro: Record<string, unknown>, campo: string): string {
-  const valor = obtenerTexto(registro, campo);
-  if (!/^([01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?$/.test(valor)) {
-    throw new Error(
-      `La respuesta no contiene una hora válida para "${campo}".`,
-    );
-  }
-  return valor.slice(0, 5);
-}
-
-function convertirAlcance(idAlcance: number): string {
-  const alcancesValidos = [
-    AlcanceEvento.PUBLICO,
-    AlcanceEvento.INTERNO,
-    AlcanceEvento.PRIVADO,
-  ];
-  if (!alcancesValidos.includes(idAlcance)) {
-    throw new Error(`Alcance desconocido: ${idAlcance}.`);
-  }
-  return String(idAlcance);
-}
-
-function convertirSubevento(valor: unknown): SubeventoDetalle {
+function convertirSubevento(valor: unknown): SubeventoDetalleItem {
   if (!esRegistro(valor)) {
     throw new Error("La respuesta contiene un subevento inválido.");
   }
 
-  const fecha = valor.fecha;
-  if (!esRegistro(fecha)) {
-    throw new Error("La respuesta contiene un subevento sin fecha.");
+  const id =
+    typeof valor.idSubEvento === "number"
+      ? valor.idSubEvento
+      : typeof valor.id === "number"
+        ? valor.id
+        : 0;
+
+  const nombre = typeof valor.nombre === "string" ? valor.nombre : "";
+  const descripcion =
+    typeof valor.descripcion === "string" ? valor.descripcion : "";
+  const accesoQR = Boolean(valor.accesoQR);
+
+  let fecha = "";
+  let horaInicio = "";
+  let horaFin = "";
+
+  if (esRegistro(valor.fecha)) {
+    fecha = typeof valor.fecha.fecha === "string" ? valor.fecha.fecha : "";
+    horaInicio =
+      typeof valor.fecha.horaInicio === "string" ? valor.fecha.horaInicio : "";
+    horaFin =
+      typeof valor.fecha.horaFin === "string" ? valor.fecha.horaFin : "";
+  } else if (typeof valor.fecha === "string") {
+    fecha = valor.fecha;
+    horaInicio = typeof valor.horaInicio === "string" ? valor.horaInicio : "";
+    horaFin = typeof valor.horaFin === "string" ? valor.horaFin : "";
   }
 
-  if (typeof valor.accesoQR !== "boolean") {
-    throw new Error("La respuesta contiene un acceso QR inválido.");
-  }
+  let nombreRecinto = "-";
+  let aforo: number | string = "-";
 
-  const espacio = valor.espacio;
-  const nombreRecinto =
-    esRegistro(espacio) && typeof espacio.nombre === "string"
-      ? espacio.nombre
-      : undefined;
+  if (esRegistro(valor.espacio)) {
+    if (typeof valor.espacio.nombre === "string") {
+      nombreRecinto = valor.espacio.nombre;
+    }
+    if (typeof valor.espacio.aforo === "number") {
+      aforo = valor.espacio.aforo;
+    }
+  } else if (esRegistro(valor.recinto)) {
+    if (typeof valor.recinto.nombre === "string") {
+      nombreRecinto = valor.recinto.nombre;
+    }
+    if (typeof valor.recinto.aforo === "number") {
+      aforo = valor.recinto.aforo;
+    }
+  }
 
   return {
-    id: obtenerNumero(valor, "idSubEvento"),
-    nombre: typeof valor.nombre === "string" ? valor.nombre : "",
-    descripcion: obtenerTexto(valor, "descripcion"),
-    idRecinto: obtenerNumero(valor, "idRecinto"),
+    id,
+    nombre,
+    descripcion,
+    accesoQR,
     nombreRecinto,
-    accesoQR: valor.accesoQR,
-    fecha: obtenerTexto(fecha, "fecha"),
-    horaInicio: obtenerHora(fecha, "horaInicio"),
-    horaFin: obtenerHora(fecha, "horaFin"),
+    aforo,
+    fecha,
+    horaInicio,
+    horaFin,
   };
 }
 
@@ -115,37 +145,97 @@ function convertirSolicitud(valor: unknown): DatosPrellenados {
   const solicitante = valor.solicitante;
   let nombreSolicitante = "No disponible";
 
-  if (solicitante !== null) {
-    if (!esRegistro(solicitante)) {
-      throw new Error("La respuesta contiene datos de solicitante inválidos.");
+  if (solicitante !== null && solicitante !== undefined) {
+    if (esRegistro(solicitante)) {
+      nombreSolicitante =
+        typeof solicitante.nombreCompleto === "string"
+          ? solicitante.nombreCompleto
+          : `${solicitante.nombre ?? ""} ${solicitante.apellidoPa ?? ""}`.trim();
+    } else if (typeof solicitante === "string") {
+      nombreSolicitante = solicitante;
     }
-    nombreSolicitante = obtenerTexto(solicitante, "nombreCompleto");
   }
 
-  if (!Array.isArray(valor.subeventos)) {
-    throw new Error("La respuesta no contiene una lista válida de subeventos.");
+  const idAlcanceNum =
+    typeof valor.idAlcance === "number"
+      ? valor.idAlcance
+      : Number(valor.idAlcance) || 1;
+
+  const alcanceTexto = ALCANCES[idAlcanceNum] ?? "Público";
+
+  const solMod = esRegistro(valor.solicitudModificacion)
+    ? valor.solicitudModificacion
+    : null;
+  const tieneModificacionPendiente =
+    Boolean(valor.esModificacion) &&
+    (solMod === null || solMod.estado === "Pendiente");
+
+  let rawSubeventos: unknown[] = [];
+  if (
+    tieneModificacionPendiente &&
+    solMod &&
+    Array.isArray(solMod.subeventosPropuestos) &&
+    solMod.subeventosPropuestos.length > 0
+  ) {
+    rawSubeventos = solMod.subeventosPropuestos;
+  } else if (Array.isArray(valor.subeventos)) {
+    rawSubeventos = valor.subeventos;
+  } else if (Array.isArray(valor.subEventos)) {
+    rawSubeventos = valor.subEventos;
   }
+
+  const posterUrl =
+    typeof valor.posterUrl === "string"
+      ? valor.posterUrl
+      : typeof valor.poster_url === "string"
+        ? valor.poster_url
+        : null;
 
   return {
     nombreSolicitante,
-    idAlcance: convertirAlcance(obtenerNumero(valor, "idAlcance")),
-    descripcion: obtenerTexto(valor, "descripcion"),
-    nombre: obtenerTexto(valor, "nombre"),
-    justificacion: obtenerTexto(valor, "justificacion"),
-    subEventos: valor.subeventos.map(convertirSubevento),
+    idAlcance: String(idAlcanceNum),
+    alcanceTexto,
+    descripcion: typeof valor.descripcion === "string" ? valor.descripcion : "",
+    nombre: typeof valor.nombre === "string" ? valor.nombre : "",
+    justificacion:
+      typeof valor.justificacion === "string" ? valor.justificacion : "",
+    idEstadoEvento:
+      typeof valor.idEstadoEvento === "number" ? valor.idEstadoEvento : undefined,
+    esUrgente: Boolean(valor.esUrgente),
+    motivoUrgencia:
+      typeof valor.motivoUrgencia === "string" ? valor.motivoUrgencia : null,
+    posterUrl,
+    esModificacion: tieneModificacionPendiente,
+    motivoModificacion:
+      solMod && typeof solMod.motivoModificacion === "string"
+        ? solMod.motivoModificacion
+        : null,
+    subEventos: rawSubeventos.map(convertirSubevento),
   };
 }
 
 export function DetallesSolicitud() {
   const { id } = useParams();
+  const navigate = useNavigate();
+  const location = useLocation();
+
   const [datos, setDatos] = useState<DatosPrellenados | null>(null);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [accion, setAccion] = useState<"aprobar" | "rechazar" | null>(null);
-  const [errorAccion, setErrorAccion] = useState<string | null>(null);
-  const [mostrarModalExito, setModalExito] = useState(false);
-  const navigate = useNavigate();
 
+  const [mostrarModalAprobar, setMostrarModalAprobar] = useState(false);
+  const [mostrarModalRechazar, setMostrarModalRechazar] = useState(false);
+  const [motivoRechazo, setMotivoRechazo] = useState("");
+
+  const [mostrarModalCancelar, setMostrarModalCancelar] = useState(false);
+  const [motivoCancelacion, setMotivoCancelacion] = useState("");
+
+  const [procesando, setProcesando] = useState(false);
+  const [errorAccion, setErrorAccion] = useState<string | null>(null);
+  const [modalExito, setModalExito] = useState<{
+    mensaje: string;
+    redireccion: string;
+  } | null>(null);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -161,37 +251,16 @@ export function DetallesSolicitud() {
         return;
       }
 
-      const token = localStorage.getItem("token");
-      if (!token) {
-        setError("Error en inicio de sesión. No se ha iniciado sesión");
-        setCargando(false);
-        return;
-      }
-
       try {
-        const response = await fetch(
-          `http://localhost:3000/api/solicitudes/${id}`,
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-            signal: controller.signal,
-          },
-        );
-
-        if (!response.ok) {
-          throw new Error(
-            `No se pudo cargar la solicitud (HTTP ${response.status}).`,
-          );
-        }
-
-        const respuesta: unknown = await response.json();
+        const respuesta = await apiRequest<unknown>(`/solicitudes/${id}`, {
+          signal: controller.signal,
+        });
         setDatos(convertirSolicitud(respuesta));
-      } catch (error) {
+      } catch (err) {
         if (controller.signal.aborted) return;
         setError(
-          error instanceof Error
-            ? error.message
+          err instanceof Error
+            ? err.message
             : "Ocurrió un error al cargar la solicitud.",
         );
       } finally {
@@ -205,134 +274,510 @@ export function DetallesSolicitud() {
     return () => controller.abort();
   }, [id]);
 
-  if (cargando) return <p>Cargando solicitud...</p>;
-  if (error) return <p role="alert">{error}</p>;
-  if (!datos)
-    return <p role="alert">No se recibió información de la solicitud.</p>;
+  const esAprobada = (() => {
+    // Si la navegación indica explícitamente el origen:
+    if (location.state?.from === "pendientes") return false;
+    if (location.state?.from === "aprobadas") return true;
 
-  const confirmarAccion = async () => {
-    if (!id || !accion) return;
+    // Si tiene una modificación logística pendiente de evaluar por subdirección:
+    if (datos?.esModificacion) return false;
 
-    const token = localStorage.getItem("token");
-    if (!token) {
-      setErrorAccion("No hay sesión iniciada.");
-      return;
+    // Si el evento está aceptado y no hay modificación pendiente:
+    if (datos?.idEstadoEvento === EstadoEvento.ACEPTADO) return true;
+
+    return false;
+  })();
+
+  const handleVolver = () => {
+    if (location.state?.from === "pendientes") {
+      navigate("/subdireccion/lista-solicitudes");
+    } else if (location.state?.from === "aprobadas") {
+      navigate("/subdireccion/solicitudes-aprobadas");
+    } else if (esAprobada) {
+      navigate("/subdireccion/solicitudes-aprobadas");
+    } else {
+      navigate("/subdireccion/lista-solicitudes");
     }
+  };
 
+  const handleConfirmarAprobar = async () => {
+    if (!id) return;
+    setProcesando(true);
     setErrorAccion(null);
 
     try {
-      const response = await fetch(
-        `http://localhost:3000/api/solicitudes/${id}/${accion}`,
-        {
-          method: "PATCH",
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        },
-      );
-
-      if (!response.ok) {
-        throw new Error(`La acción falló (HTTP ${response.status}).`);
-      }
-
-      if (accion === "aprobar") {
-        navigate("/subdireccion/lista-solicitudes");
-        return;
-      }
-
-      setAccion(null);
-    } catch (error) {
+      await apiRequest(`/solicitudes/${id}/aprobar`, {
+        method: "PATCH",
+      });
+      setMostrarModalAprobar(false);
+      setModalExito({
+        mensaje: "Se ha aprobado exitosamente el evento.",
+        redireccion: "/subdireccion/lista-solicitudes",
+      });
+    } catch (err) {
       setErrorAccion(
-        error instanceof Error
-          ? error.message
-          : "No se pudo actualizar la solicitud.",
+        err instanceof Error
+          ? err.message
+          : "No se pudo aprobar la solicitud del evento.",
       );
+    } finally {
+      setProcesando(false);
     }
-
-   <Modal
-      titulo="Operación exitosa"
-      contenido="Se ha cancelado exitosamente el evento"
-      mostrarModal={mostrarModalExito}
-      cerrarModal={() => !mostrarModalExito}>
-      <Button
-        text="Aceptar"
-        variant="primary"
-        type="button"
-        onClick={() => {setModalExito(false), navigate(`/subdireccion/lista-solicitudes`)}}></Button>
-    </Modal>;
-
   };
 
+  const handleConfirmarRechazo = async () => {
+    if (!id) return;
+    setProcesando(true);
+    setErrorAccion(null);
+
+    try {
+      await apiRequest(`/solicitudes/${id}/rechazar`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          motivo: motivoRechazo.trim() || undefined,
+        }),
+      });
+      setMostrarModalRechazar(false);
+      setModalExito({
+        mensaje: "Se ha rechazado la solicitud del evento exitosamente.",
+        redireccion: "/subdireccion/lista-solicitudes",
+      });
+    } catch (err) {
+      setErrorAccion(
+        err instanceof Error
+          ? err.message
+          : "No se pudo rechazar la solicitud del evento.",
+      );
+    } finally {
+      setProcesando(false);
+    }
+  };
+
+  const handleConfirmarCancelar = async () => {
+    if (!id) return;
+    const motivoLimpio = motivoCancelacion.trim();
+    if (motivoLimpio.length < 10) {
+      setErrorAccion("El motivo de cancelación debe tener al menos 10 caracteres.");
+      return;
+    }
+
+    setProcesando(true);
+    setErrorAccion(null);
+
+    try {
+      await apiRequest(`/solicitudes/${id}/cancelar`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          motivo: motivoLimpio,
+        }),
+      });
+      setMostrarModalCancelar(false);
+      setModalExito({
+        mensaje: "Se ha cancelado exitosamente el evento.",
+        redireccion: "/subdireccion/solicitudes-aprobadas",
+      });
+    } catch (err) {
+      setErrorAccion(
+        err instanceof Error
+          ? err.message
+          : "No se pudo cancelar el evento seleccionado.",
+      );
+    } finally {
+      setProcesando(false);
+    }
+  };
+
+  if (cargando) {
+    return (
+      <div className="flex min-h-[40vh] items-center justify-center">
+        <p className="font-merriweather text-gray-600">Cargando solicitud...</p>
+      </div>
+    );
+  }
+
+  if (error || !datos) {
+    return (
+      <div className="mx-auto max-w-4xl px-4 py-8">
+        <p role="alert" className="font-merriweather text-eventos-error">
+          {error ?? "No se recibió información de la solicitud."}
+        </p>
+        <div className="pt-4">
+          <Button text="Volver" variant="outline" onClick={handleVolver} />
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <section className="mx-[clamp(1rem,8vw,6rem)] space-y-6 px-4">
-      <h1 className="font-merriweather text-[36px] font-bold">
+    <section className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+      <div>
+        <button
+          type="button"
+          onClick={handleVolver}
+          className="inline-flex items-center gap-2 text-sm font-medium text-gray-900 hover:text-eventos-primary cursor-pointer transition-colors"
+        >
+          <ArrowLeft size={20} />
+          <span>Volver</span>
+        </button>
+      </div>
+
+      <h1 className="font-merriweather text-2xl sm:text-3xl font-bold text-gray-900">
         Detalles del evento
       </h1>
-      <SeccionDatosPrellenados datos={datos} />
-      <div className="col-span-full mt-8 space-y-4">
-        {datos.subEventos.map((subevento, index) => (
-          <div key={subevento.id}>
-            <CardSubevento
-              subevento={subevento}
-              index={index}
-              nombreRecinto={subevento.nombreRecinto}
-              readOnly
-            />
+
+      <EventBanner posterUrl={datos.posterUrl ?? ""} eventName={datos.nombre} />
+
+      <h2 className="font-merriweather text-xl sm:text-2xl font-bold text-gray-900">
+        {datos.nombre}
+      </h2>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <FormField label="Solicitante">
+          <Input
+            name="nombre"
+            value={datos.nombreSolicitante}
+            disabled
+            onChange={() => { }}
+          />
+        </FormField>
+        <FormField label="Alcance">
+          <Input
+            name="alcance"
+            disabled
+            value={datos.alcanceTexto}
+            onChange={() => { }}
+          />
+        </FormField>
+      </div>
+
+      <div className="space-y-1">
+        <h3 className="font-merriweather text-base font-bold">
+          Descripción del evento
+        </h3>
+        <p className="font-merriweather text-justify">
+          {datos.descripcion}
+        </p>
+      </div>
+
+      <div className="space-y-1">
+        <h3 className="font-merriweather text-base font-bold">
+          Beneficio Politécnico
+        </h3>
+        <p className="font-merriweather text-justify">
+          {datos.justificacion || "Sin información proporcionada."}
+        </p>
+      </div>
+
+      {datos.esUrgente && datos.motivoUrgencia && (
+        <div className="space-y-1">
+          <div className="flex items-center gap-2">
+            <AlertTriangle className="h-5 w-5 text-red-600 shrink-0" />
+            <span className="font-merriweather text-base font-bold text-gray-900">
+              Motivo de urgencia
+            </span>
+          </div>
+          <p className="font-merriweather text-sm text-gray-700 leading-relaxed text-justify">
+            {datos.motivoUrgencia}
+          </p>
+        </div>
+      )}
+
+      {datos.esModificacion && datos.motivoModificacion && (
+        <div className="space-y-1">
+          <h3 className="font-merriweather text-base font-bold text-gray-900">
+            Motivo de modificación
+          </h3>
+          <p className="font-merriweather text-sm text-gray-700 leading-relaxed text-justify">
+            {datos.motivoModificacion}
+          </p>
+        </div>
+      )}
+
+      <div className="space-y-4 pt-2">
+        {datos.subEventos.map((subevento) => (
+          <div
+            key={subevento.id}
+            className="rounded-md bg-eventos-primary-light h-fit p-6 text-gray-900 shadow-sm border border-[#E4C5C6]"
+          >
+            <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-start">
+              <div className="md:col-span-5 space-y-2">
+                <h4 className="font-merriweather font-bold text-gray-900">
+                  {subevento.nombre}
+                </h4>
+                <p className="font-merriweather text-xs sm:text-sm text-gray-700 leading-relaxed text-justify">
+                  {subevento.descripcion}
+                </p>
+              </div>
+
+              <div className="md:col-span-7 grid grid-cols-3 gap-y-5 gap-x-4">
+                <div>
+                  <div className="flex items-center gap-1.5 text-xs font-semibold text-gray-800">
+                    <MapPin className="h-4 w-4 text-gray-700 shrink-0" />
+                    <span>Espacio</span>
+                  </div>
+                  <p className="mt-1 font-merriweather text-xs   sm:text-sm text-gray-700">
+                    {subevento.nombreRecinto || "-"}
+                  </p>
+                </div>
+
+                <div>
+                  <div className="flex items-center gap-1.5 text-xs font-semibold text-gray-800">
+                    <CalendarDays className="h-4 w-4 text-gray-700 shrink-0" />
+                    <span>Fecha</span>
+                  </div>
+                  <p className="mt-1 font-merriweather text-xs sm:text-sm text-gray-700">
+                    {formatearFecha(subevento.fecha)}
+                  </p>
+                </div>
+
+                <div>
+                  <div className="text-xs font-semibold text-gray-800">
+                    Modalidad de cupo
+                  </div>
+                  <p className="mt-1 font-merriweather text-xs sm:text-sm text-gray-700">
+                    {subevento.accesoQR ? "Boleto con QR" : "Acceso libre"}
+                  </p>
+                </div>
+
+                <div>
+                  <div className="flex items-center gap-1.5 text-xs font-semibold text-gray-800">
+                    <Clock className="h-4 w-4 text-gray-700 shrink-0" />
+                    <span>Hora de Inicio</span>
+                  </div>
+                  <p className="mt-1 font-merriweather text-xs sm:text-sm text-gray-700">
+                    {formatearHora(subevento.horaInicio)}
+                  </p>
+                </div>
+
+                <div>
+                  <div className="flex items-center gap-1.5 text-xs font-semibold text-gray-800">
+                    <Clock className="h-4 w-4 text-gray-700 shrink-0" />
+                    <span>Hora de Finalización</span>
+                  </div>
+                  <p className="mt-1 font-merriweather text-xs sm:text-sm text-gray-700">
+                    {formatearHora(subevento.horaFin)}
+                  </p>
+                </div>
+
+                <div>
+                  <div className="flex items-center gap-1.5 text-xs font-semibold text-gray-800">
+                    <Users className="h-4 w-4 text-gray-700 shrink-0" />
+                    <span>Aforo estimado</span>
+                  </div>
+                  <p className="mt-1 font-merriweather text-xs sm:text-sm text-gray-700">
+                    {subevento.aforo ?? "-"}
+                  </p>
+                </div>
+              </div>
+            </div>
           </div>
         ))}
       </div>
-      <div id="botonesSolicitud" className="flex justify-start gap-3">
-        <Button
-          id="botonRechazar"
-          type="button"
-          text="Rechazar"
-          variant="danger"
-          onClick={() => {
-            setErrorAccion(null);
-            setAccion("rechazar");
-          }}
-        />
-        <Button
-          id="botonAprobar"
-          type="button"
-          text="Aprobar"
-          variant="success"
-          onClick={() => {
-            setErrorAccion(null);
-            setAccion("aprobar");
-          }}
-        />
-      </div>
-      {accion && (
+
+      {esAprobada ? (
+        <div className="flex justify-start pt-2 pb-10">
+          <Button
+            id="botonCancelar"
+            type="button"
+            text="Cancelar"
+            variant="danger"
+            onClick={() => {
+              setErrorAccion(null);
+              setMotivoCancelacion("");
+              setMostrarModalCancelar(true);
+            }}
+          />
+        </div>
+      ) : (
+        <div className="flex justify-start gap-4 pt-2 pb-10">
+          <Button
+            id="botonRechazar"
+            type="button"
+            text="Rechazar"
+            variant="danger"
+            onClick={() => {
+              setErrorAccion(null);
+              setMotivoRechazo("");
+              setMostrarModalRechazar(true);
+            }}
+          />
+          <Button
+            id="botonAprobar"
+            type="button"
+            text="Aprobar"
+            variant="success"
+            onClick={() => {
+              setErrorAccion(null);
+              setMostrarModalAprobar(true);
+            }}
+          />
+        </div>
+      )}
+
+      {mostrarModalAprobar && (
         <Modal
           titulo="Atención"
-          contenido={
-            accion === "aprobar"
-              ? "¿Desea aprobar el evento?"
-              : "¿Desea rechazar el evento?"
-          }
-          mostrarModal
+          contenido="¿Desea aprobar el evento?"
+          mostrarModal={mostrarModalAprobar}
           cerrarModal={() => {
-            setAccion(null);
+            setMostrarModalAprobar(false);
             setErrorAccion(null);
-          }}>
-          {errorAccion && <p role="alert">{errorAccion}</p>}
-          <div className="flex justify-end gap-3">
+          }}
+        >
+          {errorAccion && (
+            <p className="text-sm text-eventos-error mb-4" role="alert">
+              {errorAccion}
+            </p>
+          )}
+          <div className="flex justify-end gap-2">
             <Button
               text="Cancelar"
-              type="button"
               variant="danger"
-              onClick={() => {
-                setAccion(null);
-                setErrorAccion(null);
-              }}
+              disabled={procesando}
+              onClick={() => setMostrarModalAprobar(false)}
             />
             <Button
               text="Aceptar"
-              type="button"
               variant="success"
-              onClick={confirmarAccion}
+              loading={procesando}
+              loadingText="Aprobando..."
+              onClick={handleConfirmarAprobar}
+            />
+          </div>
+        </Modal>
+      )}
+
+      {mostrarModalRechazar && (
+        <Modal
+          titulo="Rechazar solicitud"
+          mostrarModal={mostrarModalRechazar}
+          contenido="Ingrese el motivo de rechazo para la solicitud"
+          cerrarModal={() => {
+            setMostrarModalRechazar(false);
+            setErrorAccion(null);
+          }}
+        >
+          <div className="space-y-4">
+            <FormField
+              label="Motivo de rechazo"
+              htmlFor="campoMotivoRechazo"            >
+              <TextArea
+                id="campoMotivoRechazo"
+                placeholder="Ingresa el motivo del rechazo"
+                className="resize-none h-50"
+                value={motivoRechazo}
+                hasError={motivoRechazo.length >= 500}
+                disabled={procesando}
+                onChange={(e) => {
+                  setMotivoRechazo(e.target.value);
+                  setErrorAccion(null);
+                }}
+                maxLength={500}
+              />
+            </FormField>
+            {errorAccion && (
+              <p className="text-sm text-eventos-error" role="alert">
+                {errorAccion}
+              </p>
+            )}
+            <div className="flex justify-end gap-2 pt-2">
+              <Button
+                text="Cancelar"
+                variant="secondary"
+                disabled={procesando}
+                onClick={() => setMostrarModalRechazar(false)}
+              />
+              <Button
+                text="Rechazar"
+                variant="danger"
+                disabled={motivoRechazo.trim().length === 0 || motivoRechazo.length > 500 || procesando}
+                loading={procesando}
+                loadingText="Rechazando..."
+                onClick={handleConfirmarRechazo}
+              />
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {mostrarModalCancelar && (
+        <Modal
+          titulo="Cancelar evento"
+          mostrarModal={mostrarModalCancelar}
+          cerrarModal={() => {
+            setMostrarModalCancelar(false);
+            setErrorAccion(null);
+          }}
+        >
+          <div className="space-y-4">
+            <p className="text-sm text-gray-700 font-merriweather">
+              Por favor ingrese el motivo de la cancelación del evento:
+            </p>
+            <FormField
+              label="Motivo de cancelación *"
+              htmlFor="campoMotivoCancelacion"
+            >
+              <TextArea
+                id="campoMotivoCancelacion"
+                placeholder="Ingresa el motivo de cancelación"
+                className="resize-none h-32"
+                value={motivoCancelacion}
+                onChange={(e) => {
+                  setMotivoCancelacion(e.target.value);
+                  setErrorAccion(null);
+                }}
+                maxLength={500}
+              />
+            </FormField>
+            {errorAccion && (
+              <p className="text-sm text-eventos-error" role="alert">
+                {errorAccion}
+              </p>
+            )}
+            <div className="flex justify-end gap-2 pt-2">
+              <Button
+                text="Volver"
+                variant="secondary"
+                disabled={procesando}
+                onClick={() => {
+                  setMostrarModalCancelar(false);
+                  setErrorAccion(null);
+                }}
+              />
+              <Button
+                text="Cancelar evento"
+                variant="danger"
+                disabled={motivoCancelacion.trim().length < 10 || procesando}
+                loading={procesando}
+                loadingText="Cancelando..."
+                onClick={handleConfirmarCancelar}
+              />
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {modalExito && (
+        <Modal
+          titulo="Operación exitosa"
+          contenido={modalExito.mensaje}
+          mostrarModal={Boolean(modalExito)}
+          cerrarModal={() => {
+            const ruta = modalExito.redireccion;
+            setModalExito(null);
+            navigate(ruta);
+          }}
+        >
+          <div className="flex justify-end">
+            <Button
+              text="Aceptar"
+              variant="primary"
+              type="button"
+              onClick={() => {
+                const ruta = modalExito.redireccion;
+                setModalExito(null);
+                navigate(ruta);
+              }}
             />
           </div>
         </Modal>

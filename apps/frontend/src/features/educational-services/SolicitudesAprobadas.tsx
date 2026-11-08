@@ -7,6 +7,7 @@ import { TextArea } from "../../components/atoms/TextArea/TextArea";
 import { FormField } from "../../components/molecules/FormField";
 import { useNavigate } from "react-router";
 import { SearchBar } from "../../components/molecules/SearchBar";
+import { apiRequest } from "../../lib/apiClient";
 
 type SolicitudesAprobadas = {
   idEvento: number;
@@ -164,23 +165,12 @@ export function SolicitudesAprobadas() {
       }
 
       try {
-        const response = await fetch(
-          "http://localhost:3000/api/solicitudes?estado=Aprobado",
+        const respuesta = await apiRequest<unknown>(
+          "/solicitudes?estado=Aprobado",
           {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
             signal: controller.signal,
           },
         );
-
-        if (!response.ok) {
-          throw new Error(
-            `No se pudieron cargar las solicitudes (HTTP ${response.status}).`,
-          );
-        }
-
-        const respuesta: unknown = await response.json();
         setSolicitudes(convertirSolicitudes(respuesta));
       } catch (error) {
         if (controller.signal.aborted) return;
@@ -242,29 +232,20 @@ export function SolicitudesAprobadas() {
     setErrorCancelacion(null);
 
     try {
-      const response = await fetch(
-        `http://localhost:3000/api/solicitudes/${solicitudSeleccionada.idEvento}/cancelar`,
+      await apiRequest(
+        `/solicitudes/${solicitudSeleccionada.idEvento}/cancelar`,
         {
           method: "PATCH",
-          headers: {
-            Authorization: `******`,
-            "Content-Type": "application/json",
-          },
           body: JSON.stringify({ motivo: motivo.trim() }),
         },
       );
-
-      if (!response.ok) {
-        throw new Error(
-          `No se pudo cancelar el evento (HTTP ${response.status}).`,
-        );
-      }
 
       const idCancelado = solicitudSeleccionada.idEvento;
       setSolicitudes((actuales) =>
         actuales.filter((solicitud) => solicitud.idEvento !== idCancelado),
       );
       cerrarModalCancelacion();
+      setModalExito(true);
     } catch (error) {
       setErrorCancelacion(
         error instanceof Error
@@ -275,18 +256,6 @@ export function SolicitudesAprobadas() {
     } finally {
       setCancelando(false);
     }
-
-    <Modal
-      titulo="Operación exitosa"
-      contenido="Se ha cancelado exitosamente el evento"
-      mostrarModal={mostrarModalExito}
-      cerrarModal={() => !mostrarModalExito}>
-      <Button
-        text="Aceptar"
-        variant="primary"
-        type="button"
-        onClick={() => setModalExito(false)}></Button>
-    </Modal>;
   };
 
   const columnas: Columna<SolicitudesAprobadas>[] = [
@@ -328,7 +297,9 @@ export function SolicitudesAprobadas() {
               variant="primary"
               type="button"
               onClick={() =>
-                navigate(`/detalles-solicitud/${solicitud.idEvento}`)
+                navigate(`/detalles-solicitud/${solicitud.idEvento}`, {
+                  state: { from: "aprobadas" },
+                })
               }
             />
             <Button
@@ -501,6 +472,22 @@ export function SolicitudesAprobadas() {
                   setModalConfirmacion(false);
                   void confirmarCancelacion();
                 }}
+              />
+            </div>
+          </Modal>
+        )}
+        {mostrarModalExito && (
+          <Modal
+            titulo="Operación exitosa"
+            contenido="Se ha cancelado exitosamente el evento"
+            mostrarModal={mostrarModalExito}
+            cerrarModal={() => setModalExito(false)}>
+            <div className="flex justify-end">
+              <Button
+                text="Aceptar"
+                variant="primary"
+                type="button"
+                onClick={() => setModalExito(false)}
               />
             </div>
           </Modal>

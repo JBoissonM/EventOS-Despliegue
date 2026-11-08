@@ -72,8 +72,6 @@ export function AppRouter() {
         <Route element={<ProtectedRoute allowedRoles={["Subdirección","Asistente","Usuario Externo","Usuario Interno",]}/>}>
           <Route element={<DashboardLayout />}>
             <Route path="/solicitud-evento" element={<SolicitudEvento />} />
-            <Route path="/organizador/administrar-evento/:idEvento" element={<AdministracionEvento />} />
-            <Route path="/organizador/editar-evento/:idEvento" element={<EditarEvento />}/>
             <Route path="/organizador/mis-eventos" element={<MisEventos />} />
             <Route
               path="/organizador/administrar-evento/:idEvento"
@@ -83,12 +81,18 @@ export function AppRouter() {
               path="/organizador/administrar-evento/:idEvento/subevento/:idSubEvento"
               element={<AdministracionEvento />}
             />
-            <Route path="/organizador/editar-evento/:idEvento" element={<EditarEvento />}/>
+            <Route
+              path="/organizador/editar-evento/:idEvento"
+              element={<EditarEvento />}
+            />
             <Route
               path="/organizador/editar-evento/:idEvento/subevento/:idSubEvento"
               element={<EditarEvento />}
             />
-            <Route path="/organizador/administrar-evento-subeventos/:idEvento" element={<AdministracionEventoConSubeventos/>}></Route>
+            <Route
+              path="/organizador/administrar-evento-subeventos/:idEvento"
+              element={<AdministracionEventoConSubeventos />}
+            />
             <Route
               path="/organizador/editar-evento-subeventos/:idEvento"
               element={<EditarEventoConSubeventos />}

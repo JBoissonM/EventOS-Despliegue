@@ -176,9 +176,11 @@ export class EventosService {
       );
     }
 
-    const subEventos = await this.subEventoRepository.find({
-      where: { idEvento: evento.idEvento },
-    });
+    const subEventos = (
+      await this.subEventoRepository.find({
+        where: { idEvento: evento.idEvento },
+      })
+    ).filter((s) => s.estado !== EstadoSubEvento.CANCELADO);
 
     const tieneSesion = Boolean(usuarioActual && usuarioActual.sub);
     const esUsuarioInterno =

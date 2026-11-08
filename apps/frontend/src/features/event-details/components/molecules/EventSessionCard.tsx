@@ -48,17 +48,27 @@ export function EventSessionCard({
         <div className="flex items-start gap-2"><Clock3 size={19} aria-hidden="true"/><dt className="font-semibold">Horario:</dt><dd>{activity.fecha ? `${activity.fecha.horaInicio.slice(0,5)}–${activity.fecha.horaFin.slice(0,5)} hrs` : "Por confirmar"}</dd></div>
         <div className="flex items-start gap-2"><UsersRound size={19} aria-hidden="true"/><dt className="font-semibold">Cupos restantes:</dt><dd aria-live="polite">{isLoading ? "Consultando..." : error || cupos === null ? "Por confirmar" : `${cupos}/${activity.recinto?.aforo ?? "?"}`}</dd></div>
       </dl>
-      {onAction ? (
-        <Button
-          text={actionLabel ?? "Ver detalles"}
-          type="button"
-          variant={actionVariant}
-          className="justify-self-center whitespace-nowrap rounded-md px-5 py-3 text-sm md:-translate-x-6"
-          onClick={onAction}
-        />
-      ) : (
-        <Link to={detailsPath ?? `/eventos/${activity.idEvento}/actividades/${activity.idSubEvento}`} className="justify-self-center whitespace-nowrap rounded-md bg-eventos-primary px-5 py-3 text-sm font-semibold text-eventos-on-primary hover:bg-eventos-action-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-eventos-primary md:-translate-x-6">{detailsLabel}</Link>
-      )}
+      <div className="flex flex-wrap items-center justify-center gap-2 justify-self-center md:-translate-x-6">
+        {(detailsPath || !onAction) && (
+          <Link
+            to={
+              detailsPath ??
+              `/eventos/${activity.idEvento}/actividades/${activity.idSubEvento}`
+            }
+            className="whitespace-nowrap rounded-md bg-eventos-primary px-5 py-3 text-sm font-semibold text-eventos-on-primary hover:bg-eventos-action-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-eventos-primary">
+            {detailsLabel}
+          </Link>
+        )}
+        {onAction && (
+          <Button
+            text={actionLabel ?? "Ver detalles"}
+            type="button"
+            variant={actionVariant}
+            className="whitespace-nowrap rounded-md px-5 py-3 text-sm"
+            onClick={onAction}
+          />
+        )}
+      </div>
     </article>
   );
 }

@@ -117,6 +117,9 @@ const fechaMinima = new Intl.DateTimeFormat("en-CA", {
   day: "2-digit",
 }).format(new Date());
 
+const anioActual = new Date().getFullYear();
+const FECHA_FIN_SEMESTRE = `${anioActual}-12-19`;
+
 export interface EditLogisticsValues {
   idRecinto: string;
   fecha: string;
@@ -139,6 +142,7 @@ interface EditLogisticsSectionProps {
   cargandoAgenda: boolean;
   errorAgenda: string | null;
   deshabilitado: boolean;
+  mostrarBanner?: boolean;
   onCambioLogistica: <K extends keyof EditLogisticsValues>(
     campo: K,
     valor: EditLogisticsValues[K],
@@ -161,6 +165,7 @@ export function EditLogisticsSection({
   cargandoAgenda,
   errorAgenda,
   deshabilitado,
+  mostrarBanner = true,
   onCambioLogistica,
   onCambioAlcance,
   onCambioJustificacion,
@@ -238,22 +243,24 @@ export function EditLogisticsSection({
   return (
     <div id="contenedorDerecha" className="w-full min-w-0 space-y-4">
       <article className="grid min-w-0 grid-cols-1 gap-x-6 gap-y-5 rounded-lg border border-gray-200 bg-white p-4 shadow-sm sm:grid-cols-2 sm:p-6">
-        <div className="flex min-w-0 flex-col gap-2">
-          <FormField
-            className="!font-bold !text-black"
-            label="Banner del evento"
-            mensajeAyuda="Resolución: 2048 x 1152">
-            <InputFile
-              key={archivoPoster?.name ?? posterUrl ?? "poster"}
-              id="campoPoster"
-              accept=".jpg"
-              disabled={deshabilitado}
-              onChange={(event) =>
-                onCambioPoster(event.currentTarget.files?.[0] ?? null)
-              }
-            />
-          </FormField>
-        </div>
+        {mostrarBanner && (
+          <div className="flex min-w-0 flex-col gap-2">
+            <FormField
+              className="!font-bold !text-black"
+              label="Banner del evento"
+              mensajeAyuda="Resolución: 2048 x 1152">
+              <InputFile
+                key={archivoPoster?.name ?? posterUrl ?? "poster"}
+                id="campoPoster"
+                accept=".jpg"
+                disabled={deshabilitado}
+                onChange={(event) =>
+                  onCambioPoster(event.currentTarget.files?.[0] ?? null)
+                }
+              />
+            </FormField>
+          </div>
+        )}
         <div className="flex min-w-0 flex-col gap-2">
           <FormField className="!font-bold !text-black" label="Recinto">
             <Select
@@ -296,6 +303,7 @@ export function EditLogisticsSection({
               type="date"
               value={valores.fecha}
               min={fechaMinima}
+              max={FECHA_FIN_SEMESTRE}
               disabled={deshabilitado}
               onChange={(event) => {
                 const fecha = event.currentTarget.value;
@@ -335,9 +343,9 @@ export function EditLogisticsSection({
             />
           </FormField>
           {errorAgenda && (
-            <p role="alert" className="text-sm text-red-700">
-              No se pudo consultar la disponibilidad: {errorAgenda}
-            </p>
+            <span role="alert" className="text-sm text-red-700">
+              No se pudo consultar la disponibilidad
+            </span>
           )}
           {!cargandoAgenda &&
             !errorAgenda &&
@@ -411,28 +419,30 @@ export function EditLogisticsSection({
             />
           </FormField>
         </div>
-        <div className="flex min-w-0 flex-col gap-2">
-          <label htmlFor="campoAlcance" className="font-bold">
-            Alcance
-          </label>
-          <Select
-            id="campoAlcance"
-            placeholder="Selecciona una opción"
-            options={ALCANCES}
-            value={alcance === "" ? "" : String(alcance)}
-            disabled={deshabilitado}
-            onChange={(event) => {
-              const valor = Number(event.currentTarget.value);
-              if (
-                valor === AlcanceEvento.PUBLICO ||
-                valor === AlcanceEvento.INTERNO ||
-                valor === AlcanceEvento.PRIVADO
-              ) {
-                onCambioAlcance(valor);
-              }
-            }}
-          />
-        </div>
+        {mostrarBanner && (
+          <div className="flex min-w-0 flex-col gap-2">
+            <label htmlFor="campoAlcance" className="font-bold">
+              Alcance
+            </label>
+            <Select
+              id="campoAlcance"
+              placeholder="Selecciona una opción"
+              options={ALCANCES}
+              value={alcance === "" ? "" : String(alcance)}
+              disabled={deshabilitado}
+              onChange={(event) => {
+                const valor = Number(event.currentTarget.value);
+                if (
+                  valor === AlcanceEvento.PUBLICO ||
+                  valor === AlcanceEvento.INTERNO ||
+                  valor === AlcanceEvento.PRIVADO
+                ) {
+                  onCambioAlcance(valor);
+                }
+              }}
+            />
+          </div>
+        )}
         <div className="flex min-w-0 flex-col gap-2">
           <label htmlFor="campoAforo" className="font-bold">
             Aforo estimado
