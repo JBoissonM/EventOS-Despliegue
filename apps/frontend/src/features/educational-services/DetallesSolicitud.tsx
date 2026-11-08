@@ -40,6 +40,8 @@ export interface DatosPrellenados {
   esUrgente?: boolean;
   motivoUrgencia?: string | null;
   posterUrl?: string | null;
+  esModificacion?: boolean;
+  motivoModificacion?: string | null;
   subEventos: SubeventoDetalleItem[];
 }
 
@@ -161,11 +163,26 @@ function convertirSolicitud(valor: unknown): DatosPrellenados {
 
   const alcanceTexto = ALCANCES[idAlcanceNum] ?? "Público";
 
-  const rawSubeventos = Array.isArray(valor.subeventos)
-    ? valor.subeventos
-    : Array.isArray(valor.subEventos)
-      ? valor.subEventos
-      : [];
+  const solMod = esRegistro(valor.solicitudModificacion)
+    ? valor.solicitudModificacion
+    : null;
+  const tieneModificacionPendiente =
+    Boolean(valor.esModificacion) &&
+    (solMod === null || solMod.estado === "Pendiente");
+
+  let rawSubeventos: unknown[] = [];
+  if (
+    tieneModificacionPendiente &&
+    solMod &&
+    Array.isArray(solMod.subeventosPropuestos) &&
+    solMod.subeventosPropuestos.length > 0
+  ) {
+    rawSubeventos = solMod.subeventosPropuestos;
+  } else if (Array.isArray(valor.subeventos)) {
+    rawSubeventos = valor.subeventos;
+  } else if (Array.isArray(valor.subEventos)) {
+    rawSubeventos = valor.subEventos;
+  }
 
   const posterUrl =
     typeof valor.posterUrl === "string"
@@ -188,6 +205,11 @@ function convertirSolicitud(valor: unknown): DatosPrellenados {
     motivoUrgencia:
       typeof valor.motivoUrgencia === "string" ? valor.motivoUrgencia : null,
     posterUrl,
+    esModificacion: tieneModificacionPendiente,
+    motivoModificacion:
+      solMod && typeof solMod.motivoModificacion === "string"
+        ? solMod.motivoModificacion
+        : null,
     subEventos: rawSubeventos.map(convertirSubevento),
   };
 }
@@ -252,12 +274,26 @@ export function DetallesSolicitud() {
     return () => controller.abort();
   }, [id]);
 
-  const esAprobada =
-    location.state?.from === "aprobadas" ||
-    datos?.idEstadoEvento === EstadoEvento.ACEPTADO;
+  const esAprobada = (() => {
+    // Si la navegación indica explícitamente el origen:
+    if (location.state?.from === "pendientes") return false;
+    if (location.state?.from === "aprobadas") return true;
+
+    // Si tiene una modificación logística pendiente de evaluar por subdirección:
+    if (datos?.esModificacion) return false;
+
+    // Si el evento está aceptado y no hay modificación pendiente:
+    if (datos?.idEstadoEvento === EstadoEvento.ACEPTADO) return true;
+
+    return false;
+  })();
 
   const handleVolver = () => {
-    if (location.state?.from === "aprobadas" || esAprobada) {
+    if (location.state?.from === "pendientes") {
+      navigate("/subdireccion/lista-solicitudes");
+    } else if (location.state?.from === "aprobadas") {
+      navigate("/subdireccion/solicitudes-aprobadas");
+    } else if (esAprobada) {
       navigate("/subdireccion/solicitudes-aprobadas");
     } else {
       navigate("/subdireccion/lista-solicitudes");
@@ -442,6 +478,17 @@ export function DetallesSolicitud() {
           </div>
           <p className="font-merriweather text-sm text-gray-700 leading-relaxed text-justify">
             {datos.motivoUrgencia}
+          </p>
+        </div>
+      )}
+
+      {datos.esModificacion && datos.motivoModificacion && (
+        <div className="space-y-1">
+          <h3 className="font-merriweather text-base font-bold text-gray-900">
+            Motivo de modificación
+          </h3>
+          <p className="font-merriweather text-sm text-gray-700 leading-relaxed text-justify">
+            {datos.motivoModificacion}
           </p>
         </div>
       )}
