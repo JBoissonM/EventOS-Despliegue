@@ -30,6 +30,7 @@ export function useRegistro() {
   const [loading, setLoading] = useState(false);
   const [modalExitoAbierto, setModalExitoAbierto] = useState(false);
   const [modalIncompletosAbierto, setModalIncompletosAbierto] = useState(false);
+  const [correoRegistrado, setCorreoRegistrado] = useState("");
 
   const ValidacionContra = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).{8,64}$/;
   const soloLetrasRegex = /^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s]+$/;
@@ -225,10 +226,10 @@ export function useRegistro() {
 
     try {
       const payloadBackend = {
-        nombre: formData.nombre,
-        apellidoPa: formData.apellidoPa,
-        apellidoMa: formData.apellidoMaterno || undefined,
-        correo: formData.correo,
+        nombre: formData.nombre.trim(),
+        apellidoPa: formData.apellidoPa.trim(),
+        apellidoMa: formData.apellidoMaterno.trim() || undefined,
+        correo: formData.correo.trim(),
         contrasena: formData.contrasena,
       };
 
@@ -254,6 +255,7 @@ export function useRegistro() {
         throw new Error(mensajeError);
       }
 
+      setCorreoRegistrado(data.correo || formData.correo.trim());
       setModalExitoAbierto(true);
 
     } catch (error: any) {
@@ -279,6 +281,7 @@ export function useRegistro() {
     loginPath,
     modalExitoAbierto,
     modalIncompletosAbierto,
+    correoRegistrado,
     handleChange,
     handleSubmit,
     handleCerrarModalExito,

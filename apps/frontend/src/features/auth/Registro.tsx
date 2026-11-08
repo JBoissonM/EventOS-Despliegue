@@ -1,3 +1,4 @@
+import { Mail } from "lucide-react";
 import { Input } from "../../components/atoms/Input/Input";
 import { Button } from "../../components/atoms/Button/Button";
 import { FieldMessage } from "../../components/atoms/FieldMessage/FieldMessage";
@@ -15,6 +16,7 @@ export function Registro() {
     loginPath,
     modalExitoAbierto,
     modalIncompletosAbierto,
+    correoRegistrado,
     handleChange,
     handleSubmit,
     handleCerrarModalExito,
@@ -117,11 +119,40 @@ export function Registro() {
         </form>
       </div>
 
-      <Modal titulo="¡Registro exitoso!" contenido="Tu cuenta ha sido creada correctamente. Ya puedes iniciar sesión en la plataforma." mostrarModal={modalExitoAbierto} cerrarModal={handleCerrarModalExito}>
-        <div className="flex justify-end pt-4">
-          <Button text="Aceptar" type="button" onClick={handleCerrarModalExito}
-            className="font-merriweather text-sm px-6 py-2.5 rounded-md transition-colors shadow"
-          />
+      <Modal
+        titulo="¡Verifica tu correo electrónico!"
+        mostrarModal={modalExitoAbierto}
+        cerrarModal={handleCerrarModalExito}
+      >
+        <div className="space-y-4 font-merriweather text-gray-700">
+          <div className="flex justify-center my-2">
+            <div className="bg-[#5c1d33]/10 p-4 rounded-full text-primary">
+              <Mail className="w-12 h-12" />
+            </div>
+          </div>
+          <p className="text-center font-bold text-gray-900 text-lg">
+            ¡Tu solicitud de registro ha sido procesada!
+          </p>
+          <p className="text-sm text-center leading-relaxed text-gray-600">
+            Hemos enviado un enlace de confirmación a{" "}
+            <strong className="text-gray-900">{correoRegistrado || formData.correo}</strong>.
+          </p>
+          <div className="bg-amber-50 border border-amber-200 rounded-lg p-3.5 text-xs text-amber-900 space-y-1.5">
+            <p className="leading-relaxed">
+              Abre el correo que te enviamos y presiona el botón <strong>"Verificar mi correo y activar cuenta"</strong>. Una vez confirmado, tu cuenta quedará dada de alta y podrás iniciar sesión.
+            </p>
+            <p className="text-amber-800 italic pt-1 border-t border-amber-200/70">
+              * Recuerda revisar tu carpeta de spam o correo no deseado. El enlace expira en 15 minutos.
+            </p>
+          </div>
+          <div className="flex justify-center pt-2">
+            <Button
+              text="Entendido, ir al inicio de sesión"
+              type="button"
+              onClick={handleCerrarModalExito}
+              className="font-merriweather text-sm px-6 py-2.5 rounded-md transition-colors shadow"
+            />
+          </div>
         </div>
       </Modal>
 
