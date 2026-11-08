@@ -61,7 +61,7 @@ export function Registro() {
               </FormField>
 
               <FormField label="Nombre(s)" htmlFor="nombre">
-                <Input id="nombre" name="nombre" type="text" placeholder="Ingresa tu nombre" value={formData.nombre} onChange={handleChange} hasError={!!errors.nombre}/>
+                <Input id="nombre" name="nombre" type="text" placeholder="Ingresa tu nombre" value={formData.nombre} onChange={handleChange} hasError={!!errors.nombre} maxLength={50}/>
                 <div className="min-h-10.5 mt-1">
                   {errors.nombre && (
                     <p className="text-eventos-error text-xs font-merriweather">{errors.nombre}</p>
@@ -70,7 +70,7 @@ export function Registro() {
               </FormField>
             </div>
 
-            <div className="-mb-3 grid grid-cols-1 gap-6 md:grid-cols-2 items-start">
+            <div className="mb-2 grid grid-cols-1 gap-6 md:grid-cols-2 items-start">
               <div>
                 <PasswordField id="contrasena" name="contrasena" label="Contraseña" placeholder="Ejemplo01!" value={formData.contrasena} onChange={handleChange} error={errors.contrasena}/>
                 <div className="mt-2">
@@ -83,8 +83,8 @@ export function Registro() {
               </div>
 
               <FormField label="Apellido Paterno" htmlFor="apellidoPa">
-                <Input id="apellidoPa" name="apellidoPa" type="text" placeholder="Ingresa tu apellido paterno" value={formData.apellidoPa} onChange={handleChange} hasError={!!errors.apellidoPa}/>
-                <div className="min-h-16 mt-2">
+                <Input id="apellidoPa" name="apellidoPa" type="text" placeholder="Ingresa tu apellido paterno" value={formData.apellidoPa} onChange={handleChange} hasError={!!errors.apellidoPa} maxLength={50}/>
+                <div className="min-h-10.5 mt-1">
                   {errors.apellidoPa && (
                     <p className="text-eventos-error text-xs font-merriweather">{errors.apellidoPa}</p>
                   )}
@@ -94,12 +94,14 @@ export function Registro() {
 
             <div className="-mb-4 grid grid-cols-1 gap-6 md:grid-cols-2 items-start">
               <PasswordField id="confirmarContrasena" name="confirmarContrasena" label="Confirmar contraseña" placeholder="Ejemplo01!" value={formData.confirmarContrasena} onChange={handleChange} error={errors.confirmarContrasena}/>
-                <FormField label="Apellido Materno" htmlFor="apellidoMaterno">
-                  <Input id="apellidoMaterno" name="apellidoMaterno" placeholder="Ingresa tu apellido materno" type="text" value={formData.apellidoMaterno} onChange={handleChange} hasError={!!errors.apellidoPa}/>
-                    {errors.apellidoMaterno && (
-                      <p className="text-eventos-error text-xs font-merriweather">{errors.apellidoMaterno}</p>
-                    )}
-                </FormField>
+              <FormField label="Apellido Materno" htmlFor="apellidoMaterno">
+                <Input id="apellidoMaterno" name="apellidoMaterno" placeholder="Ingresa tu apellido materno" type="text" value={formData.apellidoMaterno} onChange={handleChange} hasError={!!errors.apellidoMaterno} maxLength={50}/>
+                <div className="min-h-10.5 mt-1">
+                  {errors.apellidoMaterno && (
+                    <p className="text-eventos-error text-xs font-merriweather">{errors.apellidoMaterno}</p>
+                  )}
+                </div>
+              </FormField>
             </div>
           </div>
 

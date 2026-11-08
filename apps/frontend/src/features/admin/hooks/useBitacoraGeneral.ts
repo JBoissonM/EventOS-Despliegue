@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router";
 
 export interface BitacoraItem {
@@ -22,7 +22,7 @@ export function useBitacoraGeneral() {
     return usuario.token || localStorage.getItem("token") || "";
   };
 
-  const cargarBitacora = async (query = "") => {
+  const cargarBitacora = useCallback(async (query = "") => {
     setLoading(true);
     try {
       const endpoint = `http://localhost:3000/api/eventos/bitacora${query ? `?buscar=${encodeURIComponent(query)}` : ""}`;
@@ -45,15 +45,19 @@ export function useBitacoraGeneral() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
-    cargarBitacora();
-  }, []);
+    const timer = setTimeout(() => {
+      cargarBitacora(busqueda.trim());
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [busqueda, cargarBitacora]);
 
   const handleBuscar = (e: React.FormEvent) => {
     e.preventDefault();
-    cargarBitacora(busqueda);
+    cargarBitacora(busqueda.trim());
   };
 
   const handleExportar = async () => {

@@ -46,3 +46,9 @@
   --color-eventos-navbar-focus: var(--color-eventos-on-primary);
   --text-eventos-brand: clamp(1.5rem, 1.25rem + 1vw, 1.875rem);
 }
+
+/* Ocultar el botón nativo de mostrar contraseña en Microsoft Edge e Internet Explorer */
+input::-ms-reveal,
+input::-ms-clear {
+  display: none !important;
+}
