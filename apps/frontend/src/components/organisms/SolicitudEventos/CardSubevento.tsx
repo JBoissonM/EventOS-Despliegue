@@ -26,24 +26,24 @@ type CardSubeventoProps = CardSubeventoBaseProps &
   (
     | { readOnly: true }
     | {
-        readOnly?: false;
-        errors: ErroresSubevento;
-        touched: CamposSubeventoTocados;
-        updateSubevento: (
-          index: number,
-          field: CampoSubevento,
-          value: string,
-        ) => void;
-        markSubeventoTouched: (index: number, field: CampoSubevento) => void;
-        onRemove: () => void;
-        canRemove: boolean;
-        canEdit: boolean;
-      }
+      readOnly?: false;
+      errors: ErroresSubevento;
+      touched: CamposSubeventoTocados;
+      updateSubevento: (
+        index: number,
+        field: CampoSubevento,
+        value: string,
+      ) => void;
+      markSubeventoTouched: (index: number, field: CampoSubevento) => void;
+      onRemove: () => void;
+      canRemove: boolean;
+      canEdit: boolean;
+    }
   );
 
 const ACCESOS = [
-  { value: "true", label: "Sí" },
-  { value: "false", label: "No" },
+  { value: "true", label: "Acceso con QR" },
+  { value: "false", label: "Entrada libre" },
 ];
 
 const RECINTOS = [
@@ -264,7 +264,7 @@ export function CardSubevento(props: CardSubeventoProps) {
             readOnly
               ? undefined
               : (e) =>
-                  props.updateSubevento(index, "horaInicio", e.target.value)
+                props.updateSubevento(index, "horaInicio", e.target.value)
           }
           onBlur={
             readOnly
@@ -315,7 +315,7 @@ export function CardSubevento(props: CardSubeventoProps) {
           subevento.idRecinto === RecintoId.SALA_14
             ? "Al elegir la sala 14 el acceso es libre"
             : subevento.idRecinto === RecintoId.LABORATORIO_A ||
-                subevento.idRecinto === RecintoId.LABORATORIO_B
+              subevento.idRecinto === RecintoId.LABORATORIO_B
               ? "Al elegir un laboratorio el cupo pasa a ser limitado"
               : ""
         }>
