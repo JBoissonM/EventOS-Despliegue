@@ -235,7 +235,11 @@ export function ListadoSolicitudes() {
         <Button
           text="Ver detalles"
           type="button"
-          onClick={() => navigate(`/detalles-solicitud/${solicitud.idEvento}`)}
+          onClick={() =>
+            navigate(`/detalles-solicitud/${solicitud.idEvento}`, {
+              state: { from: "pendientes" },
+            })
+          }
         />
       ),
     },

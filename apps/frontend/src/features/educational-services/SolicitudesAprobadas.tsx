@@ -328,7 +328,9 @@ export function SolicitudesAprobadas() {
               variant="primary"
               type="button"
               onClick={() =>
-                navigate(`/detalles-solicitud/${solicitud.idEvento}`)
+                navigate(`/detalles-solicitud/${solicitud.idEvento}`, {
+                  state: { from: "aprobadas" },
+                })
               }
             />
             <Button
