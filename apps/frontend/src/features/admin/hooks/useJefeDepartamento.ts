@@ -57,8 +57,12 @@ export function useJefeDepartamento() {
   }, []);
 
   useEffect(() => {
-    cargarDatos(activeTab, busqueda);
-  }, [activeTab, cargarDatos]);
+    const delayDebounceFn = setTimeout(() => {
+      cargarDatos(activeTab, busqueda.trim());
+    }, 300);
+
+    return () => clearTimeout(delayDebounceFn);
+  }, [activeTab, busqueda, cargarDatos]);
 
   const handleTabChange = (tab: "asignar" | "revocar") => {
     setActiveTab(tab);
@@ -67,7 +71,7 @@ export function useJefeDepartamento() {
 
   const handleBuscar = (e: React.FormEvent) => {
     e.preventDefault();
-    cargarDatos(activeTab, busqueda);
+    cargarDatos(activeTab, busqueda.trim());
   };
 
   const abrirModal = (usuario: CandidatoJefe, tipo: "asignar" | "revocar") => {
