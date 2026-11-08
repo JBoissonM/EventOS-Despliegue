@@ -9,13 +9,20 @@ import {
   UseGuards,
   Req,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiBody, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiBody,
+  ApiOperation,
+  ApiQuery,
+  ApiTags,
+} from '@nestjs/swagger';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 import { RegistroDto } from './dto/registro.dto';
 import { ActivarCuentaLogisticaDto } from './dto/activarCuentaLogistica.dto';
 import { SolicitarRecuperacionDto } from './dto/solicitarRecuperacion.dto';
 import { RestablecerContrasenaDto } from './dto/restablecerContrasena.dto';
+import { ConfirmarRegistroDto } from './dto/confirmarRegistro.dto';
 import { RolesGuard } from './roles.guard';
 
 @ApiTags('Auth')
@@ -23,11 +30,41 @@ import { RolesGuard } from './roles.guard';
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
-  @ApiOperation({ summary: 'Registrar nuevo usuario' })
+  @ApiOperation({
+    summary:
+      'Solicitar registro de usuario y enviar enlace de verificación por correo',
+  })
+  @ApiBody({ type: RegistroDto })
   @Post('registro')
-  @HttpCode(HttpStatus.CREATED)
+  @HttpCode(HttpStatus.OK)
   async registrarUsuario(@Body() body: RegistroDto) {
     return await this.authService.registrar(body);
+  }
+
+  @ApiOperation({
+    summary:
+      'Confirmar correo electrónico mediante token y crear la cuenta en la base de datos',
+  })
+  @ApiBody({ type: ConfirmarRegistroDto })
+  @Post('confirmar-registro')
+  @HttpCode(HttpStatus.CREATED)
+  async confirmarRegistroPost(@Body() body: ConfirmarRegistroDto) {
+    return await this.authService.confirmarRegistro(body?.token);
+  }
+
+  @ApiOperation({
+    summary:
+      'Confirmar correo electrónico por parámetro de consulta y crear la cuenta',
+  })
+  @ApiQuery({
+    name: 'token',
+    required: true,
+    description: 'Token JWT recibido en el correo de confirmación de registro',
+  })
+  @Get('confirmar-registro')
+  @HttpCode(HttpStatus.OK)
+  async confirmarRegistroGet(@Query('token') token: string) {
+    return await this.authService.confirmarRegistro(token);
   }
 
   @ApiOperation({ summary: 'Iniciar sesión y obtener token JWT' })
@@ -49,8 +86,7 @@ export class AuthController {
   }
 
   @ApiOperation({
-    summary:
-      'Validar vigencia e integridad del token de recuperación',
+    summary: 'Validar vigencia e integridad del token de recuperación',
   })
   @ApiQuery({
     name: 'token',

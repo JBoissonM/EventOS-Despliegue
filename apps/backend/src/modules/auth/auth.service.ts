@@ -41,9 +41,7 @@ export class AuthService {
   // Verifica que el correo tenga formato válido y que su dominio exista y tenga servidores de correo (MX)
   private async verificarDominioCorreoValido(correo: string): Promise<void> {
     if (!this.EMAIL_REGEX.test(correo)) {
-      throw new BadRequestException(
-        'Advertencia: Ingrese un correo válido. (MSG-10)',
-      );
+      throw new BadRequestException('Advertencia: Ingrese un correo válido.');
     }
 
     const dominio = correo.split('@')[1];
@@ -72,7 +70,7 @@ export class AuthService {
     const correo = dto.correo?.trim().toLowerCase() ?? '';
     const contrasenaRaw = dto.contrasena ?? '';
 
-    //Rechazar campos nulos, vacíos o solo con espacios
+    // Rechazar campos nulos, vacíos o solo con espacios
     if (
       !nombre ||
       !apellidoPa ||
@@ -81,11 +79,11 @@ export class AuthService {
       !contrasenaRaw.trim()
     ) {
       throw new BadRequestException(
-        'Por favor, completa todos los campos obligatorios resaltados para continuar (MSG-17).',
+        'Por favor, completa todos los campos obligatorios resaltados para continuar.',
       );
     }
 
-    //Validar longitud máxima de 50 caracteres en Nombre y Apellidos
+    // Validar longitud máxima de 50 caracteres en Nombre y Apellidos
     if (
       nombre.length > 50 ||
       apellidoPa.length > 50 ||
@@ -96,7 +94,7 @@ export class AuthService {
       );
     }
 
-    //Validar que Nombre y Apellidos contengan únicamente letras
+    // Validar que Nombre y Apellidos contengan únicamente letras
     if (
       !this.SOLO_LETRAS_REGEX.test(nombre) ||
       !this.SOLO_LETRAS_REGEX.test(apellidoPa) ||
@@ -104,6 +102,13 @@ export class AuthService {
     ) {
       throw new BadRequestException(
         'El nombre y los apellidos solo pueden contener letras, sin números ni símbolos especiales.',
+      );
+    }
+
+    // Validar complejidad de la contraseña antes de enviar el correo
+    if (!this.PASSWORD_COMPLEJIDAD_REGEX.test(contrasenaRaw)) {
+      throw new BadRequestException(
+        'La contraseña debe tener al menos 8 caracteres e incluir letras y números.',
       );
     }
 
@@ -129,30 +134,112 @@ export class AuthService {
       tipoAsignado = TipoCuentaUsuario.EXTERNO;
     }
 
+    const payload = {
+      tipo: 'CONFIRMACION_REGISTRO',
+      nombre,
+      apellidoPa,
+      apellidoMa,
+      correo,
+      contrasenaHash: hashedPassword,
+      tipoCuenta: tipoAsignado,
+    };
+
+    const token = this.jwtService.sign(payload, {
+      secret: process.env.JWT_PASS || 'clave_secreta',
+      expiresIn: '15m',
+    });
+
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+    // Ruta hacia la pantalla de confirmación de registro en el frontend
+    const enlaceConfirmacion = `${frontendUrl}/confirmar-registro?token=${encodeURIComponent(token)}`;
+
+    try {
+      await this.mailService.enviarCorreoConfirmacionRegistro({
+        destinatario: correo,
+        nombreUsuario: `${nombre} ${apellidoPa}`.trim(),
+        tipoCuenta: tipoAsignado,
+        enlaceConfirmacion,
+      });
+    } catch {
+      throw new InternalServerErrorException(
+        'No se pudo enviar el correo de verificación. Verifica tu dirección o inténtalo de nuevo más tarde.',
+      );
+    }
+
+    return {
+      mensaje:
+        'Te hemos enviado un correo de verificación. Haz clic en el enlace enviado a tu bandeja para completar tu registro.',
+      requiereVerificacionCorreo: true,
+      correo,
+    };
+  }
+
+  // Confirmar el correo electrónico mediante el token y crear la cuenta en la base de datos
+  async confirmarRegistro(tokenRaw?: string) {
+    const token = tokenRaw?.trim() ?? '';
+    if (!token || TOKEN_BLACKLIST.has(token)) {
+      throw new BadRequestException(
+        'El enlace de verificación es inválido, ya fue utilizado o ha expirado.',
+      );
+    }
+
+    let payload: any;
+    try {
+      payload = this.jwtService.verify(token, {
+        secret: process.env.JWT_PASS || 'clave_secreta',
+      });
+    } catch {
+      throw new BadRequestException(
+        'El enlace de verificación es inválido, ya fue utilizado o ha expirado.',
+      );
+    }
+
+    if (
+      !payload ||
+      payload.tipo !== 'CONFIRMACION_REGISTRO' ||
+      !payload.correo ||
+      !payload.contrasenaHash ||
+      !payload.nombre ||
+      !payload.apellidoPa
+    ) {
+      throw new BadRequestException(
+        'El enlace de verificación no es válido para activar una cuenta.',
+      );
+    }
+
+    const correo = String(payload.correo).trim().toLowerCase();
+
+    const existe = await this.usuarioRepository.findOne({
+      where: { correo },
+    });
+
+    if (existe) {
+      TOKEN_BLACKLIST.add(token);
+      throw new ConflictException(
+        'Esta cuenta ya fue verificada y registrada anteriormente. Ya puedes iniciar sesión.',
+      );
+    }
+
     const nuevoUsuario = this.usuarioRepository.create({
-      nombre: dto.nombre.trim(),
-      apellidoPa: dto.apellidoPa.trim(),
-      apellidoMa: dto.apellidoMa ? dto.apellidoMa.trim() : null,
-      correo: dto.correo.trim().toLowerCase(),
-      contrasena: hashedPassword,
+      nombre: String(payload.nombre).trim(),
+      apellidoPa: String(payload.apellidoPa).trim(),
+      apellidoMa: payload.apellidoMa ? String(payload.apellidoMa).trim() : null,
+      correo,
+      contrasena: String(payload.contrasenaHash),
       estatus: true,
       esVerificado: EstadoVerificacion.NO_VERIFICADO,
-      tipoCuenta: tipoAsignado,
+      tipoCuenta: payload.tipoCuenta ?? TipoCuentaUsuario.EXTERNO,
       esJefeAcademia: false,
     });
 
     const guardado = await this.usuarioRepository.save(nuevoUsuario);
+    TOKEN_BLACKLIST.add(token);
+
     const { contrasena: _contrasena, ...resultado } = guardado;
 
-    // Enviar correo de confirmación de registro
-    void this.mailService.enviarCorreoBienvenidaRegistro({
-      destinatario: guardado.correo,
-      nombreUsuario: `${guardado.nombre} ${guardado.apellidoPa}`.trim(),
-      tipoCuenta: guardado.tipoCuenta,
-    });
-
     return {
-      mensaje: 'Usuario registrado con éxito',
+      mensaje:
+        'Registro exitoso. Tu correo electrónico ha sido verificado y ya puedes iniciar sesión en el sistema.',
       usuario: resultado,
     };
   }
@@ -188,8 +275,9 @@ export class AuthService {
       }
     }
 
+    const correoLimpio = dto.correo?.trim().toLowerCase() ?? '';
     const usuario = await this.usuarioRepository.findOne({
-      where: { correo: dto.correo },
+      where: { correo: correoLimpio },
     });
 
     if (!usuario || !usuario.contrasena) {
@@ -279,7 +367,7 @@ export class AuthService {
     };
   }
 
-  //Solicitar enlace de recuperación de contraseña (15 minutos)
+  // Solicitar enlace de recuperación de contraseña (15 minutos)
   async solicitarRecuperacionContrasena(dto: SolicitarRecuperacionDto) {
     const correo = dto.correo?.trim().toLowerCase() ?? '';
     if (!correo) {
@@ -289,9 +377,7 @@ export class AuthService {
     }
 
     if (!this.EMAIL_REGEX.test(correo)) {
-      throw new BadRequestException(
-        'Advertencia: Ingrese un correo válido.',
-      );
+      throw new BadRequestException('Advertencia: Ingrese un correo válido.');
     }
 
     const usuario = await this.usuarioRepository.findOne({
@@ -323,7 +409,7 @@ export class AuthService {
     });
 
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
-    //Lo mande a restablecer-contrasena, si el frontend cambia la ruta, solo hay que cambiarla aquí
+    // Lo mande a restablecer-contrasena, si el frontend cambia la ruta, solo hay que cambiarla aquí
     const enlaceRecuperacion = `${frontendUrl}/restablecer-contrasena?token=${encodeURIComponent(token)}`;
 
     const nombreUsuario =
@@ -347,7 +433,7 @@ export class AuthService {
     };
   }
 
-  //Validar vigencia e integridad del token
+  // Validar vigencia e integridad del token
   async validarTokenRecuperacion(tokenRaw?: string) {
     const token = tokenRaw?.trim() ?? '';
     if (!token || TOKEN_BLACKLIST.has(token)) {
@@ -398,13 +484,13 @@ export class AuthService {
     };
   }
 
-  //Restablecer contraseña
+  // Restablecer contraseña
   async restablecerContrasena(dto: RestablecerContrasenaDto) {
     const token = dto.token?.trim() ?? '';
     const nuevaContrasena = dto.nuevaContrasena ?? '';
     const confirmarContrasena = dto.confirmarContrasena ?? '';
 
-    //Validar que el token no haya expirado ni haya sido reutilizado 
+    // Validar que el token no haya expirado ni haya sido reutilizado
     if (!token || TOKEN_BLACKLIST.has(token)) {
       throw new BadRequestException(
         'El enlace de recuperación es inválido, ya fue utilizado o ha expirado.',
@@ -447,7 +533,7 @@ export class AuthService {
       );
     }
 
-    //Validar campos vacíos o contraseña insegura
+    // Validar campos vacíos o contraseña insegura
     if (
       !nuevaContrasena.trim() ||
       !confirmarContrasena.trim() ||
@@ -458,14 +544,14 @@ export class AuthService {
       );
     }
 
-    //Validar que ambas contraseñas coincidan exactamente
+    // Validar que ambas contraseñas coincidan exactamente
     if (nuevaContrasena !== confirmarContrasena) {
       throw new BadRequestException(
         'Las contraseñas ingresadas no coinciden.',
       );
     }
 
-    //Hashear nueva contraseña, invalidar token y levantar bloqueo si existía
+    // Hashear nueva contraseña, invalidar token y levantar bloqueo si existía
     const saltRounds = 10;
     usuario.contrasena = await bcrypt.hash(nuevaContrasena, saltRounds);
     usuario.intentosFallidos = 0;

@@ -12,7 +12,7 @@ const linksByRole = {
     { label: "Cartelera de eventos", to: "/asistente/cartelera" },
     { label: "Mis Boletos", to: "/asistente/boletos" },
     { label: "Mis eventos", to: "/organizador/mis-eventos" },
-    { label: "Control de Acceso", to: "/control-acceso" },
+    { label: "Control de Acceso", to: "/panel-eventos-asignados" },
   ],
   admin: [
     { label: "Menú", to: "/menu-admin" },
@@ -23,7 +23,7 @@ const linksByRole = {
   ],
   subdireccion: [
     { label: "Menú", to: "/subdireccion/menu-principal" },
-    { label: "Mis eventos", to: "/subdireccion/mis-eventos" },
+    { label: "Mis eventos", to: "/organizador/mis-eventos" },
     { label: "Solicitudes Aprobadas", to: "/subdireccion/solicitudes-aprobadas" },
     { label: "Solicitudes Pendientes", to: "/subdireccion/lista-solicitudes" },
     { label: "Solicitar evento", to: "/solicitud-evento" },

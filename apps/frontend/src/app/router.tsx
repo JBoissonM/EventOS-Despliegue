@@ -37,6 +37,9 @@ import { EditarEvento } from "../features/organizer/EditarEvento";
 import { AdministracionEventoConSubeventos } from "../features/organizer/AdministrarEventoConSubeventos";
 import { EditarEventoConSubeventos } from "../features/organizer/EditarEventoConSubeventos";
 
+import { PanelEventosAsignados } from "../features/logistics/PanelEventosAsignados";
+import { ControlAcceso } from "../features/logistics/ControlAcceso";
+import { EscanearBoleto } from "../features/logistics/EscanearBoleto";
 
 export function AppRouter() {
   return (
@@ -63,20 +66,20 @@ export function AppRouter() {
           />
         </Route>
 
-        {/*Solicitud evento para subdirección y asistentes*/}
+        {/*Solicitud evento para subdirección y asistentes (Organizador)*/}
         <Route
           element={
-            <ProtectedRoute
-              allowedRoles={[
+            <ProtectedRoute allowedRoles={[
                 "Subdirección",
                 "Asistente",
                 "Usuario Externo",
                 "Usuario Interno",
-              ]}
-            />
-          }>
+              ]}/>}>
           <Route element={<DashboardLayout />}>
             <Route path="/solicitud-evento" element={<SolicitudEvento />} />
+            <Route path="/organizador/administrar-evento/:idEvento" element={<AdministracionEvento />} />
+            <Route path="/organizador/editar-evento/:idEvento" element={<EditarEvento />}/>
+            <Route path="/organizador/mis-eventos" element={<MisEventos />} />
             <Route
               path="/organizador/administrar-evento/:idEvento"
               element={<AdministracionEvento />}
@@ -118,18 +121,16 @@ export function AppRouter() {
 
         {/* Rutas para asistente*/}
         <Route
-          element={
-            <ProtectedRoute
-              allowedRoles={["Asistente", "Usuario Externo", "Usuario Interno"]}
-            />
-          }>
+          element={<ProtectedRoute allowedRoles={["Asistente", "Usuario Externo", "Usuario Interno"]}/>}>
           <Route element={<DashboardLayout />}>
             <Route path="/menu-asistente" element={<MenuAsistente />} />
             <Route path="/asistente/cartelera" element={<EventCatalogPage />} />
-            <Route path="/organizador/mis-eventos" element={<MisEventos />} />
             <Route path="/asistente/boletos" element={<MyTicketsRoute />} />
             <Route path="/asistente/boletos/:idBoleto" element={<DigitalTicketRoute />} />
             <Route path="/verificacion" element={<Verificacion />} />
+            <Route path="/panel-eventos-asignados" element={<PanelEventosAsignados />} />
+            <Route path="/control-acceso/:idSubEvento" element={<ControlAcceso />} />
+            <Route path="/escanear-boleto/:idSubEvento" element={<EscanearBoleto />} />
           </Route>
         </Route>
 

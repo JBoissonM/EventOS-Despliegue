@@ -518,24 +518,35 @@ export class MailService {
     }
   }
 
-  async enviarCorreoBienvenidaRegistro(datos: {
+  async enviarCorreoConfirmacionRegistro(datos: {
     destinatario: string;
     nombreUsuario: string;
     tipoCuenta: string;
+    enlaceConfirmacion: string;
   }): Promise<void> {
     const html = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden;">
         <div style="background-color: #6b1d2f; color: #ffffff; padding: 20px; text-align: center;">
-          <h2 style="margin: 0;">¡Bienvenido a EventOS!</h2>
+          <h2 style="margin: 0;">Confirma tu correo electrónico - EventOS</h2>
         </div>
         
         <div style="padding: 24px; color: #334155;">
           <p>Hola <strong>${datos.nombreUsuario}</strong>,</p>
-          <p>Tu correo electrónico ha sido verificado y tu cuenta en <strong>EventOS</strong> fue registrada exitosamente con el perfil de <strong>${datos.tipoCuenta}</strong>.</p>
-          <p>Ya puedes iniciar sesión en la plataforma para consultar la cartelera de eventos y reservar tus boletos digitales.</p>
+          <p>Gracias por iniciar tu registro en <strong>EventOS</strong> con el perfil de <strong>${datos.tipoCuenta}</strong>.</p>
+          <p>Para completar la creación de tu cuenta y poder iniciar sesión en el sistema, confirma tu correo electrónico haciendo clic en el siguiente botón:</p>
+
+          <div style="text-align: center; margin: 32px 0;">
+            <a href="${datos.enlaceConfirmacion}" style="background-color: #6b1d2f; color: #ffffff; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px; display: inline-block;">
+              Verificar mi correo y activar cuenta
+            </a>
+          </div>
+
+          <p style="font-size: 13px; color: #dc2626; text-align: center;">
+            * Este enlace es de un solo uso y expirará en <strong>15 minutos</strong>.
+          </p>
 
           <p style="font-size: 12px; color: #64748b; margin-top: 24px; border-top: 1px solid #e2e8f0; padding-top: 12px;">
-            EventOS — Escuela Superior de Cómputo (IPN).
+            Si tú no solicitaste este registro, puedes ignorar este mensaje y la cuenta no será creada.
           </p>
         </div>
       </div>
@@ -545,7 +556,7 @@ export class MailService {
       await this.transporter.sendMail({
         from: process.env.SMTP_FROM || process.env.SMTP_USER,
         to: datos.destinatario,
-        subject: 'Confirmación de registro de cuenta - EventOS',
+        subject: 'Verifica tu correo para completar tu registro - EventOS',
         html,
       });
       this.logger.log(
@@ -553,9 +564,10 @@ export class MailService {
       );
     } catch (error) {
       this.logger.error(
-        `Fallo al enviar correo de bienvenida a ${datos.destinatario}`,
+        `Fallo al enviar correo de confirmación de registro a ${datos.destinatario}`,
         error,
       );
+      throw error;
     }
   }
 }
