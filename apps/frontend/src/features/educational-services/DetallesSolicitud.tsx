@@ -14,6 +14,8 @@ import { Modal } from "../../components/molecules/Modal";
 import { FormField } from "../../components/molecules/FormField";
 import { TextArea } from "../../components/atoms/TextArea/TextArea";
 import { apiRequest } from "../../lib/apiClient";
+import { EventBanner } from "../event-details/components/molecules/EventBanner";
+import Input from "../../components/atoms/Input/Input";
 
 export interface SubeventoDetalleItem {
   id: number;
@@ -199,7 +201,6 @@ export function DetallesSolicitud() {
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Modales y acciones
   const [mostrarModalAprobar, setMostrarModalAprobar] = useState(false);
   const [mostrarModalRechazar, setMostrarModalRechazar] = useState(false);
   const [motivoRechazo, setMotivoRechazo] = useState("");
@@ -374,88 +375,65 @@ export function DetallesSolicitud() {
   }
 
   return (
-    <section className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8 py-6 space-y-6">
-      {/* Botón Volver */}
+    <section className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 py-6 space-y-6">
       <div>
         <button
           type="button"
           onClick={handleVolver}
           className="inline-flex items-center gap-2 text-sm font-medium text-gray-900 hover:text-eventos-primary cursor-pointer transition-colors"
         >
-          <ArrowLeft className="h-4 w-4" />
-          <span>Volver al listado de solicitudes</span>
+          <ArrowLeft size={20} />
+          <span>Volver</span>
         </button>
       </div>
 
-      {/* Título de la vista */}
       <h1 className="font-merriweather text-2xl sm:text-3xl font-bold text-gray-900">
         Detalles del evento
       </h1>
 
-      {/* Banner / Poster */}
-      <div className="w-full h-52 sm:h-64 md:h-72 rounded-xl overflow-hidden bg-black border border-gray-200 shadow-sm flex items-center justify-center">
-        {datos.posterUrl ? (
-          <img
-            src={datos.posterUrl}
-            alt={datos.nombre}
-            className="w-full h-full object-cover"
-            onError={(e) => {
-              (e.currentTarget as HTMLImageElement).style.display = "none";
-            }}
-          />
-        ) : (
-          <div className="w-full h-full flex items-center justify-center bg-gray-900 text-gray-400">
-            <span className="font-merriweather text-lg">{datos.nombre}</span>
-          </div>
-        )}
-      </div>
+      <EventBanner posterUrl={datos.posterUrl ?? ""} eventName={datos.nombre} />
 
-      {/* Nombre del Evento */}
       <h2 className="font-merriweather text-xl sm:text-2xl font-bold text-gray-900">
         {datos.nombre}
       </h2>
 
-      {/* Campos Solicitante y Alcance */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div>
-          <label className="block text-xs font-semibold text-gray-800 mb-1 font-merriweather">
-            Solicitante
-          </label>
-          <div className="w-full rounded-md border-2 border-secondary bg-white px-3 py-2 text-sm text-gray-900">
-            {datos.nombreSolicitante}
-          </div>
-        </div>
-        <div>
-          <label className="block text-xs font-semibold text-gray-800 mb-1 font-merriweather">
-            Alcance
-          </label>
-          <div className="w-full rounded-md border-2 border-secondary bg-white px-3 py-2 text-sm text-gray-900">
-            {datos.alcanceTexto}
-          </div>
-        </div>
+        <FormField label="Solicitante">
+          <Input
+            name="nombre"
+            value={datos.nombreSolicitante}
+            disabled
+            onChange={() => { }}
+          />
+        </FormField>
+        <FormField label="Alcance">
+          <Input
+            name="alcance"
+            disabled
+            value={datos.alcanceTexto}
+            onChange={() => { }}
+          />
+        </FormField>
       </div>
 
-      {/* Descripción del evento */}
       <div className="space-y-1">
-        <h3 className="font-merriweather text-base font-bold text-gray-900">
+        <h3 className="font-merriweather text-base font-bold">
           Descripción del evento
         </h3>
-        <p className="font-merriweather text-sm text-gray-700 leading-relaxed text-justify">
+        <p className="font-merriweather text-justify">
           {datos.descripcion}
         </p>
       </div>
 
-      {/* Beneficio Politécnico */}
       <div className="space-y-1">
-        <h3 className="font-merriweather text-base font-bold text-gray-900">
+        <h3 className="font-merriweather text-base font-bold">
           Beneficio Politécnico
         </h3>
-        <p className="font-merriweather text-sm text-gray-700 leading-relaxed text-justify">
+        <p className="font-merriweather text-justify">
           {datos.justificacion || "Sin información proporcionada."}
         </p>
       </div>
 
-      {/* Motivo de urgencia: solo si la solicitud es urgente */}
       {datos.esUrgente && datos.motivoUrgencia && (
         <div className="space-y-1">
           <div className="flex items-center gap-2">
@@ -470,17 +448,15 @@ export function DetallesSolicitud() {
         </div>
       )}
 
-      {/* Cards de actividades / subeventos */}
       <div className="space-y-4 pt-2">
         {datos.subEventos.map((subevento) => (
           <div
             key={subevento.id}
-            className="rounded-2xl bg-eventos-primary-light p-6 text-gray-900 shadow-sm border border-[#E4C5C6]"
+            className="rounded-md bg-eventos-primary-light h-fit p-6 text-gray-900 shadow-sm border border-[#E4C5C6]"
           >
             <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-start">
-              {/* Columna Izquierda: Título y descripción */}
               <div className="md:col-span-5 space-y-2">
-                <h4 className="font-merriweather text-base font-bold text-gray-900">
+                <h4 className="font-merriweather font-bold text-gray-900">
                   {subevento.nombre}
                 </h4>
                 <p className="font-merriweather text-xs sm:text-sm text-gray-700 leading-relaxed text-justify">
@@ -488,15 +464,13 @@ export function DetallesSolicitud() {
                 </p>
               </div>
 
-              {/* Columna Derecha: 3 columnas x 2 filas */}
               <div className="md:col-span-7 grid grid-cols-3 gap-y-5 gap-x-4">
-                {/* Fila 1 */}
                 <div>
                   <div className="flex items-center gap-1.5 text-xs font-semibold text-gray-800">
                     <MapPin className="h-4 w-4 text-gray-700 shrink-0" />
                     <span>Espacio</span>
                   </div>
-                  <p className="mt-1 font-merriweather text-xs sm:text-sm text-gray-700">
+                  <p className="mt-1 font-merriweather text-xs   sm:text-sm text-gray-700">
                     {subevento.nombreRecinto || "-"}
                   </p>
                 </div>
@@ -520,7 +494,6 @@ export function DetallesSolicitud() {
                   </p>
                 </div>
 
-                {/* Fila 2 */}
                 <div>
                   <div className="flex items-center gap-1.5 text-xs font-semibold text-gray-800">
                     <Clock className="h-4 w-4 text-gray-700 shrink-0" />
@@ -556,7 +529,6 @@ export function DetallesSolicitud() {
         ))}
       </div>
 
-      {/* Botones de acción inferiores */}
       {esAprobada ? (
         <div className="flex justify-start pt-2 pb-10">
           <Button
@@ -597,7 +569,6 @@ export function DetallesSolicitud() {
         </div>
       )}
 
-      {/* Modal Aprobar (Solicitudes Pendientes) */}
       {mostrarModalAprobar && (
         <Modal
           titulo="Atención"
@@ -631,7 +602,6 @@ export function DetallesSolicitud() {
         </Modal>
       )}
 
-      {/* Modal Rechazar (Solicitudes Pendientes) */}
       {mostrarModalRechazar && (
         <Modal
           titulo="Rechazar solicitud"
@@ -686,7 +656,6 @@ export function DetallesSolicitud() {
         </Modal>
       )}
 
-      {/* Modal Cancelar Paso 1: Ingreso de Motivo (Solicitudes Aprobadas) */}
       {mostrarModalCancelar && (
         <Modal
           titulo="Cancelar evento"
@@ -703,7 +672,6 @@ export function DetallesSolicitud() {
             <FormField
               label="Motivo de cancelación *"
               htmlFor="campoMotivoCancelacion"
-              mensajeAyuda={`${motivoCancelacion.length}/500 caracteres (mínimo 10)`}
             >
               <TextArea
                 id="campoMotivoCancelacion"
@@ -725,7 +693,7 @@ export function DetallesSolicitud() {
             <div className="flex justify-end gap-2 pt-2">
               <Button
                 text="Volver"
-                variant="outline"
+                variant="secondary"
                 disabled={procesando}
                 onClick={() => setMostrarModalCancelar(false)}
               />
@@ -740,7 +708,6 @@ export function DetallesSolicitud() {
         </Modal>
       )}
 
-      {/* Modal Cancelar Paso 2: Confirmación */}
       {mostrarConfirmarCancelar && (
         <Modal
           titulo="Confirmación"
@@ -756,7 +723,7 @@ export function DetallesSolicitud() {
           <div className="flex justify-end gap-2">
             <Button
               text="Cancelar"
-              variant="outline"
+              variant="secondary"
               disabled={procesando}
               onClick={() => setMostrarConfirmarCancelar(false)}
             />
@@ -771,7 +738,6 @@ export function DetallesSolicitud() {
         </Modal>
       )}
 
-      {/* Modal de Éxito */}
       {modalExito && (
         <Modal
           titulo="Operación exitosa"
