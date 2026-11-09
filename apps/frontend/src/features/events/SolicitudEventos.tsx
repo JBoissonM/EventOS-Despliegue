@@ -137,18 +137,29 @@ function validarSubeventos(
   return subEventos.map((subevento, index) => {
     const errors: ErroresSubevento = {};
 
-    if (subEventos.length > 1 && index > 0) {
-      if (!subevento.nombre.trim()) {
-        errors.nombre = "El nombre del subevento es obligatorio";
-      } else if (subevento.nombre.trim().length > 150) {
-        errors.nombre =
-          "El nombre del subevento no debe exceder los 150 caracteres";
-      }
-      if (!subevento.descripcion.trim()) {
-        errors.descripcion = "La descripción del subevento es obligatoria";
-      } else if (subevento.descripcion.trim().length > 500) {
-        errors.descripcion =
-          "La descripción del subevento no debe exceder los 500 caracteres";
+    if (subEventos.length > 1) {
+      if (index === 0) {
+        if (subevento.nombre.trim().length > 150) {
+          errors.nombre =
+            "El nombre del subevento no debe exceder los 150 caracteres";
+        }
+        if (subevento.descripcion.trim().length > 500) {
+          errors.descripcion =
+            "La descripción del subevento no debe exceder los 500 caracteres";
+        }
+      } else {
+        if (!subevento.nombre.trim()) {
+          errors.nombre = "El nombre del subevento es obligatorio";
+        } else if (subevento.nombre.trim().length > 150) {
+          errors.nombre =
+            "El nombre del subevento no debe exceder los 150 caracteres";
+        }
+        if (!subevento.descripcion.trim()) {
+          errors.descripcion = "La descripción del subevento es obligatoria";
+        } else if (subevento.descripcion.trim().length > 500) {
+          errors.descripcion =
+            "La descripción del subevento no debe exceder los 500 caracteres";
+        }
       }
     }
 
@@ -504,21 +515,20 @@ export function SolicitudEvento() {
       JSON.stringify(
         form.subEventos.map(
           (subevento): SubeventoPayload => ({
-            nombre:
-              form.subEventos.length === 1
-                ? form.nombre.trim()
-                : subevento.nombre.trim(),
+            nombre: subevento.nombre.trim() || form.nombre.trim(),
             descripcion:
-              form.subEventos.length === 1
-                ? form.descripcion.trim()
-                : subevento.descripcion.trim(),
-            idRecinto: subevento.idRecinto,
+              subevento.descripcion.trim() || form.descripcion.trim(),
+            idRecinto: Number(subevento.idRecinto),
             fecha: subevento.fecha,
             horaInicio: subevento.horaInicio,
             horaFin: subevento.horaFin,
             accesoQR:
-              subevento.idRecinto !== RecintoId.SALA_14 &&
-              subevento.accesoQR === true,
+              subevento.idRecinto === RecintoId.LABORATORIO_A ||
+              subevento.idRecinto === RecintoId.LABORATORIO_B
+                ? true
+                : subevento.idRecinto === RecintoId.SALA_14
+                  ? false
+                  : subevento.accesoQR === true,
           }),
         ),
       ),

@@ -434,7 +434,7 @@ export function CardSubevento(props: CardSubeventoProps) {
       />
       {!readOnly && (
         <div className="col-span-full flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          {props.canEdit && index > 0 ? (
+          {props.canEdit ? (
             <div id="contenedorBotonesCard">
               <Button
                 text="Nombre y descripción del subevento"
