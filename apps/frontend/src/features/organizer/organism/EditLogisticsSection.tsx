@@ -276,16 +276,23 @@ export function EditLogisticsSection({
           <FormField
             className="!font-bold !text-black"
             label="Recinto"
+            mensajeAyuda={
+              recintoSeleccionado && recintoSeleccionado.aforo > 0
+                ? `Capacidad: ${recintoSeleccionado.aforo} ${
+                    recintoSeleccionado.idRecinto === RecintoId.LABORATORIO_A ||
+                    recintoSeleccionado.idRecinto === RecintoId.LABORATORIO_B
+                      ? "equipos / personas"
+                      : "personas / asientos"
+                  }`
+                : undefined
+            }
             errorMessage={intentoGuardar ? errores?.idRecinto : undefined}>
             <Select
               id="campoEspacio"
               placeholder="Selecciona una opción"
               options={opcionesRecinto.map((recinto) => ({
                 value: String(recinto.idRecinto),
-                label:
-                  recinto.aforo > 0
-                    ? `${recinto.nombre} (Aforo: ${recinto.aforo} personas)`
-                    : recinto.nombre,
+                label: recinto.nombre,
               }))}
               value={valores.idRecinto}
               disabled={deshabilitado || Boolean(errorRecintos)}

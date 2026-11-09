@@ -1004,6 +1004,9 @@ export function EditarEventoConSubeventos() {
                 const errorAct = intentoGuardar
                   ? erroresActividades[actividad.llave]
                   : undefined;
+                const recintoSeleccionado = recintos.find(
+                  (r) => String(r.idRecinto) === actividad.idRecinto,
+                );
 
                 return (
                   <div
@@ -1040,16 +1043,23 @@ export function EditarEventoConSubeventos() {
                       label="Espacio deseado"
                       htmlFor={`selectRecinto-${indice}`}
                       required
+                      mensajeAyuda={
+                        recintoSeleccionado && recintoSeleccionado.aforo > 0
+                          ? `Capacidad: ${recintoSeleccionado.aforo} ${
+                              recintoSeleccionado.idRecinto === RecintoId.LABORATORIO_A ||
+                              recintoSeleccionado.idRecinto === RecintoId.LABORATORIO_B
+                                ? "equipos / personas"
+                                : "personas / asientos"
+                            }`
+                          : undefined
+                      }
                       errorMessage={errorAct?.idRecinto}>
                       <Select
                         id={`selectRecinto-${indice}`}
                         placeholder="Selecciona un espacio"
                         options={recintos.map((r) => ({
                           value: String(r.idRecinto),
-                          label:
-                            r.aforo > 0
-                              ? `${r.nombre} (Aforo: ${r.aforo} personas)`
-                              : r.nombre,
+                          label: r.nombre,
                         }))}
                         value={actividad.idRecinto}
                         hasError={Boolean(errorAct?.idRecinto)}

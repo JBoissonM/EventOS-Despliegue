@@ -186,7 +186,7 @@ export function CardSubevento(props: CardSubeventoProps) {
 
   const opcionesRecintos = espacios.map((recinto) => ({
     value: String(recinto.idRecinto),
-    label: `${recinto.nombre} (Aforo: ${recinto.aforo} personas)`,
+    label: recinto.nombre,
   }));
 
   const recintoSeleccionado = espacios.find(
