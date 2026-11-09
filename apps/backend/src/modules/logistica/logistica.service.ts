@@ -7,10 +7,21 @@ import {
 } from '@nestjs/common';
 import { DataSource } from 'typeorm';
 import { AlcanceEvento, EstadoBoleto, EstadoSubEvento } from '@eventos/shared';
+import { StorageService } from '../../common/storage/storage.service';
 
 @Injectable()
 export class LogisticaService {
-  constructor(private readonly dataSource: DataSource) {}
+  constructor(
+    private readonly dataSource: DataSource,
+    private readonly storageService: StorageService,
+  ) {}
+
+  private resolverPosterUrl(poster?: string | null): string | null {
+    if (!poster) return null;
+    return poster.startsWith('http://') || poster.startsWith('https://')
+      ? poster
+      : this.storageService.publicUrl(poster);
+  }
 
   /**
    * Verifica que el usuario esté asignado como Personal de Logística en ese evento
@@ -96,7 +107,8 @@ export class LogisticaService {
         nombreEvento: fila.nombreEvento,
         nombreSubEvento: fila.nombreSubEvento,
         descripcion: fila.descripcionSubEvento,
-        poster: fila.poster,
+        poster: this.resolverPosterUrl(fila.poster),
+        posterUrl: this.resolverPosterUrl(fila.poster),
         idAlcance: fila.idAlcance,
         alcance: mapaAlcance[fila.idAlcance] ?? 'Público',
         fecha: fila.fecha,

@@ -18,6 +18,7 @@ import type { Columna } from "../../components/organisms/Table/Table";
 import Button from "../../components/atoms/Button/Button";
 import { EditLogisticsSection } from "./organism/EditLogisticsSection";
 import type {
+  EditLogisticsErrors,
   EditLogisticsValues,
   HorarioOcupado,
 } from "./organism/EditLogisticsSection";
@@ -143,15 +144,6 @@ function obtenerValoresLogistica(
   };
 }
 
-function esEventoNoEditable(estado?: EstadoEvento): boolean {
-  if (estado === undefined) return false;
-  return [
-    EstadoEvento.CANCELADO,
-    EstadoEvento.FINALIZADO,
-    EstadoEvento.RECHAZADO,
-  ].includes(estado);
-}
-
 export function EditarEvento() {
   const navigate = useNavigate();
   const { idEvento, idSubEvento } = useParams();
@@ -191,6 +183,9 @@ export function EditarEvento() {
   const [logisticaInicial, setLogisticaInicial] =
     useState<EditLogisticsValues | null>(null);
   const [archivoPoster, setArchivoPoster] = useState<File | null>(null);
+
+  const usuarioGuardado = JSON.parse(localStorage.getItem("usuario") || "{}");
+  const esSubdireccion = usuarioGuardado?.tipoCuenta === "Subdirección";
 
   useEffect(() => {
     const controller = new AbortController();
@@ -260,7 +255,11 @@ export function EditarEvento() {
           detalle.solicitudModificacionPendiente?.subeventosPropuestos.find(
             (item) => item.idSubEvento === subeventoSeleccionado.idSubEvento,
           );
-        setNombre(propuestaSubevento?.nombre ?? subeventoSeleccionado?.nombre ?? detalle.nombre);
+        setNombre(
+          propuestaSubevento?.nombre ??
+            subeventoSeleccionado?.nombre ??
+            detalle.nombre,
+        );
         setDescripcion(
           propuestaSubevento?.descripcion ??
             subeventoSeleccionado?.descripcion ??
@@ -373,7 +372,10 @@ export function EditarEvento() {
         justificacion !== (evento.justificacion ?? "") ||
         alcance !== (evento.idAlcance ?? "") ||
         archivoPoster
-      : false),
+      : subevento &&
+        (nombre !== (subeventoPropuesto?.nombre ?? subevento.nombre) ||
+          descripcion !==
+            (subeventoPropuesto?.descripcion ?? subevento.descripcion))),
   );
   const camposLogisticosModificados = Boolean(
     subevento &&
@@ -382,11 +384,7 @@ export function EditarEvento() {
       logistica.fecha !== logisticaInicial.fecha ||
       logistica.horaInicio !== logisticaInicial.horaInicio ||
       logistica.horaFin !== logisticaInicial.horaFin ||
-      logistica.accesoQR !== logisticaInicial.accesoQR ||
-      (idSubEventoSeleccionado !== undefined &&
-        (nombre !== (subeventoPropuesto?.nombre ?? subevento.nombre) ||
-          descripcion !==
-            (subeventoPropuesto?.descripcion ?? subevento.descripcion)))),
+      logistica.accesoQR !== logisticaInicial.accesoQR),
   );
   const cambioLogisticoOperativo = Boolean(
     subevento &&
@@ -454,6 +452,37 @@ export function EditarEvento() {
     void guardarCambios(true);
   }
 
+  const erroresLogistica: EditLogisticsErrors = {
+    idRecinto: !logistica.idRecinto
+      ? "Selecciona un espacio para el evento"
+      : undefined,
+    fecha: !logistica.fecha ? "Selecciona la fecha del evento" : undefined,
+    horaInicio: !logistica.horaInicio
+      ? "Selecciona la hora de inicio"
+      : undefined,
+    horaFin: !logistica.horaFin
+      ? "Selecciona la hora final"
+      : logistica.horaInicio &&
+          logistica.horaFin &&
+          logistica.horaInicio >= logistica.horaFin
+        ? "La hora de finalización debe ser posterior a la de inicio"
+        : undefined,
+  };
+  const hayErroresLogistica = Boolean(
+    erroresLogistica.idRecinto ||
+      erroresLogistica.fecha ||
+      erroresLogistica.horaInicio ||
+      erroresLogistica.horaFin,
+  );
+  const hayErroresGenerales = Boolean(
+    !nombre.trim() ||
+      nombre.trim().length > 150 ||
+      !descripcion.trim() ||
+      descripcion.trim().length > 500 ||
+      (idSubEventoSeleccionado === undefined &&
+        (!justificacion.trim() || justificacion.trim().length > 500)),
+  );
+
   async function guardarCambios(confirmarMotivoLogistica = false) {
     setIntentoGuardar(true);
     if (!evento || !subevento || !idEvento) return;
@@ -461,32 +490,23 @@ export function EditarEvento() {
     setError(null);
     setMensaje(null);
 
+    if (
+      hayErroresGenerales ||
+      (camposLogisticosModificados && hayErroresLogistica)
+    ) {
+      return;
+    }
+
     if (!informacionGeneralModificada && !logisticaModificada) {
       setMensaje("No hay cambios para guardar.");
       return;
     }
 
-    if (
-      !nombre.trim() ||
-      !descripcion.trim() ||
-      (idSubEventoSeleccionado === undefined && !justificacion.trim())
-    ) {
-      setError(
-        "Por favor, completa todos los campos obligatorios resaltados para continuar",
-      );
-      return;
-    }
-    if (nombre.trim().length > 150) {
-      setError("El nombre no puede exceder 150 caracteres.");
-      return;
-    }
-    if (descripcion.trim().length > 500) {
-      setError("La descripción no puede exceder 500 caracteres.");
-      return;
-    }
-    const motivoModificacionCompleto = esModificacionUrgente
-      ? `${logistica.motivoModificacion.trim()}${MARCADOR_MOTIVO_URGENCIA}${motivoUrgente.trim()}`
-      : logistica.motivoModificacion.trim();
+    const motivoModificacionCompleto = esSubdireccion
+      ? undefined
+      : esModificacionUrgente
+        ? `${logistica.motivoModificacion.trim()}${MARCADOR_MOTIVO_URGENCIA}${motivoUrgente.trim()}`
+        : logistica.motivoModificacion.trim();
     if (logisticaModificada) {
       if (cargandoAgenda || errorAgenda) {
         setError(
@@ -496,40 +516,32 @@ export function EditarEvento() {
         );
         return;
       }
-      if (
-        !logistica.idRecinto ||
-        !logistica.fecha ||
-        !logistica.horaInicio ||
-        !logistica.horaFin
-      ) {
-        setError("Completa espacio, fecha y horarios de la modificación.");
-        return;
-      }
-      if (logistica.horaInicio >= logistica.horaFin) {
-        setError("La hora de finalización debe ser posterior a la de inicio.");
-        return;
-      }
-      if (!confirmarMotivoLogistica) {
+      if (!confirmarMotivoLogistica && !esSubdireccion) {
         setIntentoMotivo(false);
         setMostrarModal(true);
         return;
       }
-      setIntentoMotivo(true);
-      if (
-        !logistica.motivoModificacion.trim() ||
-        logistica.motivoModificacion.trim().length > 500
-      ) {
-        return;
-      }
-      if (esModificacionUrgente && !motivoUrgente.trim()) {
-        setError("Escribe el motivo de urgencia para continuar.");
-        return;
-      }
-      if (motivoModificacionCompleto.length > 500) {
-        setError(
-          "Reduce el motivo de modificación o el de urgencia para que ambos no excedan 500 caracteres en total.",
-        );
-        return;
+      if (!esSubdireccion) {
+        setIntentoMotivo(true);
+        if (
+          !logistica.motivoModificacion.trim() ||
+          logistica.motivoModificacion.trim().length > 500
+        ) {
+          return;
+        }
+        if (esModificacionUrgente && !motivoUrgente.trim()) {
+          setError("Escribe el motivo de urgencia para continuar.");
+          return;
+        }
+        if (
+          motivoModificacionCompleto &&
+          motivoModificacionCompleto.length > 500
+        ) {
+          setError(
+            "Reduce el motivo de modificación o el de urgencia para que ambos no excedan 500 caracteres en total.",
+          );
+          return;
+        }
       }
     }
 
@@ -540,20 +552,26 @@ export function EditarEvento() {
     try {
       if (informacionGeneralModificada) {
         const payload: ActualizarInfoGeneralPayload = {};
-        if (idSubEventoSeleccionado === undefined && nombre !== evento.nombre) {
-          payload.nombre = nombre.trim();
-        }
-        if (
-          idSubEventoSeleccionado === undefined &&
-          descripcion !== evento.descripcion
-        ) {
-          payload.descripcion = descripcion.trim();
-        }
-        if (justificacion !== (evento.justificacion ?? "")) {
-          payload.justificacion = justificacion.trim();
-        }
-        if (alcance !== (evento.idAlcance ?? "") && alcance !== "") {
-          payload.idAlcance = alcance;
+        if (idSubEventoSeleccionado === undefined) {
+          if (nombre !== evento.nombre) payload.nombre = nombre.trim();
+          if (descripcion !== evento.descripcion) payload.descripcion = descripcion.trim();
+          if (justificacion !== (evento.justificacion ?? "")) {
+            payload.justificacion = justificacion.trim();
+          }
+          if (alcance !== (evento.idAlcance ?? "") && alcance !== "") {
+            payload.idAlcance = alcance;
+          }
+        } else {
+          payload.idSubEvento = idSubEventoSeleccionado;
+          if (nombre !== (subeventoPropuesto?.nombre ?? subevento.nombre)) {
+            payload.nombre = nombre.trim();
+          }
+          if (
+            descripcion !==
+            (subeventoPropuesto?.descripcion ?? subevento.descripcion)
+          ) {
+            payload.descripcion = descripcion.trim();
+          }
         }
 
         if (archivoPoster) {
@@ -670,9 +688,11 @@ export function EditarEvento() {
       setArchivoPoster(null);
       setMensaje(
         logisticaModificada
-          ? informacionGeneralModificada
-            ? "La información general se guardó y la modificación logística fue enviada a revisión."
-            : "La modificación logística fue enviada a revisión."
+          ? esSubdireccion
+            ? "Los cambios se aplicaron directamente con éxito."
+            : informacionGeneralModificada
+              ? "La información general se guardó y la modificación logística fue enviada a revisión."
+              : "La modificación logística fue enviada a revisión."
           : "Los cambios se guardaron correctamente.",
       );
     } catch (errorOperacion) {
@@ -728,7 +748,7 @@ export function EditarEvento() {
           titulo="Advertencia"
           contenido="¿Estás seguro que deseas regresar? Los cambios realizados se perderán"
           cerrarModal={() => setMostrarModal(false)}>
-          <div className="flex gap-3 justify-end">
+          <div className="flex justify-end gap-3">
             <Button
               text="Cancelar"
               variant="secondary"
@@ -739,9 +759,7 @@ export function EditarEvento() {
               text="Aceptar"
               variant="success"
               type="button"
-              onClick={() =>
-                navigate(rutaAdministracion)
-              }
+              onClick={() => navigate(rutaAdministracion)}
             />
           </div>
         </Modal>
@@ -779,12 +797,46 @@ export function EditarEvento() {
         </div>
       )}
 
+      {intentoGuardar &&
+        (hayErroresGenerales ||
+          (camposLogisticosModificados && hayErroresLogistica)) && (
+          <div
+            role="alert"
+            className="rounded-md border border-red-300 bg-red-50 p-4 text-sm font-semibold text-red-800">
+            Por favor, completa todos los campos obligatorios resaltados para
+            continuar
+          </div>
+        )}
+
       {evento && (
         <>
+          {evento.solicitudModificacionPendiente && (
+            <div
+              role="status"
+              className="space-y-2 rounded-lg border border-amber-300 bg-amber-50 p-5 text-amber-950 shadow-sm">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="inline-flex items-center rounded-md bg-amber-200 px-2.5 py-0.5 text-xs font-semibold text-amber-900">
+                  Solicitud en Revisión
+                </span>
+                <h2 className="text-base font-bold text-amber-950">
+                  Modificación logística pendiente de evaluación por Subdirección
+                </h2>
+              </div>
+              <p className="text-sm text-amber-900">
+                <span className="font-semibold">Motivo registrado:</span>{" "}
+                {evento.solicitudModificacionPendiente.motivoModificacion}
+              </p>
+              <p className="text-xs text-amber-800">
+                Mientras Subdirección dictamina esta solicitud, se conservan
+                vigentes las fechas y espacios originales. Cualquier nuevo
+                cambio logístico actualizará esta misma solicitud sin generar
+                duplicados.
+              </p>
+            </div>
+          )}
+
           <form onSubmit={manejarEnvio} className="space-y-8">
-            <fieldset
-              disabled={guardando}
-              className="space-y-8 border-0 p-0">
+            <fieldset disabled={guardando} className="space-y-8 border-0 p-0">
               <div
                 id="contenedorDatosIniciales"
                 className="space-y-2 border border-gray-200 bg-white p-5 shadow-md">
@@ -876,31 +928,33 @@ export function EditarEvento() {
                     />
                   </div>
 
-                  <div id="contenedorLogistica" className="space-y-5">
-                    <h2 className="text-xl font-bold sm:text-2xl">
-                      Personal de logística
-                    </h2>
-                    {personalLogistica.length > 0 ? (
-                      <div className="mt-4 w-full min-w-0 overflow-x-auto rounded-md border border-gray-200 shadow-md">
-                        <Table
-                          columnas={columnasLogistica}
-                          filas={personalLogistica}
-                          obtenerClave={(personal) => personal.idUsuario}
-                          className="table-auto min-w-full bg-white text-left text-sm [&_tbody_tr]:h-12 [&_thead_tr]:h-10 [&_th]:py-2 [&_td]:py-2"
-                        />
-                      </div>
-                    ) : (
-                      <p className="mt-3 text-gray-600">
-                        No hay personal de logística registrado para este
-                        evento.
-                      </p>
-                    )}
-                    <Button
-                      text="Agregar personal de lógistica"
-                      variant="primary"
-                      type="button"
-                    />
-                  </div>
+                  {idSubEventoSeleccionado === undefined && (
+                    <div id="contenedorLogistica" className="space-y-5">
+                      <h2 className="text-xl font-bold sm:text-2xl">
+                        Personal de logística
+                      </h2>
+                      {personalLogistica.length > 0 ? (
+                        <div className="mt-4 w-full min-w-0 overflow-x-auto rounded-md border border-gray-200 shadow-md">
+                          <Table
+                            columnas={columnasLogistica}
+                            filas={personalLogistica}
+                            obtenerClave={(personal) => personal.idUsuario}
+                            className="table-auto min-w-full bg-white text-left text-sm [&_tbody_tr]:h-12 [&_thead_tr]:h-10 [&_th]:py-2 [&_td]:py-2"
+                          />
+                        </div>
+                      ) : (
+                        <p className="mt-3 text-gray-600">
+                          No hay personal de logística registrado para este
+                          evento.
+                        </p>
+                      )}
+                      <Button
+                        text="Agregar personal de logística"
+                        variant="primary"
+                        type="button"
+                      />
+                    </div>
+                  )}
                 </div>
 
                 <EditLogisticsSection
@@ -917,6 +971,8 @@ export function EditarEvento() {
                   errorAgenda={errorAgenda}
                   deshabilitado={guardando}
                   mostrarBanner={idSubEventoSeleccionado === undefined}
+                  errores={erroresLogistica}
+                  intentoGuardar={intentoGuardar}
                   onCambioLogistica={cambiarLogistica}
                   onCambioAlcance={setAlcance}
                   onCambioJustificacion={setJustificacion}

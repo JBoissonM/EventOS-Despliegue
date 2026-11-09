@@ -17,6 +17,7 @@ import { EventoEntity } from '../../eventos/entities/evento.entity';
 import { EventoPersonalLogisticaEntity } from '../../eventos/entities/eventoPersonalLogistica.entity';
 import { PonenteEntity } from '../../eventos/entities/ponente.entity';
 import { UsuarioEntity } from '../../auth/entities/usuario.entity';
+import { StorageService } from '../../../common/storage/storage.service';
 
 @Injectable()
 export class ReservationsService {
@@ -36,7 +37,15 @@ export class ReservationsService {
         @InjectRepository(AsistenteEventoEntity) private asistenteRepo: Repository<AsistenteEventoEntity>,
         @InjectRepository(FechaEntity) private fechaRepo: Repository<FechaEntity>,
         @InjectRepository(EventoPersonalLogisticaEntity) private logisticaRepo: Repository<EventoPersonalLogisticaEntity>,
+        private readonly storageService: StorageService,
     ) {}
+
+    private resolverPosterUrl(poster?: string | null): string | null {
+        if (!poster) return null;
+        return poster.startsWith('http://') || poster.startsWith('https://')
+            ? poster
+            : this.storageService.publicUrl(poster);
+    }
 
     //CONSULTAR DISPONIBILIDAD
 
@@ -446,7 +455,8 @@ export class ReservationsService {
                 // Campos adicionales 
                 estadoBoletoTexto: mapaEstadoTexto[boleto.idEstadoBoleto] ?? 'Desconocido',
                 etiquetaEstado: mapaEtiquetaUI[boleto.idEstadoBoleto] ?? 'Cancelado',
-                poster: evento ? evento.poster : null,
+                poster: evento ? this.resolverPosterUrl(evento.poster) : null,
+                posterUrl: evento ? this.resolverPosterUrl(evento.poster) : null,
                 alcance: evento?.idAlcance ? mapaAlcance[evento.idAlcance] : 'Público',
                 accesoQR: subEvento.accesoQR,
                 filaAsiento,

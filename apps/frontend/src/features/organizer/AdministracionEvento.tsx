@@ -14,6 +14,9 @@ import { Table } from "../../components/organisms/Table/Table";
 import type { Columna } from "../../components/organisms/Table/Table";
 import { EventBanner } from "../event-details/components/molecules/EventBanner";
 import { SpaceRequerimentsDialog } from "../../components/organisms/SpaceRequirementsDialog/SpaceRequerimentsDialog";
+import { Modal } from "../../components/molecules/Modal";
+import { TextArea } from "../../components/atoms/TextArea/TextArea";
+import { FormField } from "../../components/molecules/FormField";
 import { useNavigate } from "react-router";
 import { apiRequest } from "../../lib/apiClient";
 
@@ -237,6 +240,24 @@ function convertirEvento(valor: unknown): EventoOrganizadorDetalle {
     valor.idEstadoEvento === undefined
       ? undefined
       : convertirEstadoEvento(valor.idEstadoEvento);
+  const solicitudModificacionPendiente =
+    esRegistro(valor.solicitudModificacionPendiente) &&
+    typeof valor.solicitudModificacionPendiente.idSolicitudModificacion ===
+      "number" &&
+    typeof valor.solicitudModificacionPendiente.motivoModificacion ===
+      "string" &&
+    typeof valor.solicitudModificacionPendiente.estado === "string" &&
+    Array.isArray(valor.solicitudModificacionPendiente.subeventosPropuestos)
+      ? {
+          idSolicitudModificacion:
+            valor.solicitudModificacionPendiente.idSolicitudModificacion,
+          motivoModificacion:
+            valor.solicitudModificacionPendiente.motivoModificacion,
+          subeventosPropuestos:
+            valor.solicitudModificacionPendiente.subeventosPropuestos,
+          estado: valor.solicitudModificacionPendiente.estado,
+        }
+      : null;
 
   return {
     idEvento: obtenerNumero(valor, "idEvento"),
@@ -249,6 +270,8 @@ function convertirEvento(valor: unknown): EventoOrganizadorDetalle {
     ...(idEstadoEvento !== undefined ? { idEstadoEvento } : {}),
     esUrgente: obtenerBooleano(valor, "esUrgente"),
     motivoUrgencia: obtenerTextoNullable(valor, "motivoUrgencia"),
+    motivoRechazo: obtenerTextoNullable(valor, "motivoRechazo"),
+    solicitudModificacionPendiente,
     idOrganizador: obtenerNumero(valor, "idOrganizador"),
     cupoMaximo: obtenerNumero(valor, "cupoMaximo"),
     boletosActivosCount: obtenerNumero(valor, "boletosActivosCount"),
@@ -308,6 +331,36 @@ export function AdministracionEvento() {
   const personalLogistica =
     subevento && datosEvento ? (datosEvento.personalLogistica ?? []) : [];
   const navigate = useNavigate();
+
+  const [mostrarModalCancelar, setMostrarModalCancelar] = useState(false);
+  const [mostrarConfirmacionCancelar, setMostrarConfirmacionCancelar] =
+    useState(false);
+  const [motivoCancelacion, setMotivoCancelacion] = useState("");
+  const [errorMotivoCancelacion, setErrorMotivoCancelacion] = useState("");
+  const [cancelando, setCancelando] = useState(false);
+  const [mensajeExito, setMensajeExito] = useState<string | null>(null);
+
+  async function confirmarCancelacion() {
+    if (!idEvento) return;
+    setCancelando(true);
+    setError(null);
+    try {
+      await apiRequest(`eventos/${idEvento}/cancelar`, {
+        method: "PATCH",
+        body: JSON.stringify({ motivo: motivoCancelacion.trim() }),
+      });
+      setMostrarConfirmacionCancelar(false);
+      setMensajeExito("El evento se ha cancelado exitosamente.");
+      setDatosEvento((prev) =>
+        prev ? { ...prev, idEstadoEvento: EstadoEvento.CANCELADO } : prev,
+      );
+    } catch (err: any) {
+      setError(err?.message || "No se pudo cancelar el evento.");
+      setMostrarConfirmacionCancelar(false);
+    } finally {
+      setCancelando(false);
+    }
+  }
 
   useEffect(() => {
     const controller = new AbortController();
@@ -418,6 +471,47 @@ export function AdministracionEvento() {
 
       {datosEvento && (
         <>
+          {datosEvento.idEstadoEvento === EstadoEvento.RECHAZADO && (
+            <div
+              role="alert"
+              className="space-y-2 border border-gray-200 bg-white p-5 shadow-md">
+              <div className="flex items-center gap-2">
+                <span className="inline-flex items-center rounded-md bg-red-100 px-2.5 py-0.5 text-xs font-semibold text-red-800">
+                  Solicitud Rechazada
+                </span>
+                <h2 className="font-bold text-gray-900">
+                  Motivo de rechazo
+                </h2>
+              </div>
+              <p className="break-words text-sm text-gray-700">
+                {datosEvento.motivoRechazo ||
+                  "No se especificó un motivo para el rechazo de la solicitud."}
+              </p>
+            </div>
+          )}
+
+          {datosEvento.solicitudModificacionPendiente && (
+            <div
+              role="status"
+              className="space-y-2 rounded-lg border border-amber-300 bg-amber-50 p-5 text-amber-950 shadow-sm">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="inline-flex items-center rounded-md bg-amber-200 px-2.5 py-0.5 text-xs font-semibold text-amber-900">
+                  Solicitud en Revisión
+                </span>
+                <h2 className="text-base font-bold text-amber-950">
+                  Modificación logística pendiente de evaluación por Subdirección
+                </h2>
+              </div>
+              <p className="text-sm text-amber-900">
+                <span className="font-semibold">Motivo registrado:</span>{" "}
+                {datosEvento.solicitudModificacionPendiente.motivoModificacion}
+              </p>
+              <p className="text-xs text-amber-800">
+                Mientras Subdirección dictamina esta solicitud, se conservan vigentes las fechas y espacios originales. Cualquier nuevo cambio logístico actualizará esta misma solicitud sin generar duplicados.
+              </p>
+            </div>
+          )}
+
           <div
             id="contenedorTitulo"
             className="space-y-2 border border-gray-200 bg-white shadow-md p-5">
@@ -461,15 +555,15 @@ export function AdministracionEvento() {
                   </div>
                 ) : (
                   <p className="mt-3 text-gray-600">
-                    No hay ponentes registrados para este evento.
+                    No hay ponentes registrados para esta actividad.
                   </p>
                 )}
               </div>
 
-              {subevento && (
+              {!idSubEvento && subevento && (
                 <div id="contenedorLogistica">
                   <h2 className="text-xl font-bold sm:text-2xl">
-                    Personal de lógistica
+                    Personal de logística
                   </h2>
                   {personalLogistica.length > 0 ? (
                     <div className="mt-4 w-full min-w-0 overflow-x-auto rounded-md border border-gray-200 shadow-md">
@@ -482,7 +576,7 @@ export function AdministracionEvento() {
                     </div>
                   ) : (
                     <p className="mt-3 text-gray-600">
-                      No hay personal de lógistica registrado para este evento.
+                      No hay personal de logística registrado para este evento.
                     </p>
                   )}
                 </div>
@@ -493,7 +587,7 @@ export function AdministracionEvento() {
               {subeventosVisibles.map((subevento) => (
                 <article
                   key={subevento.idSubEvento}
-                  className="grid min-w-0 grid-cols-1 gap-x-6 gap-y-5 rounded-lg border border-gray-200 bg-white p-4 shadow-sm sm:grid-cols-2 sm:p-6">
+                  className="grid min-w-0 grid-cols-1 gap-x-6 gap-y-5 rounded-lg border border-gray-200 bg-white p-4 shadow-sm sm:grid-cols-2 sm:p-6 text-gray-900">
                   <div className="flex min-w-0 flex-col gap-2">
                     <span className="font-bold">Espacio</span>
                     <span>{subevento.recinto?.nombre}</span>
@@ -507,7 +601,7 @@ export function AdministracionEvento() {
                     <span>{formatearHora(subevento.fecha?.horaInicio)}</span>
                   </div>
                   <div className="flex min-w-0 flex-col gap-2">
-                    <span className="font-bold">Hora de finalizacion</span>
+                    <span className="font-bold">Hora de finalización</span>
                     <span>{formatearHora(subevento.fecha?.horaFin)}</span>
                   </div>
                   <div className="flex min-w-0 flex-col gap-2">
@@ -518,10 +612,12 @@ export function AdministracionEvento() {
                         : "Acceso libre"}
                     </span>
                   </div>
-                  <div className="flex min-w-0 flex-col gap-2">
-                    <span className="font-bold">Alcance</span>
-                    <span>{obtenerTextoAlcance(datosEvento.idAlcance)}</span>
-                  </div>
+                  {!idSubEvento && (
+                    <div className="flex min-w-0 flex-col gap-2">
+                      <span className="font-bold">Alcance</span>
+                      <span>{obtenerTextoAlcance(datosEvento.idAlcance)}</span>
+                    </div>
+                  )}
                   <div className="flex min-w-0 flex-col gap-2">
                     <span className="font-bold">Aforo estimado</span>
                     <span>
@@ -537,12 +633,14 @@ export function AdministracionEvento() {
                     <span>{subevento.estado}</span>
                   </div>
 
-                  <div className="flex min-w-0 flex-col gap-2 sm:col-span-2">
-                    <span className="font-bold">Beneficio politécnico</span>
-                    <p className="mt-2 break-words">
-                      {datosEvento.justificacion || "No especificado"}
-                    </p>
-                  </div>
+                  {!idSubEvento && (
+                    <div className="flex min-w-0 flex-col gap-2 sm:col-span-2">
+                      <span className="font-bold">Beneficio politécnico</span>
+                      <p className="mt-2 break-words">
+                        {datosEvento.justificacion || "No especificado"}
+                      </p>
+                    </div>
+                  )}
                 </article>
               ))}
             </div>
@@ -559,31 +657,46 @@ export function AdministracionEvento() {
                   onClick={() => setMostrarModal(true)}
                 />
               )}
-            {subevento?.estado !== "Finalizado" && !idSubEvento && (
-              <>
+            {datosEvento.idEstadoEvento !== EstadoEvento.RECHAZADO &&
+              datosEvento.idEstadoEvento !== EstadoEvento.CANCELADO &&
+              subevento?.estado !== "Finalizado" &&
+              !idSubEvento && (
                 <Button
                   text="Cancelar evento"
+                  variant="danger"
+                  type="button"
+                  onClick={() => {
+                    setMotivoCancelacion("");
+                    setErrorMotivoCancelacion("");
+                    setMostrarModalCancelar(true);
+                  }}
+                />
+              )}
+
+            {datosEvento.idEstadoEvento !== EstadoEvento.RECHAZADO &&
+              subevento?.estado !== "Finalizado" && (
+                <Button
+                  text={idSubEvento ? "Modificar actividad" : "Modificar Evento"}
                   variant="primary"
                   type="button"
+                  onClick={() =>
+                    navigate(
+                      idSubEventoSeleccionado
+                        ? `/organizador/editar-evento/${idEvento}/subevento/${idSubEventoSeleccionado}`
+                        : `/organizador/editar-evento/${idEvento}`,
+                    )
+                  }
                 />
-              </>
-            )}
-
-            {subevento?.estado !== "Finalizado" && (
-              <Button
-                text={idSubEvento ? "Modificar actividad" : "Modificar Evento"}
-                variant="primary"
-                type="button"
-                onClick={() =>
-                  navigate(
-                    idSubEventoSeleccionado
-                      ? `/organizador/editar-evento/${idEvento}/subevento/${idSubEventoSeleccionado}`
-                      : `/organizador/editar-evento/${idEvento}`,
-                  )
-                }
-              />
-            )}
+              )}
           </div>
+          {mensajeExito && (
+            <p
+              role="status"
+              className="rounded-lg bg-green-50 px-4 py-3 text-green-800">
+              {mensajeExito}
+            </p>
+          )}
+
           {subevento?.recinto && (
             <SpaceRequerimentsDialog
               laboratorio={subevento.recinto.nombre}
@@ -591,6 +704,86 @@ export function AdministracionEvento() {
               mostrar={mostrarModal}
               cerrar={() => setMostrarModal(false)}
             />
+          )}
+
+          {mostrarModalCancelar && (
+            <Modal
+              titulo="Motivo de cancelación"
+              contenido="Por favor, ingresa el motivo por el cual cancelas este evento. Esta justificación será notificada a los asistentes."
+              mostrarModal={mostrarModalCancelar}
+              cerrarModal={() => setMostrarModalCancelar(false)}>
+              <span className="text-xs text-gray-500">
+                Máximo 500 caracteres
+              </span>
+              <FormField errorMessage={errorMotivoCancelacion}>
+                <TextArea
+                  id="contenedorMotivoCancelacion"
+                  className="h-32 resize-none"
+                  value={motivoCancelacion}
+                  maxLength={500}
+                  hasError={Boolean(errorMotivoCancelacion)}
+                  onChange={(e) => {
+                    setMotivoCancelacion(e.currentTarget.value);
+                    if (errorMotivoCancelacion) setErrorMotivoCancelacion("");
+                  }}
+                />
+              </FormField>
+              <div className="flex justify-end gap-3 pt-2">
+                <Button
+                  text="Volver"
+                  variant="secondary"
+                  type="button"
+                  onClick={() => setMostrarModalCancelar(false)}
+                />
+                <Button
+                  text="Continuar"
+                  variant="primary"
+                  type="button"
+                  onClick={() => {
+                    const limpio = motivoCancelacion.trim();
+                    if (!limpio) {
+                      setErrorMotivoCancelacion(
+                        "Dato requerido faltante. La justificación no puede estar vacía.",
+                      );
+                      return;
+                    }
+                    if (limpio.length > 500) {
+                      setErrorMotivoCancelacion(
+                        "La descripción excede el límite máximo de caracteres permitidos.",
+                      );
+                      return;
+                    }
+                    setMostrarModalCancelar(false);
+                    setMostrarConfirmacionCancelar(true);
+                  }}
+                />
+              </div>
+            </Modal>
+          )}
+
+          {mostrarConfirmacionCancelar && (
+            <Modal
+              titulo="Confirmar cancelación"
+              contenido="¿Desea confirmar la cancelación del evento seleccionado? Esta acción es irreversible y cancelará todos los subeventos asociados."
+              mostrarModal={mostrarConfirmacionCancelar}
+              cerrarModal={() => setMostrarConfirmacionCancelar(false)}>
+              <div className="flex justify-end gap-3 pt-2">
+                <Button
+                  text="Volver"
+                  variant="secondary"
+                  type="button"
+                  disabled={cancelando}
+                  onClick={() => setMostrarConfirmacionCancelar(false)}
+                />
+                <Button
+                  text={cancelando ? "Cancelando..." : "Confirmar Cancelación"}
+                  variant="danger"
+                  type="button"
+                  disabled={cancelando}
+                  onClick={confirmarCancelacion}
+                />
+              </div>
+            </Modal>
           )}
         </>
       )}

@@ -129,6 +129,13 @@ export interface EditLogisticsValues {
   motivoModificacion: string;
 }
 
+export interface EditLogisticsErrors {
+  idRecinto?: string;
+  fecha?: string;
+  horaInicio?: string;
+  horaFin?: string;
+}
+
 interface EditLogisticsSectionProps {
   valores: EditLogisticsValues;
   alcance: AlcanceEvento | "";
@@ -143,6 +150,8 @@ interface EditLogisticsSectionProps {
   errorAgenda: string | null;
   deshabilitado: boolean;
   mostrarBanner?: boolean;
+  errores?: EditLogisticsErrors;
+  intentoGuardar?: boolean;
   onCambioLogistica: <K extends keyof EditLogisticsValues>(
     campo: K,
     valor: EditLogisticsValues[K],
@@ -166,6 +175,8 @@ export function EditLogisticsSection({
   errorAgenda,
   deshabilitado,
   mostrarBanner = true,
+  errores,
+  intentoGuardar = false,
   onCambioLogistica,
   onCambioAlcance,
   onCambioJustificacion,
@@ -199,9 +210,8 @@ export function EditLogisticsSection({
     ) ?? recintoActual;
 
   const accesoFijo =
-    recintoSeleccionado?.idRecinto === RecintoId.LABORATORIO_A ||
-    recintoSeleccionado?.idRecinto === RecintoId.LABORATORIO_B ||
-    recintoSeleccionado?.idRecinto === RecintoId.SALA_14;
+    Boolean(recintoSeleccionado?.idRecinto) &&
+    recintoSeleccionado?.idRecinto !== RecintoId.AUDITORIO;
 
   const horasFinCandidatas = [
     ...new Set([...HORASFIN, valores.horaFin].filter(Boolean)),
@@ -262,7 +272,20 @@ export function EditLogisticsSection({
           </div>
         )}
         <div className="flex min-w-0 flex-col gap-2">
-          <FormField className="!font-bold !text-black" label="Recinto">
+          <FormField
+            className="!font-bold !text-black"
+            label="Recinto"
+            mensajeAyuda={
+              recintoSeleccionado && recintoSeleccionado.aforo > 0
+                ? `Capacidad: ${recintoSeleccionado.aforo} ${
+                    recintoSeleccionado.idRecinto !== RecintoId.AUDITORIO &&
+                    recintoSeleccionado.idRecinto !== RecintoId.SALA_14
+                      ? "equipos / personas"
+                      : "personas / asientos"
+                  }`
+                : undefined
+            }
+            errorMessage={intentoGuardar ? errores?.idRecinto : undefined}>
             <Select
               id="campoEspacio"
               placeholder="Selecciona una opción"
@@ -272,6 +295,7 @@ export function EditLogisticsSection({
               }))}
               value={valores.idRecinto}
               disabled={deshabilitado || Boolean(errorRecintos)}
+              hasError={Boolean(intentoGuardar && errores?.idRecinto)}
               onChange={(event) => {
                 const idRecinto = Number(event.currentTarget.value);
                 if (String(idRecinto) !== valores.idRecinto) {
@@ -280,8 +304,8 @@ export function EditLogisticsSection({
                 }
                 onCambioLogistica("idRecinto", String(idRecinto));
                 if (
-                  idRecinto === RecintoId.LABORATORIO_A ||
-                  idRecinto === RecintoId.LABORATORIO_B
+                  idRecinto !== RecintoId.AUDITORIO &&
+                  idRecinto !== RecintoId.SALA_14
                 ) {
                   onCambioLogistica("accesoQR", "true");
                 } else if (idRecinto === RecintoId.SALA_14) {
@@ -297,7 +321,10 @@ export function EditLogisticsSection({
           )}
         </div>
         <div className="flex min-w-0 flex-col gap-2">
-          <FormField className="!font-bold !text-black" label="Fecha">
+          <FormField
+            className="!font-bold !text-black"
+            label="Fecha"
+            errorMessage={intentoGuardar ? errores?.fecha : undefined}>
             <Input
               id="campoFecha"
               type="date"
@@ -305,6 +332,7 @@ export function EditLogisticsSection({
               min={fechaMinima}
               max={FECHA_FIN_SEMESTRE}
               disabled={deshabilitado}
+              hasError={Boolean(intentoGuardar && errores?.fecha)}
               onChange={(event) => {
                 const fecha = event.currentTarget.value;
                 if (fecha !== valores.fecha) {
@@ -317,7 +345,10 @@ export function EditLogisticsSection({
           </FormField>
         </div>
         <div className="flex min-w-0 flex-col gap-2">
-          <FormField className="!font-bold !text-black" label="Hora inicio">
+          <FormField
+            className="!font-bold !text-black"
+            label="Hora inicio"
+            errorMessage={intentoGuardar ? errores?.horaInicio : undefined}>
             <Select
               id="campoHoraInicio"
               options={horasInicioDisponibles}
@@ -336,6 +367,7 @@ export function EditLogisticsSection({
                 !valores.idRecinto ||
                 !valores.fecha
               }
+              hasError={Boolean(intentoGuardar && errores?.horaInicio)}
               onChange={(event) => {
                 onCambioLogistica("horaFin", "");
                 onCambioLogistica("horaInicio", event.currentTarget.value);
@@ -360,7 +392,14 @@ export function EditLogisticsSection({
         <div className="flex min-w-0 flex-col gap-2">
           <FormField
             className="!font-bold !text-black"
-            label="Hora de finalización">
+            label="Hora de finalización"
+            errorMessage={
+              intentoGuardar && errores?.horaFin
+                ? errores.horaFin
+                : horaFinInvalida
+                  ? "La hora de finalización debe ser posterior a la de inicio."
+                  : undefined
+            }>
             <Select
               id="campoHoraFin"
               options={horasFinDisponibles}
@@ -378,7 +417,9 @@ export function EditLogisticsSection({
                 Boolean(errorAgenda) ||
                 !valores.horaInicio
               }
-              hasError={horaFinInvalida}
+              hasError={Boolean(
+                horaFinInvalida || (intentoGuardar && errores?.horaFin),
+              )}
               onChange={(event) =>
                 onCambioLogistica("horaFin", event.currentTarget.value)
               }
@@ -402,8 +443,8 @@ export function EditLogisticsSection({
             mensajeAyuda={
               recintoSeleccionado?.idRecinto === RecintoId.SALA_14
                 ? "El evento pasará a ser de acceso libre"
-                : recintoSeleccionado?.idRecinto === RecintoId.LABORATORIO_A ||
-                    recintoSeleccionado?.idRecinto === RecintoId.LABORATORIO_B
+                : recintoSeleccionado?.idRecinto !== RecintoId.AUDITORIO &&
+                    Boolean(recintoSeleccionado?.idRecinto)
                   ? "El evento pasará a requerir acceso QR"
                   : ""
             }>
@@ -458,41 +499,49 @@ export function EditLogisticsSection({
             aria-label="Aforo máximo del espacio seleccionado"
           />
         </div>
-        <div className="flex min-w-0 flex-col gap-2 sm:col-span-2">
-          <label htmlFor="campoJustificacion" className="font-bold">
-            Beneficio politécnico
-          </label>
-          <div className="relative">
-            <Pencil
-              size={18}
-              aria-hidden="true"
-              className="absolute right-3 top-4 text-gray-500"
-            />
-            <FormField
-              className="!font-bold !text-black"
-              errorMessage={
-                !justificacion.trim()
-                  ? "La justificación debe ser obligatoria"
-                  : justificacion.trim().length >= 500
-                    ? "La justificación no puede exceder los 500 caracteres"
-                    : ""
-              }>
-              <TextArea
-                id="campoJustificacion"
-                value={justificacion}
-                maxLength={500}
-                disabled={deshabilitado}
-                hasError={
-                  !justificacion.trim() || justificacion.trim().length >= 500
-                }
-                onChange={(event) =>
-                  onCambioJustificacion(event.currentTarget.value)
-                }
-                className="resize-none pr-10 h-30"
+        {mostrarBanner && (
+          <div className="flex min-w-0 flex-col gap-2 sm:col-span-2">
+            <label htmlFor="campoJustificacion" className="font-bold">
+              Beneficio politécnico
+            </label>
+            <div className="relative">
+              <Pencil
+                size={18}
+                aria-hidden="true"
+                className="absolute right-3 top-4 text-gray-500"
               />
-            </FormField>
+              <FormField
+                className="!font-bold !text-black"
+                errorMessage={
+                  intentoGuardar
+                    ? !justificacion.trim()
+                      ? "La justificación debe ser obligatoria"
+                      : justificacion.trim().length >= 500
+                        ? "La justificación no puede exceder los 500 caracteres"
+                        : undefined
+                    : undefined
+                }>
+                <TextArea
+                  id="campoJustificacion"
+                  value={justificacion}
+                  maxLength={500}
+                  disabled={deshabilitado}
+                  hasError={
+                    Boolean(
+                      intentoGuardar &&
+                        (!justificacion.trim() ||
+                          justificacion.trim().length >= 500),
+                    )
+                  }
+                  onChange={(event) =>
+                    onCambioJustificacion(event.currentTarget.value)
+                  }
+                  className="resize-none pr-10 h-30"
+                />
+              </FormField>
+            </div>
           </div>
-        </div>
+        )}
       </article>
     </div>
   );

@@ -1,7 +1,17 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router";
 import { ArrowLeft } from "lucide-react";
+import {
+  AlcanceEvento,
+  EstadoEvento,
+  type PersonalLogisticaItem,
+} from "@eventos/shared";
 import { EventBanner } from "../event-details/components/molecules/EventBanner";
+import { Table, type Columna } from "../../components/organisms/Table/Table";
+import Button from "../../components/atoms/Button/Button";
+import { Modal } from "../../components/molecules/Modal";
+import { TextArea } from "../../components/atoms/TextArea/TextArea";
+import { FormField } from "../../components/molecules/FormField";
 import { apiRequest } from "../../lib/apiClient";
 import {
   OrganizerSubeventCard,
@@ -14,7 +24,44 @@ interface EventoSubeventosVista {
   descripcion: string;
   justificacion: string | null;
   posterUrl: string | null;
+  idAlcance?: AlcanceEvento;
+  idEstadoEvento?: number;
+  motivoRechazo?: string | null;
+  solicitudModificacionPendiente?: {
+    idSolicitudModificacion: number;
+    motivoModificacion: string;
+    estado: string;
+  } | null;
+  personalLogistica: PersonalLogisticaItem[];
   subEventos: OrganizerSubeventCardData[];
+}
+
+const columnasLogistica: Columna<PersonalLogisticaItem>[] = [
+  {
+    id: "nombreCompleto",
+    encabezado: "Nombre",
+    render: (personal) => personal.nombreCompleto,
+    className: "min-w-[10rem] break-all px-3",
+  },
+  {
+    id: "correo",
+    encabezado: "Correo",
+    render: (personal) => personal.correo,
+    className: "min-w-[12rem] break-all px-3",
+  },
+];
+
+function obtenerTextoAlcance(alcance?: AlcanceEvento): string {
+  switch (alcance) {
+    case AlcanceEvento.PUBLICO:
+      return "Público";
+    case AlcanceEvento.INTERNO:
+      return "Interno";
+    case AlcanceEvento.PRIVADO:
+      return "Privado";
+    default:
+      return "No especificado";
+  }
 }
 
 function esRegistro(valor: unknown): valor is Record<string, unknown> {
@@ -90,12 +137,67 @@ function convertirEvento(valor: unknown): EventoSubeventosVista {
     throw new Error("La respuesta del evento tiene un formato inválido.");
   }
 
+  let idAlcance: AlcanceEvento | undefined = undefined;
+  if (
+    valor.idAlcance === AlcanceEvento.PUBLICO ||
+    valor.idAlcance === AlcanceEvento.INTERNO ||
+    valor.idAlcance === AlcanceEvento.PRIVADO
+  ) {
+    idAlcance = valor.idAlcance;
+  }
+
+  let solicitudModificacionPendiente: EventoSubeventosVista["solicitudModificacionPendiente"] =
+    null;
+  if (
+    esRegistro(valor.solicitudModificacionPendiente) &&
+    typeof valor.solicitudModificacionPendiente.idSolicitudModificacion ===
+      "number" &&
+    typeof valor.solicitudModificacionPendiente.motivoModificacion ===
+      "string" &&
+    typeof valor.solicitudModificacionPendiente.estado === "string"
+  ) {
+    solicitudModificacionPendiente = {
+      idSolicitudModificacion:
+        valor.solicitudModificacionPendiente.idSolicitudModificacion,
+      motivoModificacion:
+        valor.solicitudModificacionPendiente.motivoModificacion,
+      estado: valor.solicitudModificacionPendiente.estado,
+    };
+  }
+
+  const personalLogistica: PersonalLogisticaItem[] = Array.isArray(
+    valor.personalLogistica,
+  )
+    ? valor.personalLogistica
+        .filter(
+          (item): item is Record<string, unknown> =>
+            esRegistro(item) &&
+            typeof item.idUsuario === "number" &&
+            typeof item.nombreCompleto === "string" &&
+            typeof item.correo === "string" &&
+            typeof item.tipoCuenta === "string",
+        )
+        .map((item) => ({
+          idUsuario: item.idUsuario as number,
+          nombreCompleto: item.nombreCompleto as string,
+          correo: item.correo as string,
+          tipoCuenta: item.tipoCuenta as string,
+        }))
+    : [];
+
   return {
     idEvento: valor.idEvento,
     nombre: valor.nombre,
     descripcion: valor.descripcion,
     justificacion: valor.justificacion,
     posterUrl: valor.posterUrl,
+    idAlcance,
+    idEstadoEvento:
+      typeof valor.idEstadoEvento === "number" ? valor.idEstadoEvento : undefined,
+    motivoRechazo:
+      typeof valor.motivoRechazo === "string" ? valor.motivoRechazo : null,
+    solicitudModificacionPendiente,
+    personalLogistica,
     subEventos: valor.subEventos.map(convertirSubevento),
   };
 }
@@ -108,6 +210,36 @@ export function AdministracionEventoConSubeventos() {
   );
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const [mostrarModalCancelar, setMostrarModalCancelar] = useState(false);
+  const [mostrarConfirmacionCancelar, setMostrarConfirmacionCancelar] =
+    useState(false);
+  const [motivoCancelacion, setMotivoCancelacion] = useState("");
+  const [errorMotivoCancelacion, setErrorMotivoCancelacion] = useState("");
+  const [cancelando, setCancelando] = useState(false);
+  const [mensajeExito, setMensajeExito] = useState<string | null>(null);
+
+  async function confirmarCancelacion() {
+    if (!idEvento) return;
+    setCancelando(true);
+    setError(null);
+    try {
+      await apiRequest(`eventos/${idEvento}/cancelar`, {
+        method: "PATCH",
+        body: JSON.stringify({ motivo: motivoCancelacion.trim() }),
+      });
+      setMostrarConfirmacionCancelar(false);
+      setMensajeExito("El evento se ha cancelado exitosamente.");
+      setDatosEvento((prev) =>
+        prev ? { ...prev, idEstadoEvento: EstadoEvento.CANCELADO } : prev,
+      );
+    } catch (err: any) {
+      setError(err?.message || "No se pudo cancelar el evento.");
+      setMostrarConfirmacionCancelar(false);
+    } finally {
+      setCancelando(false);
+    }
+  }
 
   useEffect(() => {
     const controller = new AbortController();
@@ -199,6 +331,47 @@ export function AdministracionEventoConSubeventos() {
 
       {datosEvento && (
         <>
+          {datosEvento.idEstadoEvento === EstadoEvento.RECHAZADO && (
+            <div
+              role="alert"
+              className="space-y-2 border border-gray-200 bg-white p-5 shadow-md">
+              <div className="flex items-center gap-2">
+                <span className="inline-flex items-center rounded-md bg-red-100 px-2.5 py-0.5 text-xs font-semibold text-red-800">
+                  Solicitud Rechazada
+                </span>
+                <h2 className="font-bold text-gray-900">
+                  Motivo de rechazo
+                </h2>
+              </div>
+              <p className="break-words text-sm text-gray-700">
+                {datosEvento.motivoRechazo ||
+                  "No se especificó un motivo para el rechazo de la solicitud."}
+              </p>
+            </div>
+          )}
+
+          {datosEvento.solicitudModificacionPendiente && (
+            <div
+              role="status"
+              className="space-y-2 rounded-lg border border-amber-300 bg-amber-50 p-5 text-amber-950 shadow-sm">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="inline-flex items-center rounded-md bg-amber-200 px-2.5 py-0.5 text-xs font-semibold text-amber-900">
+                  Solicitud en Revisión
+                </span>
+                <h2 className="text-base font-bold text-amber-950">
+                  Modificación logística pendiente de evaluación por Subdirección
+                </h2>
+              </div>
+              <p className="text-sm text-amber-900">
+                <span className="font-semibold">Motivo registrado:</span>{" "}
+                {datosEvento.solicitudModificacionPendiente.motivoModificacion}
+              </p>
+              <p className="text-xs text-amber-800">
+                Mientras Subdirección dictamina esta solicitud, el evento conserva vigentes sus fechas y espacios originales. Si realizas otro cambio logístico, se actualizará esta misma solicitud sin generar duplicados.
+              </p>
+            </div>
+          )}
+
           <div className="space-y-5 border border-gray-200 bg-white p-5 shadow-md">
             <h2 className="font-merriweather text-xl font-bold text-secondary sm:text-2xl">
               {datosEvento.nombre}
@@ -207,11 +380,37 @@ export function AdministracionEventoConSubeventos() {
               <h2 className="font-bold">Descripción</h2>
               <p className="break-words">{datosEvento.descripcion}</p>
             </div>
+            <div>
+              <h2 className="font-bold">Alcance</h2>
+              <p className="break-words">
+                {obtenerTextoAlcance(datosEvento.idAlcance)}
+              </p>
+            </div>
             {datosEvento.justificacion && (
               <div>
                 <h2 className="font-bold">Beneficio politécnico</h2>
                 <p className="break-words">{datosEvento.justificacion}</p>
               </div>
+            )}
+          </div>
+
+          <div className="space-y-4">
+            <h2 className="text-xl font-bold sm:text-2xl">
+              Personal de logística del evento
+            </h2>
+            {datosEvento.personalLogistica.length > 0 ? (
+              <div className="w-full min-w-0 overflow-x-auto rounded-md border border-gray-200 shadow-md">
+                <Table
+                  columnas={columnasLogistica}
+                  filas={datosEvento.personalLogistica}
+                  obtenerClave={(personal) => personal.idUsuario}
+                  className="table-auto min-w-full bg-white text-left text-sm [&_tbody_tr]:h-12 [&_thead_tr]:h-10 [&_th]:py-2 [&_td]:py-2"
+                />
+              </div>
+            ) : (
+              <p className="rounded-lg bg-gray-50 px-4 py-6 text-gray-600">
+                No hay personal de logística registrado para este evento.
+              </p>
             )}
           </div>
 
@@ -236,18 +435,119 @@ export function AdministracionEventoConSubeventos() {
             )}
           </div>
 
-          <div className="flex justify-end">
-            <button
-              type="button"
-              onClick={() =>
-                navigate(
-                  `/organizador/editar-evento-subeventos/${datosEvento.idEvento}`,
-                )
-              }
-              className="min-h-11 rounded-md bg-eventos-primary px-5 py-2 font-semibold text-eventos-on-primary hover:bg-eventos-action-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-eventos-primary">
-              Modificar evento
-            </button>
-          </div>
+          {mensajeExito && (
+            <p
+              role="status"
+              className="rounded-lg bg-green-50 px-4 py-3 text-green-800">
+              {mensajeExito}
+            </p>
+          )}
+
+          {datosEvento.idEstadoEvento !== EstadoEvento.RECHAZADO &&
+            datosEvento.idEstadoEvento !== EstadoEvento.CANCELADO && (
+              <div className="flex flex-wrap justify-end gap-3">
+                <Button
+                  text="Cancelar evento"
+                  variant="danger"
+                  type="button"
+                  onClick={() => {
+                    setMotivoCancelacion("");
+                    setErrorMotivoCancelacion("");
+                    setMostrarModalCancelar(true);
+                  }}
+                />
+                <Button
+                  text="Modificar evento"
+                  variant="primary"
+                  type="button"
+                  onClick={() =>
+                    navigate(
+                      `/organizador/editar-evento-subeventos/${datosEvento.idEvento}`,
+                    )
+                  }
+                />
+              </div>
+            )}
+
+          {mostrarModalCancelar && (
+            <Modal
+              titulo="Motivo de cancelación"
+              contenido="Por favor, ingresa el motivo por el cual cancelas este evento. Esta justificación será notificada a los asistentes."
+              mostrarModal={mostrarModalCancelar}
+              cerrarModal={() => setMostrarModalCancelar(false)}>
+              <span className="text-xs text-gray-500">
+                Máximo 500 caracteres
+              </span>
+              <FormField errorMessage={errorMotivoCancelacion}>
+                <TextArea
+                  id="contenedorMotivoCancelacion"
+                  className="h-32 resize-none"
+                  value={motivoCancelacion}
+                  maxLength={500}
+                  hasError={Boolean(errorMotivoCancelacion)}
+                  onChange={(e) => {
+                    setMotivoCancelacion(e.currentTarget.value);
+                    if (errorMotivoCancelacion) setErrorMotivoCancelacion("");
+                  }}
+                />
+              </FormField>
+              <div className="flex justify-end gap-3 pt-2">
+                <Button
+                  text="Volver"
+                  variant="secondary"
+                  type="button"
+                  onClick={() => setMostrarModalCancelar(false)}
+                />
+                <Button
+                  text="Continuar"
+                  variant="primary"
+                  type="button"
+                  onClick={() => {
+                    const limpio = motivoCancelacion.trim();
+                    if (!limpio) {
+                      setErrorMotivoCancelacion(
+                        "Dato requerido faltante. La justificación no puede estar vacía.",
+                      );
+                      return;
+                    }
+                    if (limpio.length > 500) {
+                      setErrorMotivoCancelacion(
+                        "La descripción excede el límite máximo de caracteres permitidos.",
+                      );
+                      return;
+                    }
+                    setMostrarModalCancelar(false);
+                    setMostrarConfirmacionCancelar(true);
+                  }}
+                />
+              </div>
+            </Modal>
+          )}
+
+          {mostrarConfirmacionCancelar && (
+            <Modal
+              titulo="Confirmar cancelación"
+              contenido="¿Desea confirmar la cancelación del evento seleccionado? Esta acción es irreversible y cancelará todos los subeventos asociados."
+              mostrarModal={mostrarConfirmacionCancelar}
+              cerrarModal={() => setMostrarConfirmacionCancelar(false)}>
+              <div className="flex justify-end gap-3 pt-2">
+                <Button
+                  text="Volver"
+                  variant="secondary"
+                  type="button"
+                  disabled={cancelando}
+                  onClick={() => setMostrarConfirmacionCancelar(false)}
+                />
+                <Button
+                  text={cancelando ? "Cancelando..." : "Confirmar Cancelación"}
+                  variant="danger"
+                  type="button"
+                  disabled={cancelando}
+                  onClick={confirmarCancelacion}
+                />
+              </div>
+            </Modal>
+          )}
         </>
       )}
     </section>

@@ -10,8 +10,9 @@ import type {
 import Input from "../../atoms/Input/Input";
 import Button from "../../atoms/Button/Button";
 import { SpaceRequerimentsDialog } from "../../organisms/SpaceRequirementsDialog/SpaceRequerimentsDialog";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ModalSubevento } from "../ModalSubevento/ModalSubevento";
+import { apiRequest } from "../../../lib/apiClient";
 
 interface CardSubeventoBaseProps {
   subevento: SubeventoFormData;
@@ -46,11 +47,19 @@ const ACCESOS = [
   { value: "false", label: "Entrada libre" },
 ];
 
-const RECINTOS = [
-  { value: String(RecintoId.AUDITORIO), label: "Auditorio" },
-  { value: String(RecintoId.SALA_14), label: "Sala 14" },
-  { value: String(RecintoId.LABORATORIO_A), label: "Laboratorio 1104" },
-  { value: String(RecintoId.LABORATORIO_B), label: "Laboratorio 1105" },
+interface EspacioInfo {
+  idRecinto: number;
+  nombre: string;
+  aforo: number;
+}
+
+const RECINTOS_BASE: EspacioInfo[] = [
+  { idRecinto: RecintoId.AUDITORIO, nombre: "Auditorio Principal", aforo: 242 },
+  { idRecinto: RecintoId.LABORATORIO_2104, nombre: "Laboratorio 2104", aforo: 36 },
+  { idRecinto: RecintoId.LABORATORIO_2105, nombre: "Laboratorio 2105", aforo: 36 },
+  { idRecinto: RecintoId.SALA_14, nombre: "Sala 14", aforo: 50 },
+  { idRecinto: RecintoId.LABORATORIO_2106, nombre: "Laboratorio 2106", aforo: 36 },
+  { idRecinto: RecintoId.LABORATORIO_2107, nombre: "Laboratorio 2107", aforo: 36 },
 ];
 
 const HORASINICIO = [
@@ -148,11 +157,42 @@ export function CardSubevento(props: CardSubeventoProps) {
   );
   const [mostrarModalEspacio, setMostrarModalEspacio] = useState(false);
   const [mostrarModalSubevento, setMostrarModalSubevento] = useState(false);
+  const [espacios, setEspacios] = useState<EspacioInfo[]>(RECINTOS_BASE);
+
+  useEffect(() => {
+    let activo = true;
+    const cargarEspacios = async () => {
+      try {
+        const respuesta = await apiRequest<
+          Array<{ idRecinto: number; nombre: string; aforo: number }>
+        >("espacios/disponibles");
+        if (activo && Array.isArray(respuesta) && respuesta.length > 0) {
+          setEspacios(respuesta);
+        }
+      } catch {
+        // Se conservan los datos de RECINTOS_BASE
+      }
+    };
+    void cargarEspacios();
+    return () => {
+      activo = false;
+    };
+  }, []);
+
+  const opcionesRecintos = espacios.map((recinto) => ({
+    value: String(recinto.idRecinto),
+    label: recinto.nombre,
+  }));
+
+  const recintoSeleccionado = espacios.find(
+    (recinto) => recinto.idRecinto === Number(subevento.idRecinto),
+  );
 
   const horaDisponible = (horaInicio: string, horaFin: string) =>
     !otrosSubeventos.some((otro) =>
       seTraslapan(horaInicio, horaFin, otro.horaInicio, otro.horaFin),
     );
+
   const horasInicioDisponibles = HORASINICIO.filter(({ value: horaInicio }) =>
     HORASFIN.some(
       ({ value: horaFin }) =>
@@ -215,9 +255,7 @@ export function CardSubevento(props: CardSubeventoProps) {
               : (e) => props.updateSubevento(index, "fecha", e.target.value)
           }
           onBlur={
-            readOnly
-              ? undefined
-              : () => props.markSubeventoTouched(index, "fecha")
+            readOnly ? undefined : () => props.markSubeventoTouched(index, "fecha")
           }
         />
       </FormField>
@@ -227,11 +265,21 @@ export function CardSubevento(props: CardSubeventoProps) {
         htmlFor={`selectRecinto-${index}`}
         readOnly={readOnly}
         required
+        mensajeAyuda={
+          recintoSeleccionado
+            ? `Capacidad: ${recintoSeleccionado.aforo} ${
+                recintoSeleccionado.idRecinto !== RecintoId.AUDITORIO &&
+                recintoSeleccionado.idRecinto !== RecintoId.SALA_14
+                  ? "equipos / personas"
+                  : "personas / asientos"
+              }`
+            : undefined
+        }
         errorMessage={touched.idRecinto ? errors.idRecinto : undefined}>
         <Select
           id={`selectRecinto-${index}`}
           placeholder="Selecciona un espacio"
-          options={RECINTOS}
+          options={opcionesRecintos}
           value={subevento.idRecinto ? String(subevento.idRecinto) : ""}
           disabled={readOnly}
           hasError={Boolean(touched.idRecinto && errors.idRecinto)}
@@ -314,8 +362,8 @@ export function CardSubevento(props: CardSubeventoProps) {
         mensajeAyuda={
           subevento.idRecinto === RecintoId.SALA_14
             ? "Al elegir la sala 14 el acceso es libre"
-            : subevento.idRecinto === RecintoId.LABORATORIO_A ||
-              subevento.idRecinto === RecintoId.LABORATORIO_B
+            : subevento.idRecinto &&
+                subevento.idRecinto !== RecintoId.AUDITORIO
               ? "Al elegir un laboratorio el cupo pasa a ser limitado"
               : ""
         }>
@@ -350,9 +398,7 @@ export function CardSubevento(props: CardSubeventoProps) {
             id={`recintoDetalle-${index}`}
             value={
               props.nombreRecinto ??
-              RECINTOS.find(
-                (recinto) => recinto.value === String(subevento.idRecinto),
-              )?.label ??
+              recintoSeleccionado?.nombre ??
               "No disponible"
             }
             disabled
@@ -376,16 +422,14 @@ export function CardSubevento(props: CardSubeventoProps) {
       <SpaceRequerimentsDialog
         mostrar={mostrarModalEspacio}
         laboratorio={
-          RECINTOS.find(
-            (recinto) => recinto.value === String(subevento.idRecinto),
-          )?.label ?? "Espacio seleccionado"
+          recintoSeleccionado?.nombre ?? "Espacio seleccionado"
         }
         id={subevento.idRecinto}
         cerrar={() => setMostrarModalEspacio(false)}
       />
       {!readOnly && (
         <div className="col-span-full flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          {props.canEdit && index > 0 ? (
+          {props.canEdit ? (
             <div id="contenedorBotonesCard">
               <Button
                 text="Nombre y descripción del subevento"

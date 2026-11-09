@@ -102,6 +102,7 @@ CREATE TABLE evento (
   justificacion text,
   "esUrgente" boolean NOT NULL DEFAULT false,
   "motivoUrgencia" text,
+  "motivoRechazo" text,
   "idAlcance" integer NOT NULL REFERENCES alcance("idAlcance"),
   "idEstadoEvento" integer NOT NULL REFERENCES "estadoEvento"("idEstadoEvento"),
   "idOrganizador" integer NOT NULL REFERENCES usuario("idUsuario")
@@ -232,10 +233,13 @@ ON CONFLICT ("idRol") DO NOTHING;
 INSERT INTO recinto ("idRecinto", nombre, aforo, "idEstadoRecinto") OVERRIDING SYSTEM VALUE
 VALUES 
   (1, 'Auditorio Principal', 242, 1),
-  (2, 'Laboratorio de Cómputo A', 36, 1),
-  (3, 'Laboratorio de Cómputo B', 36, 1),
-  (4, 'Sala 14', 50, 1)
-ON CONFLICT ("idRecinto") DO NOTHING;
+  (2, 'Laboratorio 2104', 36, 1),
+  (3, 'Laboratorio 2105', 36, 1),
+  (4, 'Sala 14', 50, 1),
+  (5, 'Laboratorio 2106', 36, 1),
+  (6, 'Laboratorio 2107', 36, 1)
+ON CONFLICT ("idRecinto") DO UPDATE
+SET nombre = EXCLUDED.nombre, aforo = EXCLUDED.aforo;
 
 -- 7. Asientos Oficiales del Auditorio Principal (242 butacas)
 INSERT INTO asiento (fila, numero, "idRecinto")

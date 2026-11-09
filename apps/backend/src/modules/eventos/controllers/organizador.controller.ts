@@ -43,6 +43,10 @@ export class OrganizadorController {
     return Number(idUsuario);
   }
 
+  private obtenerRolUsuarioAutenticado(req: any): string | undefined {
+    return req.user?.tipoCuenta;
+  }
+
   @ApiOperation({
     summary: 'Consultar mis eventos registrados como organizador',
   })
@@ -61,9 +65,11 @@ export class OrganizadorController {
     @Req() req: any,
   ) {
     const idUsuario = this.obtenerIdUsuarioAutenticado(req);
+    const rolActor = this.obtenerRolUsuarioAutenticado(req);
     return await this.organizadorService.obtenerDetalleOrganizador(
       idEvento,
       idUsuario,
+      rolActor,
     );
   }
 
@@ -79,10 +85,12 @@ export class OrganizadorController {
     @Req() req: any,
   ) {
     const idUsuario = this.obtenerIdUsuarioAutenticado(req);
+    const rolActor = this.obtenerRolUsuarioAutenticado(req);
     return await this.organizadorService.solicitarModificacionLogistica(
       idEvento,
       idUsuario,
       dto,
+      rolActor,
     );
   }
 
@@ -111,12 +119,14 @@ export class OrganizadorController {
     @Req() req: any,
   ) {
     const idUsuario = this.obtenerIdUsuarioAutenticado(req);
+    const rolActor = this.obtenerRolUsuarioAutenticado(req);
     const posterFile = files?.file?.[0] ?? files?.poster?.[0];
     return await this.organizadorService.actualizarInfoGeneral(
       idEvento,
       idUsuario,
       dto,
       posterFile,
+      rolActor,
     );
   }
 

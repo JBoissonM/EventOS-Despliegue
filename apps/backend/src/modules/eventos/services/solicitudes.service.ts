@@ -513,6 +513,7 @@ export class SolicitudesService {
       justificacion: evento.justificacion,
       idAlcance: evento.idAlcance,
       idEstadoEvento: evento.idEstadoEvento,
+      motivoRechazo: evento.motivoRechazo ?? null,
       esUrgente: evento.esUrgente,
       motivoUrgencia: evento.motivoUrgencia ?? null,
       poster: evento.poster,
@@ -570,145 +571,11 @@ export class SolicitudesService {
       });
 
     if (solicitudPendiente) {
-      await this.validarSubeventos(
-        solicitudPendiente.subeventosPropuestos,
+      await this.aplicarModificacionLogisticaDirecta(
         idEvento,
-      );
-      const nuevoEsUrgente = this.calcularEsUrgente(
         solicitudPendiente.subeventosPropuestos,
+        idUsuarioActor,
       );
-
-      const subeventosConCambioRecinto: {
-        idSubEvento: number;
-        nombreSubEvento: string;
-        idNuevoRecinto: number;
-        fecha: string;
-        horaInicio: string;
-        horaFin: string;
-      }[] = [];
-
-      await this.dataSource.transaction(async (manager) => {
-        const subeventosExistentes = await manager.find(SubEventoEntity, {
-          where: { idEvento },
-        });
-        const idsConservados = new Set<number>();
-
-        for (const propuesto of solicitudPendiente.subeventosPropuestos) {
-          const existente = propuesto.idSubEvento
-            ? subeventosExistentes.find(
-              (s) => s.idSubEvento === propuesto.idSubEvento,
-            )
-            : undefined;
-
-          let idSubEventoAfectado: number;
-
-          if (existente) {
-            idsConservados.add(existente.idSubEvento);
-            const cambioRecinto = existente.idRecinto !== propuesto.idRecinto;
-            if (cambioRecinto) {
-              await manager.query(
-                `UPDATE boleto b
-                 SET "idAsiento" = NULL
-                 FROM "asistenteEvento" ae
-                 WHERE ae."idBoleto" = b."idBoleto"
-                   AND ae."idSubEvento" = $1
-                   AND b."idEstadoBoleto" = $2`,
-                [existente.idSubEvento, EstadoBoleto.VALIDO],
-              );
-              subeventosConCambioRecinto.push({
-                idSubEvento: existente.idSubEvento,
-                nombreSubEvento: propuesto.nombre,
-                idNuevoRecinto: propuesto.idRecinto,
-                fecha: propuesto.fecha,
-                horaInicio: propuesto.horaInicio,
-                horaFin: propuesto.horaFin,
-              });
-            }
-
-            if (existente.idFecha) {
-              await manager.update(FechaEntity, existente.idFecha, {
-                fecha: propuesto.fecha,
-                horaInicio: propuesto.horaInicio,
-                horaFin: propuesto.horaFin,
-              });
-            }
-            await manager.update(SubEventoEntity, existente.idSubEvento, {
-              nombre: propuesto.nombre,
-              descripcion: propuesto.descripcion,
-              idRecinto: propuesto.idRecinto,
-              accesoQR: propuesto.accesoQR ?? existente.accesoQR,
-              estado: EstadoSubEvento.ACEPTADO,
-            });
-            idSubEventoAfectado = existente.idSubEvento;
-          } else {
-            const nuevaFecha = await manager.save(FechaEntity, {
-              fecha: propuesto.fecha,
-              horaInicio: propuesto.horaInicio,
-              horaFin: propuesto.horaFin,
-            });
-            const nuevoSub = await manager.save(SubEventoEntity, {
-              nombre: propuesto.nombre,
-              descripcion: propuesto.descripcion,
-              idEvento,
-              idRecinto: propuesto.idRecinto,
-              idFecha: nuevaFecha.idFecha,
-              accesoQR: propuesto.accesoQR ?? false,
-              estado: EstadoSubEvento.ACEPTADO,
-            });
-            idsConservados.add(nuevoSub.idSubEvento);
-            idSubEventoAfectado = nuevoSub.idSubEvento;
-          }
-
-          await manager.save(BitacoraEventoEntity, {
-            idEvento,
-            idSubEvento: idSubEventoAfectado,
-            idUsuarioActor: idUsuarioActor ?? evento.idOrganizador,
-            idEstadoEvento: EstadoEvento.ACEPTADO,
-          });
-        }
-
-        for (const anterior of subeventosExistentes) {
-          if (
-            !idsConservados.has(anterior.idSubEvento) &&
-            anterior.estado !== EstadoSubEvento.CANCELADO
-          ) {
-            await manager.update(SubEventoEntity, anterior.idSubEvento, {
-              estado: EstadoSubEvento.CANCELADO,
-            });
-            await manager.query(
-              `UPDATE "boleto"
-               SET "idEstadoBoleto" = $1
-               WHERE "idBoleto" IN (
-                 SELECT ae."idBoleto"
-                 FROM "asistenteEvento" ae
-                 WHERE ae."idSubEvento" = $2 AND ae."idBoleto" IS NOT NULL
-               )`,
-              [EstadoBoleto.CANCELADO, anterior.idSubEvento],
-            );
-            await manager.save(BitacoraEventoEntity, {
-              idEvento,
-              idSubEvento: anterior.idSubEvento,
-              idUsuarioActor: idUsuarioActor ?? evento.idOrganizador,
-              idEstadoEvento: EstadoEvento.CANCELADO,
-            });
-          }
-        }
-
-        await manager.update(EventoEntity, idEvento, {
-          idEstadoEvento: EstadoEvento.ACEPTADO,
-          esUrgente: nuevoEsUrgente,
-        });
-
-        await manager.update(
-          SolicitudModificacionEntity,
-          solicitudPendiente.idSolicitudModificacion,
-          { estado: 'Aprobado' },
-        );
-      });
-
-      if (subeventosConCambioRecinto.length > 0) {
-        void this.notificarAsistentesCambioRecinto(idEvento, subeventosConCambioRecinto);
-      }
 
       return {
         mensaje: 'La solicitud fue aprobada exitosamente.',
@@ -744,6 +611,158 @@ export class SolicitudesService {
 
     return {
       mensaje: 'La solicitud fue aprobada exitosamente.',
+      idEvento,
+      idEstadoEvento: EstadoEvento.ACEPTADO,
+    };
+  }
+
+  async aplicarModificacionLogisticaDirecta(
+    idEvento: number,
+    subeventosPropuestos: SubEventoLogisticaPayload[],
+    idUsuarioActor?: number,
+  ) {
+    await this.validarSubeventos(subeventosPropuestos, idEvento);
+    const nuevoEsUrgente = this.calcularEsUrgente(subeventosPropuestos);
+
+    const subeventosConCambioRecinto: {
+      idSubEvento: number;
+      nombreSubEvento: string;
+      idNuevoRecinto: number;
+      fecha: string;
+      horaInicio: string;
+      horaFin: string;
+    }[] = [];
+
+    const evento = await this.eventoRepository.findOneBy({ idEvento });
+    if (!evento) {
+      throw new NotFoundException('Evento no encontrado.');
+    }
+
+    await this.dataSource.transaction(async (manager) => {
+      const subeventosExistentes = await manager.find(SubEventoEntity, {
+        where: { idEvento },
+      });
+      const idsConservados = new Set<number>();
+
+      for (const propuesto of subeventosPropuestos) {
+        const existente = propuesto.idSubEvento
+          ? subeventosExistentes.find(
+              (s) => s.idSubEvento === propuesto.idSubEvento,
+            )
+          : undefined;
+
+        let idSubEventoAfectado: number;
+
+        if (existente) {
+          idsConservados.add(existente.idSubEvento);
+          const cambioRecinto = existente.idRecinto !== propuesto.idRecinto;
+          if (cambioRecinto) {
+            await manager.query(
+              `UPDATE boleto b
+               SET "idAsiento" = NULL
+               FROM "asistenteEvento" ae
+               WHERE ae."idBoleto" = b."idBoleto"
+                 AND ae."idSubEvento" = $1
+                 AND b."idEstadoBoleto" = $2`,
+              [existente.idSubEvento, EstadoBoleto.VALIDO],
+            );
+            subeventosConCambioRecinto.push({
+              idSubEvento: existente.idSubEvento,
+              nombreSubEvento: propuesto.nombre,
+              idNuevoRecinto: propuesto.idRecinto,
+              fecha: propuesto.fecha,
+              horaInicio: propuesto.horaInicio,
+              horaFin: propuesto.horaFin,
+            });
+          }
+
+          if (existente.idFecha) {
+            await manager.update(FechaEntity, existente.idFecha, {
+              fecha: propuesto.fecha,
+              horaInicio: propuesto.horaInicio,
+              horaFin: propuesto.horaFin,
+            });
+          }
+          await manager.update(SubEventoEntity, existente.idSubEvento, {
+            nombre: propuesto.nombre,
+            descripcion: propuesto.descripcion,
+            idRecinto: propuesto.idRecinto,
+            accesoQR: propuesto.accesoQR ?? existente.accesoQR,
+            estado: EstadoSubEvento.ACEPTADO,
+          });
+          idSubEventoAfectado = existente.idSubEvento;
+        } else {
+          const nuevaFecha = await manager.save(FechaEntity, {
+            fecha: propuesto.fecha,
+            horaInicio: propuesto.horaInicio,
+            horaFin: propuesto.horaFin,
+          });
+          const nuevoSub = await manager.save(SubEventoEntity, {
+            nombre: propuesto.nombre,
+            descripcion: propuesto.descripcion,
+            idEvento,
+            idRecinto: propuesto.idRecinto,
+            idFecha: nuevaFecha.idFecha,
+            accesoQR: propuesto.accesoQR ?? false,
+            estado: EstadoSubEvento.ACEPTADO,
+          });
+          idsConservados.add(nuevoSub.idSubEvento);
+          idSubEventoAfectado = nuevoSub.idSubEvento;
+        }
+
+        await manager.save(BitacoraEventoEntity, {
+          idEvento,
+          idSubEvento: idSubEventoAfectado,
+          idUsuarioActor: idUsuarioActor ?? evento.idOrganizador,
+          idEstadoEvento: EstadoEvento.ACEPTADO,
+        });
+      }
+
+      for (const anterior of subeventosExistentes) {
+        if (
+          !idsConservados.has(anterior.idSubEvento) &&
+          anterior.estado !== EstadoSubEvento.CANCELADO
+        ) {
+          await manager.update(SubEventoEntity, anterior.idSubEvento, {
+            estado: EstadoSubEvento.CANCELADO,
+          });
+          await manager.query(
+            `UPDATE "boleto"
+             SET "idEstadoBoleto" = $1
+             WHERE "idBoleto" IN (
+               SELECT ae."idBoleto"
+               FROM "asistenteEvento" ae
+               WHERE ae."idSubEvento" = $2 AND ae."idBoleto" IS NOT NULL
+             )`,
+            [EstadoBoleto.CANCELADO, anterior.idSubEvento],
+          );
+          await manager.save(BitacoraEventoEntity, {
+            idEvento,
+            idSubEvento: anterior.idSubEvento,
+            idUsuarioActor: idUsuarioActor ?? evento.idOrganizador,
+            idEstadoEvento: EstadoEvento.CANCELADO,
+          });
+        }
+      }
+
+      await manager.update(EventoEntity, idEvento, {
+        idEstadoEvento: EstadoEvento.ACEPTADO,
+        esUrgente: nuevoEsUrgente,
+      });
+
+      await manager.update(
+        SolicitudModificacionEntity,
+        { idEvento, estado: 'Pendiente' },
+        { estado: 'Aprobado' },
+      );
+    });
+
+    if (subeventosConCambioRecinto.length > 0) {
+      void this.notificarAsistentesCambioRecinto(idEvento, subeventosConCambioRecinto);
+    }
+
+    return {
+      mensaje: 'Modificación logística aplicada directamente con éxito.',
       idEvento,
       idEstadoEvento: EstadoEvento.ACEPTADO,
     };
@@ -837,8 +856,16 @@ export class SolicitudesService {
       );
     }
 
+    const motivoLimpio = motivo?.trim() || null;
+    if (motivoLimpio && motivoLimpio.length > 500) {
+      throw new BadRequestException(
+        'La descripción excede el límite máximo de caracteres permitidos.',
+      );
+    }
+
     await this.eventoRepository.update(idEvento, {
       idEstadoEvento: EstadoEvento.RECHAZADO,
+      motivoRechazo: motivoLimpio,
     });
     await this.subEventoRepository.update(
       { idEvento },
@@ -859,6 +886,7 @@ export class SolicitudesService {
       mensaje: 'La solicitud fue rechazada exitosamente.',
       idEvento,
       idEstadoEvento: EstadoEvento.RECHAZADO,
+      motivoRechazo: motivoLimpio,
     };
   }
 

@@ -34,11 +34,11 @@ export function MenuSubdireccion() {
         className="grid grid-cols-1 items-start justify-items-center gap-[60px] md:grid-cols-2">
         <div className="flex flex-col gap-[60px]">
           <AgendaRecinto titulo="Auditorio" />
-          <AgendaRecinto titulo="Laboratorio 1103" />
+          <AgendaRecinto titulo="Laboratorio 2104" />
         </div>
         <div className="flex flex-col gap-[60px]">
           <AgendaRecinto titulo="Sala 14" />
-          <AgendaRecinto titulo="Laboratorio 1104" />
+          <AgendaRecinto titulo="Laboratorio 2105" />
         </div>
       </div>
       <br />

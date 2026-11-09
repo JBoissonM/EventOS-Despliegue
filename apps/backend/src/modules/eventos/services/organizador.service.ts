@@ -12,6 +12,7 @@ import {
   EstadoBoleto,
   EstadoEvento,
   EstadoSubEvento,
+  TipoCuentaUsuario,
   type EventoOrganizadorDetalle,
   type EventoOrganizadorDetalleSubevento,
   type InvitadoEventoItem,
@@ -160,6 +161,7 @@ export class OrganizadorService {
   async obtenerDetalleOrganizador(
     idEvento: number,
     idOrganizador: number,
+    rolActor?: string,
   ): Promise<EventoOrganizadorDetalle> {
     const evento = await this.eventoRepository.findOne({
       where: { idEvento },
@@ -175,7 +177,10 @@ export class OrganizadorService {
       throw new NotFoundException('No se encontró el evento solicitado.');
     }
 
-    if (evento.idOrganizador !== idOrganizador) {
+    if (
+      evento.idOrganizador !== idOrganizador &&
+      rolActor !== TipoCuentaUsuario.SUBDIRECCION
+    ) {
       throw new ForbiddenException(
         'No tienes permisos para administrar este evento.',
       );
@@ -323,6 +328,7 @@ export class OrganizadorService {
       posterUrl: this.obtenerPosterUrl(evento.poster),
       idAlcance: evento.idAlcance,
       idEstadoEvento: evento.idEstadoEvento,
+      motivoRechazo: evento.motivoRechazo ?? null,
       esUrgente: evento.esUrgente,
       motivoUrgencia: evento.motivoUrgencia ?? null,
       idOrganizador: evento.idOrganizador,
@@ -347,6 +353,7 @@ export class OrganizadorService {
     idEvento: number,
     idUsuario: number,
     dto: ModificarLogisticaDto,
+    rolActor?: string,
   ) {
     const evento = await this.eventoRepository.findOne({
       where: { idEvento },
@@ -362,7 +369,9 @@ export class OrganizadorService {
       throw new NotFoundException('No se encontró el evento solicitado.');
     }
 
-    if (evento.idOrganizador !== idUsuario) {
+    const esSubdireccion = rolActor === TipoCuentaUsuario.SUBDIRECCION;
+
+    if (!esSubdireccion && evento.idOrganizador !== idUsuario) {
       throw new ForbiddenException(
         'No tienes permisos para administrar este evento.',
       );
@@ -440,6 +449,31 @@ export class OrganizadorService {
 
     await this.solicitudesService.validarSubeventos(dto.subeventos, idEvento);
 
+    if (esSubdireccion) {
+      await this.solicitudesService.aplicarModificacionLogisticaDirecta(
+        idEvento,
+        dto.subeventos,
+        idUsuario,
+      );
+      return {
+        mensaje: 'Modificación aplicada directamente con éxito.',
+        idEvento,
+        directo: true,
+      };
+    }
+
+    const motivoLimpio = dto.motivoModificacion?.trim() ?? '';
+    if (!motivoLimpio) {
+      throw new BadRequestException(
+        'Dato requerido faltante. La justificación no puede estar vacía.',
+      );
+    }
+    if (motivoLimpio.length > 500) {
+      throw new BadRequestException(
+        'La descripción excede el límite máximo de caracteres permitidos.',
+      );
+    }
+
     const solicitudExistente =
       await this.solicitudModificacionRepository.findOne({
         where: { idEvento, estado: 'Pendiente' },
@@ -447,7 +481,7 @@ export class OrganizadorService {
 
     if (solicitudExistente) {
       solicitudExistente.subeventosPropuestos = dto.subeventos;
-      solicitudExistente.motivoModificacion = dto.motivoModificacion.trim();
+      solicitudExistente.motivoModificacion = motivoLimpio;
       const guardada =
         await this.solicitudModificacionRepository.save(solicitudExistente);
       return {
@@ -462,7 +496,7 @@ export class OrganizadorService {
 
     const nuevaSolicitud = this.solicitudModificacionRepository.create({
       idEvento,
-      motivoModificacion: dto.motivoModificacion.trim(),
+      motivoModificacion: motivoLimpio,
       subeventosPropuestos: dto.subeventos,
       estado: 'Pendiente',
     });
@@ -485,6 +519,7 @@ export class OrganizadorService {
     idUsuario: number,
     dto: ActualizarInfoGeneralDto,
     posterFile?: Express.Multer.File,
+    rolActor?: string,
   ) {
     const evento = await this.eventoRepository.findOne({
       where: { idEvento },
@@ -494,7 +529,10 @@ export class OrganizadorService {
       throw new NotFoundException('No se encontró el evento solicitado.');
     }
 
-    if (evento.idOrganizador !== idUsuario) {
+    if (
+      evento.idOrganizador !== idUsuario &&
+      rolActor !== TipoCuentaUsuario.SUBDIRECCION
+    ) {
       throw new ForbiddenException(
         'No tienes permisos para administrar este evento.',
       );
@@ -523,17 +561,79 @@ export class OrganizadorService {
       evento.poster = dto.poster.trim();
     }
 
-    if (dto.nombre !== undefined) {
-      evento.nombre = dto.nombre.trim();
-    }
-    if (dto.descripcion !== undefined) {
-      evento.descripcion = dto.descripcion.trim();
-    }
-    if (dto.justificacion !== undefined) {
-      evento.justificacion = dto.justificacion.trim();
-    }
-    if (dto.idAlcance !== undefined) {
-      evento.idAlcance = dto.idAlcance;
+    if (dto.idSubEvento !== undefined) {
+      const subevento = await this.subEventoRepository.findOne({
+        where: { idSubEvento: dto.idSubEvento, idEvento },
+      });
+      if (!subevento) {
+        throw new BadRequestException(
+          'El subevento especificado no pertenece a este evento.',
+        );
+      }
+      if (dto.nombre !== undefined) {
+        subevento.nombre = dto.nombre.trim();
+      }
+      if (dto.descripcion !== undefined) {
+        subevento.descripcion = dto.descripcion.trim();
+      }
+      await this.subEventoRepository.save(subevento);
+
+      const solicitudPendiente =
+        await this.solicitudModificacionRepository.findOne({
+          where: { idEvento, estado: 'Pendiente' },
+        });
+      if (
+        solicitudPendiente &&
+        Array.isArray(solicitudPendiente.subeventosPropuestos)
+      ) {
+        solicitudPendiente.subeventosPropuestos =
+          solicitudPendiente.subeventosPropuestos.map((prop) =>
+            prop.idSubEvento === dto.idSubEvento
+              ? {
+                  ...prop,
+                  ...(dto.nombre !== undefined
+                    ? { nombre: dto.nombre.trim() }
+                    : {}),
+                  ...(dto.descripcion !== undefined
+                    ? { descripcion: dto.descripcion.trim() }
+                    : {}),
+                }
+              : prop,
+          );
+        await this.solicitudModificacionRepository.save(solicitudPendiente);
+      }
+    } else {
+      if (dto.nombre !== undefined) {
+        evento.nombre = dto.nombre.trim();
+      }
+      if (dto.descripcion !== undefined) {
+        evento.descripcion = dto.descripcion.trim();
+      }
+      if (dto.justificacion !== undefined) {
+        evento.justificacion = dto.justificacion.trim();
+      }
+      if (dto.idAlcance !== undefined) {
+        evento.idAlcance = dto.idAlcance;
+      }
+
+      if (dto.nombre !== undefined || dto.descripcion !== undefined) {
+        const subeventosActivos = await this.subEventoRepository.find({
+          where: { idEvento },
+        });
+        const noCancelados = subeventosActivos.filter(
+          (s) => s.estado !== EstadoSubEvento.CANCELADO,
+        );
+        if (noCancelados.length === 1) {
+          const unicoSub = noCancelados[0];
+          if (dto.nombre !== undefined) {
+            unicoSub.nombre = dto.nombre.trim();
+          }
+          if (dto.descripcion !== undefined) {
+            unicoSub.descripcion = dto.descripcion.trim();
+          }
+          await this.subEventoRepository.save(unicoSub);
+        }
+      }
     }
 
     if (dto.ponentes !== undefined) {
@@ -551,12 +651,12 @@ export class OrganizadorService {
       const subEventosIdsValidos = new Set(
         subeventos.map((s) => s.idSubEvento),
       );
-      const primerSubEventoId = subeventos[0]?.idSubEvento;
+      const subEventoIdDefault = dto.idSubEvento ?? subeventos[0]?.idSubEvento;
 
       const correosPorSubEvento = new Map<number, Set<string>>();
 
       for (const ponenteDto of dto.ponentes) {
-        const idSub = ponenteDto.idSubEvento ?? primerSubEventoId;
+        const idSub = ponenteDto.idSubEvento ?? subEventoIdDefault;
         if (!subEventosIdsValidos.has(idSub)) {
           throw new BadRequestException(
             'El subevento asignado al ponente no pertenece a este evento.',
@@ -578,7 +678,10 @@ export class OrganizadorService {
         correosSet.add(correoNormalizado);
       }
 
-      const subEventoIdsArray = [...subEventosIdsValidos];
+      const subEventoIdsArray =
+        dto.idSubEvento !== undefined
+          ? [dto.idSubEvento]
+          : [...subEventosIdsValidos];
       if (subEventoIdsArray.length > 0) {
         await this.ponenteRepository.delete({
           idSubEvento: In(subEventoIdsArray),
@@ -592,7 +695,7 @@ export class OrganizadorService {
             apellidoPa: p.apellidoPa.trim(),
             apellidoMa: p.apellidoMa ? p.apellidoMa.trim() : null,
             correo: p.correo.trim().toLowerCase(),
-            idSubEvento: p.idSubEvento ?? primerSubEventoId,
+            idSubEvento: p.idSubEvento ?? subEventoIdDefault,
           }),
         );
         await this.ponenteRepository.save(nuevosPonentes);

@@ -52,11 +52,18 @@ export function toEventDetailsViewModel(event: EventDetailsApi): EventDetailsVie
     .map((activity) => mapActivity(activity, event.idEvento))
     .sort((a, b) => (a.fecha?.fecha ?? "").localeCompare(b.fecha?.fecha ?? ""));
 
+  const rawPoster = event.poster?.trim() ?? "";
+  const posterReferencia = /^https?:\/\//i.test(rawPoster)
+    ? rawPoster
+    : rawPoster
+      ? `http://localhost:9000/eventos-public/${rawPoster.replace(/^\/+/, "")}`
+      : null;
+
   return {
     idEvento: event.idEvento,
     nombre: event.nombre,
     descripcion: event.descripcion ?? "",
-    posterReferencia: /^https?:\/\//i.test(event.poster?.trim() ?? "") ? event.poster.trim() : null,
+    posterReferencia,
     idAlcance: event.idAlcance,
     actividades,
   };

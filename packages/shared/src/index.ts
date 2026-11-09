@@ -8,6 +8,7 @@ export interface Evento {
   idEstadoEvento?: EstadoEvento;
   esUrgente?: boolean;
   motivoUrgencia?: string | null;
+  motivoRechazo?: string | null;
   etiquetas?: TipoEtiqueta[];
   subEventos?: SubEvento[];
   justificacion?: string | null;
@@ -218,6 +219,7 @@ export interface EventoOrganizadorDetalle {
   idEstadoEvento?: EstadoEvento;
   esUrgente: boolean;
   motivoUrgencia?: string | null;
+  motivoRechazo?: string | null;
   idOrganizador: number;
   cupoMaximo: number;
   boletosActivosCount: number;
@@ -272,7 +274,7 @@ export interface SubEventoLogisticaPayload extends SubeventoPayload {
 
 export interface ModificarLogisticaPayload {
   subeventos: SubEventoLogisticaPayload[];
-  motivoModificacion: string;
+  motivoModificacion?: string;
 }
 
 export interface PonentePayload {
@@ -285,6 +287,7 @@ export interface PonentePayload {
 }
 
 export interface ActualizarInfoGeneralPayload {
+  idSubEvento?: number;
   nombre?: string;
   descripcion?: string;
   justificacion?: string;
@@ -360,6 +363,10 @@ export enum RecintoId {
   LABORATORIO_A = 2,
   LABORATORIO_B = 3,
   SALA_14 = 4,
+  LABORATORIO_2104 = 2,
+  LABORATORIO_2105 = 3,
+  LABORATORIO_2106 = 5,
+  LABORATORIO_2107 = 6,
 }
 
 export enum TipoPerfilVerificacion {

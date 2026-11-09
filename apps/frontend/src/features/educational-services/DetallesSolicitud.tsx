@@ -575,7 +575,7 @@ export function DetallesSolicitud() {
       </div>
 
       {esAprobada ? (
-        <div className="flex justify-start pt-2 pb-10">
+        <div className="flex justify-start gap-4 pt-2 pb-10">
           <Button
             id="botonCancelar"
             type="button"
@@ -585,6 +585,22 @@ export function DetallesSolicitud() {
               setErrorAccion(null);
               setMotivoCancelacion("");
               setMostrarModalCancelar(true);
+            }}
+          />
+          <Button
+            id="botonModificar"
+            type="button"
+            text="Modificar evento"
+            variant="primary"
+            onClick={() => {
+              if (!datos?.idEvento) return;
+              if (datos.actividades && datos.actividades.length > 1) {
+                navigate(
+                  `/organizador/editar-evento-subeventos/${datos.idEvento}`,
+                );
+              } else {
+                navigate(`/organizador/editar-evento/${datos.idEvento}`);
+              }
             }}
           />
         </div>
