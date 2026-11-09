@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import { useNavigate, useParams } from "react-router";
 import {
@@ -30,6 +30,11 @@ import {
 } from "./components/OrganizerSubeventCard";
 import { Table, type Columna } from "../../components/organisms/Table/Table";
 import Badge from "../../components/atoms/Badge/Badge";
+import {
+  MARCADOR_MOTIVO_URGENCIA,
+  ModalMotivo,
+} from "./organism/ModalMotivo";
+import { ModalMotivoUrgente } from "../../components/organisms/ModalMotivoUrgente/ModalMotivoUrgente";
 
 interface ActividadEditable {
   llave: string;
@@ -48,6 +53,13 @@ interface DatosGenerales {
   descripcion: string;
   justificacion: string;
   idAlcance: AlcanceEvento | "";
+}
+
+interface ErroresActividad {
+  fecha?: string;
+  idRecinto?: string;
+  horaInicio?: string;
+  horaFin?: string;
 }
 
 const ACCESOS = [
@@ -142,6 +154,37 @@ const columnasLogistica: Columna<PersonalLogisticaItem>[] = [
   },
 ];
 
+function separarMotivoUrgencia(motivo: string) {
+  const indice = motivo.lastIndexOf(MARCADOR_MOTIVO_URGENCIA);
+  if (indice < 0) {
+    return { motivoModificacion: motivo, motivoUrgente: "" };
+  }
+
+  return {
+    motivoModificacion: motivo.slice(0, indice),
+    motivoUrgente: motivo.slice(indice + MARCADOR_MOTIVO_URGENCIA.length),
+  };
+}
+
+function diasHastaFecha(fecha: string): number | null {
+  const [anio, mes, dia] = fecha.split("-").map(Number);
+  if (!anio || !mes || !dia) return null;
+
+  const hoy = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Mexico_City",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  })
+    .format(new Date())
+    .split("-")
+    .map(Number);
+
+  const fechaUTC = Date.UTC(anio, mes - 1, dia);
+  const hoyUTC = Date.UTC(hoy[0], hoy[1] - 1, hoy[2]);
+  return (fechaUTC - hoyUTC) / 86_400_000;
+}
+
 function diferenciaEntreFechas(fechaInicio: string, fechaFin: string): number {
   const [y1, m1, d1] = fechaInicio.split("-").map(Number);
   const [y2, m2, d2] = fechaFin.split("-").map(Number);
@@ -228,13 +271,15 @@ function obtenerActividades(
 
 function obtenerPayloadActividades(
   actividades: ActividadEditable[],
+  nombreEvento: string,
+  descripcionEvento: string,
 ): SubEventoLogisticaPayload[] {
   return actividades.map((actividad) => ({
     ...(actividad.idSubEvento !== undefined
       ? { idSubEvento: actividad.idSubEvento }
       : {}),
-    nombre: actividad.nombre.trim(),
-    descripcion: actividad.descripcion.trim(),
+    nombre: (actividad.nombre.trim() || nombreEvento.trim()),
+    descripcion: (actividad.descripcion.trim() || descripcionEvento.trim()),
     idRecinto: Number(actividad.idRecinto),
     accesoQR: actividad.accesoQR,
     fecha: actividad.fecha,
@@ -259,12 +304,19 @@ export function EditarEventoConSubeventos() {
   const [recintos, setRecintos] = useState<Recinto[]>([]);
   const [archivoPoster, setArchivoPoster] = useState<File | null>(null);
   const [motivo, setMotivo] = useState("");
+  const [motivoUrgente, setMotivoUrgente] = useState("");
   const [mostrarModalMotivo, setMostrarModalMotivo] = useState(false);
-  const confirmoEnvioLogistica = useRef(false);
+  const [mostrarModalAviso, setMostrarModalAviso] = useState(false);
+  const [mostrarModalUrgente, setMostrarModalUrgente] = useState(false);
+  const [intentoGuardar, setIntentoGuardar] = useState(false);
+  const [intentoMotivo, setIntentoMotivo] = useState(false);
   const [cargando, setCargando] = useState(true);
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [mensaje, setMensaje] = useState<string | null>(null);
+  const [erroresActividades, setErroresActividades] = useState<
+    Record<string, ErroresActividad>
+  >({});
   const [modalSubeventoAbierto, setModalSubeventoAbierto] = useState<
     string | null
   >(null);
@@ -304,9 +356,11 @@ export function EditarEventoConSubeventos() {
         setActividades(listaActividades);
         setActividadesIniciales(listaActividades);
         setRecintos(listaRecintos);
-        setMotivo(
+        const motivos = separarMotivoUrgencia(
           detalle.solicitudModificacionPendiente?.motivoModificacion ?? "",
         );
+        setMotivo(motivos.motivoModificacion);
+        setMotivoUrgente(motivos.motivoUrgente);
       } catch (errorCarga) {
         if (!controller.signal.aborted) {
           setError(obtenerMensajeError(errorCarga));
@@ -320,6 +374,24 @@ export function EditarEventoConSubeventos() {
     return () => controller.abort();
   }, [idEvento]);
 
+  const anioActual = new Date().getFullYear();
+  const FECHA_FIN_SEMESTRE = `${anioActual}-12-19`;
+  const fechaHoy = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Mexico_City",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date());
+
+  const primeraFecha = actividades[0]?.fecha;
+  const minFecha =
+    primeraFecha && primeraFecha > fechaHoy ? primeraFecha : fechaHoy;
+  const maxFecha15 = primeraFecha
+    ? sumarDias(primeraFecha, 14)
+    : FECHA_FIN_SEMESTRE;
+  const maxFecha =
+    maxFecha15 < FECHA_FIN_SEMESTRE ? maxFecha15 : FECHA_FIN_SEMESTRE;
+
   const cambiosGenerales = Boolean(
     datosGenerales &&
       datosGeneralesIniciales &&
@@ -330,12 +402,67 @@ export function EditarEventoConSubeventos() {
         datosGenerales.idAlcance !== datosGeneralesIniciales.idAlcance ||
         archivoPoster),
   );
-  const payloadActividades = obtenerPayloadActividades(actividades);
-  const actividadesInicialesPayload =
-    obtenerPayloadActividades(actividadesIniciales);
+  const payloadActividades = obtenerPayloadActividades(
+    actividades,
+    datosGenerales?.nombre ?? "",
+    datosGenerales?.descripcion ?? "",
+  );
+  const actividadesInicialesPayload = obtenerPayloadActividades(
+    actividadesIniciales,
+    datosGeneralesIniciales?.nombre ?? "",
+    datosGeneralesIniciales?.descripcion ?? "",
+  );
   const cambiosActividades =
     JSON.stringify(payloadActividades) !==
     JSON.stringify(actividadesInicialesPayload);
+
+  const esModificacionUrgente = actividades.some((act) => {
+    const dias = diasHastaFecha(act.fecha);
+    return dias !== null && dias >= 0 && dias <= 7;
+  });
+
+  function calcularErroresActividades(listaActividades: ActividadEditable[]): {
+    errores: Record<string, ErroresActividad>;
+    hayErrores: boolean;
+  } {
+    const errores: Record<string, ErroresActividad> = {};
+    let hayErrores = false;
+    const baseFecha = listaActividades[0]?.fecha;
+
+    listaActividades.forEach((act, idx) => {
+      if (act.idSubEvento === undefined) {
+        const err: ErroresActividad = {};
+        if (!act.fecha) {
+          err.fecha = "Selecciona la fecha del evento";
+        } else if (act.fecha > FECHA_FIN_SEMESTRE) {
+          err.fecha = "La fecha no debe exceder el fin de semestre (19 de diciembre)";
+        } else if (idx > 0 && baseFecha && diferenciaEntreFechas(baseFecha, act.fecha) > 14) {
+          err.fecha = "Máximo 15 días a partir de la fecha de inicio";
+        }
+
+        if (!act.idRecinto) {
+          err.idRecinto = "Selecciona un espacio para el evento";
+        }
+
+        if (!act.horaInicio) {
+          err.horaInicio = "Selecciona la hora de inicio";
+        }
+
+        if (!act.horaFin) {
+          err.horaFin = "Selecciona la hora final";
+        } else if (act.horaInicio && act.horaFin && act.horaInicio >= act.horaFin) {
+          err.horaFin = "La hora de finalización debe ser posterior a la de inicio";
+        }
+
+        if (Object.keys(err).length > 0) {
+          errores[act.llave] = err;
+          hayErrores = true;
+        }
+      }
+    });
+
+    return { errores, hayErrores };
+  }
 
   function agregarActividad() {
     const primeraActividad = actividades[0];
@@ -358,6 +485,11 @@ export function EditarEventoConSubeventos() {
     setActividades((actuales) =>
       actuales.filter((item) => item.llave !== llave),
     );
+    setErroresActividades((prev) => {
+      const nuevo = { ...prev };
+      delete nuevo[llave];
+      return nuevo;
+    });
   }
 
   function actualizarActividad(
@@ -370,120 +502,43 @@ export function EditarEventoConSubeventos() {
         item.llave === llave ? { ...item, [campo]: valor } : item,
       ),
     );
+    if (erroresActividades[llave]?.[campo as keyof ErroresActividad]) {
+      setErroresActividades((prev) => ({
+        ...prev,
+        [llave]: {
+          ...prev[llave],
+          [campo]: undefined,
+        },
+      }));
+    }
   }
 
-  const anioActual = new Date().getFullYear();
-  const FECHA_FIN_SEMESTRE = `${anioActual}-12-19`;
-  const fechaHoy = new Intl.DateTimeFormat("en-CA", {
-    timeZone: "America/Mexico_City",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).format(new Date());
-
-  const primeraFecha = actividades[0]?.fecha;
-  const minFecha =
-    primeraFecha && primeraFecha > fechaHoy ? primeraFecha : fechaHoy;
-  const maxFecha15 = primeraFecha
-    ? sumarDias(primeraFecha, 14)
-    : FECHA_FIN_SEMESTRE;
-  const maxFecha =
-    maxFecha15 < FECHA_FIN_SEMESTRE ? maxFecha15 : FECHA_FIN_SEMESTRE;
-
-  function validarCambios(): string | null {
-    if (
-      !datosGenerales ||
-      !datosGenerales.nombre.trim() ||
-      !datosGenerales.descripcion.trim() ||
-      !datosGenerales.justificacion.trim()
-    ) {
-      return "Por favor, completa todos los campos obligatorios resaltados para continuar";
+  function solicitarConfirmacionLogistica() {
+    setIntentoMotivo(true);
+    if (!motivo.trim() || motivo.trim().length > 500) {
+      return;
     }
 
-    if (datosGenerales.descripcion.trim().length > 500) {
-      return "La descripción del evento no puede exceder 500 caracteres.";
+    setMostrarModalMotivo(false);
+    if (esModificacionUrgente) {
+      setMostrarModalUrgente(true);
+    } else {
+      setMostrarModalAviso(true);
     }
-
-    if (actividades.length === 0) {
-      return "El evento debe conservar al menos una actividad.";
-    }
-
-    for (const actividad of actividades) {
-      if (!actividad.nombre.trim()) {
-        return "Cada actividad debe tener un nombre.";
-      }
-      if (actividad.nombre.trim().length > 150) {
-        return "El nombre de cada actividad no puede exceder los 150 caracteres.";
-      }
-      if (!actividad.descripcion.trim()) {
-        return "Cada actividad debe tener una descripción.";
-      }
-      if (actividad.descripcion.trim().length > 500) {
-        return "La descripción de cada actividad no puede exceder los 500 caracteres.";
-      }
-      if (!actividad.idRecinto) {
-        return "Cada actividad debe tener un espacio seleccionado.";
-      }
-      if (!actividad.fecha) {
-        return "Cada actividad debe tener una fecha seleccionada.";
-      }
-      if (actividad.fecha > FECHA_FIN_SEMESTRE) {
-        return "Las fechas no pueden exceder el fin de semestre (19 de diciembre).";
-      }
-      if (!actividad.horaInicio || !actividad.horaFin) {
-        return "Cada actividad debe tener horario de inicio y fin.";
-      }
-      if (actividad.horaInicio >= actividad.horaFin) {
-        return "La hora de fin debe ser posterior a la hora de inicio.";
-      }
-    }
-
-    if (actividades.length > 1) {
-      const fechas = actividades.map((a) => a.fecha).filter(Boolean).sort();
-      if (fechas.length > 1) {
-        const primera = fechas[0];
-        const ultima = fechas[fechas.length - 1];
-        if (diferenciaEntreFechas(primera, ultima) > 14) {
-          return "La duración máxima entre las actividades de un evento es de 15 días naturales.";
-        }
-      }
-    }
-
-    if (cambiosActividades && !motivo.trim()) {
-      return "Escribe el motivo de la modificación logística.";
-    }
-    if (motivo.trim().length > 500) {
-      return "El motivo no puede exceder 500 caracteres.";
-    }
-    return null;
   }
 
-  async function guardarCambios(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setError(null);
-    setMensaje(null);
+  function confirmarEnvioLogistica() {
+    setMostrarModalAviso(false);
+    void ejecutarGuardadoFinal(true);
+  }
 
-    const errorValidacion = validarCambios();
-    if (errorValidacion) {
-      if (cambiosActividades && !motivo.trim()) {
-        setMostrarModalMotivo(true);
-      } else {
-        setError(errorValidacion);
-      }
-      return;
-    }
-    if (!cambiosGenerales && !cambiosActividades) {
-      setMensaje("No hay cambios para guardar.");
-      return;
-    }
-    if (cambiosActividades && !confirmoEnvioLogistica.current) {
-      setMostrarModalMotivo(true);
-      return;
-    }
+  async function ejecutarGuardadoFinal(enviarLogistica: boolean) {
     if (!idEvento || !evento || !datosGenerales) return;
 
     setGuardando(true);
     let generalesGuardados = false;
+    let logisticaEnviada = false;
+
     try {
       if (cambiosGenerales) {
         const payload: ActualizarInfoGeneralPayload = {};
@@ -529,23 +584,45 @@ export function EditarEventoConSubeventos() {
         setArchivoPoster(null);
       }
 
-      if (cambiosActividades) {
+      if (enviarLogistica && cambiosActividades) {
+        const motivoCompleto = esModificacionUrgente
+          ? `${motivo.trim()}${MARCADOR_MOTIVO_URGENCIA}${motivoUrgente.trim()}`
+          : motivo.trim();
+
         const payload: ModificarLogisticaPayload = {
-          motivoModificacion: motivo.trim(),
+          motivoModificacion: motivoCompleto,
           subeventos: payloadActividades,
         };
         await apiRequest(`eventos/${idEvento}/logistica`, {
           method: "PATCH",
           body: JSON.stringify(payload),
         });
+        logisticaEnviada = true;
         setActividadesIniciales(actividades);
-        setMostrarModalMotivo(false);
-        setMensaje(
-          "Los cambios de actividades se enviaron a revisión. Se aplicarán cuando sean aprobados.",
-        );
-      } else {
-        setMensaje("Los cambios se guardaron correctamente.");
       }
+
+      const detalleActualizado = await apiRequest<EventoOrganizadorDetalle>(
+        `eventos/${idEvento}/detalle-organizador`,
+      );
+      setEvento(detalleActualizado);
+      const listaActividades = obtenerActividades(detalleActualizado);
+      setActividades(listaActividades);
+      setActividadesIniciales(listaActividades);
+      const motivos = separarMotivoUrgencia(
+        detalleActualizado.solicitudModificacionPendiente?.motivoModificacion ?? "",
+      );
+      setMotivo(motivos.motivoModificacion);
+      setMotivoUrgente(motivos.motivoUrgente);
+      setIntentoGuardar(false);
+      setIntentoMotivo(false);
+
+      setMensaje(
+        logisticaEnviada
+          ? generalesGuardados
+            ? "La información general se guardó y la modificación de actividades fue enviada a revisión."
+            : "La modificación de actividades fue enviada a revisión de Subdirección."
+          : "Los cambios se guardaron correctamente.",
+      );
     } catch (errorGuardado) {
       const detalle = obtenerMensajeError(errorGuardado);
       setError(
@@ -554,9 +631,51 @@ export function EditarEventoConSubeventos() {
           : detalle,
       );
     } finally {
-      confirmoEnvioLogistica.current = false;
       setGuardando(false);
     }
+  }
+
+  function manejarEnvio(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setError(null);
+    setMensaje(null);
+
+    const { errores, hayErrores: hayErroresActividades } =
+      calcularErroresActividades(actividades);
+    setErroresActividades(errores);
+
+    const hayErroresGenerales = Boolean(
+      !datosGenerales ||
+        !datosGenerales.nombre.trim() ||
+        datosGenerales.nombre.trim().length > 150 ||
+        !datosGenerales.descripcion.trim() ||
+        datosGenerales.descripcion.trim().length > 500 ||
+        !datosGenerales.justificacion.trim() ||
+        datosGenerales.justificacion.trim().length > 500,
+    );
+
+    if (hayErroresGenerales || hayErroresActividades) {
+      setIntentoGuardar(true);
+      return;
+    }
+
+    if (actividades.length === 0) {
+      setError("El evento debe conservar al menos una actividad.");
+      return;
+    }
+
+    if (!cambiosGenerales && !cambiosActividades) {
+      setMensaje("No hay cambios para guardar.");
+      return;
+    }
+
+    if (!cambiosActividades) {
+      void ejecutarGuardadoFinal(false);
+      return;
+    }
+
+    setIntentoMotivo(false);
+    setMostrarModalMotivo(true);
   }
 
   if (cargando) {
@@ -566,6 +685,15 @@ export function EditarEventoConSubeventos() {
       </p>
     );
   }
+
+  const { hayErrores: formularioInvalido } =
+    calcularErroresActividades(actividades);
+  const formularioGeneralInvalido = Boolean(
+    !datosGenerales ||
+      !datosGenerales.nombre.trim() ||
+      !datosGenerales.descripcion.trim() ||
+      !datosGenerales.justificacion.trim(),
+  );
 
   return (
     <section className="mx-auto w-full max-w-7xl space-y-8 px-4 sm:px-6 lg:space-y-10 lg:px-8">
@@ -610,6 +738,14 @@ export function EditarEventoConSubeventos() {
         </div>
       )}
 
+      {intentoGuardar && (formularioInvalido || formularioGeneralInvalido) && (
+        <div
+          role="alert"
+          className="rounded-md border border-red-300 bg-red-50 p-4 text-sm font-semibold text-red-800">
+          Por favor, completa todos los campos obligatorios resaltados para continuar
+        </div>
+      )}
+
       {evento?.solicitudModificacionPendiente && (
         <div
           role="status"
@@ -624,7 +760,9 @@ export function EditarEventoConSubeventos() {
           </div>
           <p className="text-sm text-amber-900">
             <span className="font-semibold">Motivo registrado:</span>{" "}
-            {evento.solicitudModificacionPendiente.motivoModificacion}
+            {separarMotivoUrgencia(
+              evento.solicitudModificacionPendiente.motivoModificacion,
+            ).motivoModificacion || "Sin motivo especificado"}
           </p>
           <p className="text-xs text-amber-800">
             Mientras Subdirección dictamina esta solicitud, el evento conserva
@@ -638,7 +776,7 @@ export function EditarEventoConSubeventos() {
       {datosGenerales && (
         <form
           data-editar-evento-subeventos
-          onSubmit={guardarCambios}
+          onSubmit={manejarEnvio}
           className="space-y-8">
           <fieldset disabled={guardando} className="space-y-8 border-0 p-0">
             <section className="space-y-4 border border-gray-200 bg-white p-5 shadow-md">
@@ -698,12 +836,23 @@ export function EditarEventoConSubeventos() {
                 />
                 <FormField
                   label="Nombre del evento"
-                  className="!font-bold !text-black">
+                  className="!font-bold !text-black"
+                  errorMessage={
+                    intentoGuardar && !datosGenerales.nombre.trim()
+                      ? "El nombre del evento es obligatorio"
+                      : datosGenerales.nombre.trim().length > 150
+                        ? "El nombre no puede exceder los 150 caracteres"
+                        : undefined
+                  }>
                   <Input
                     id="campoNombre"
                     className="pr-10 font-merriweather text-xl font-bold text-secondary sm:text-2xl"
                     value={datosGenerales.nombre}
                     maxLength={150}
+                    hasError={
+                      Boolean(intentoGuardar && !datosGenerales.nombre.trim()) ||
+                      datosGenerales.nombre.trim().length > 150
+                    }
                     onChange={(event) =>
                       setDatosGenerales({
                         ...datosGenerales,
@@ -724,7 +873,7 @@ export function EditarEventoConSubeventos() {
                   label="Descripción del evento"
                   className="!font-bold !text-black"
                   errorMessage={
-                    !datosGenerales.descripcion.trim()
+                    intentoGuardar && !datosGenerales.descripcion.trim()
                       ? "La descripción es obligatoria"
                       : datosGenerales.descripcion.trim().length >= 500
                         ? "La descripción no puede exceder los 500 caracteres"
@@ -735,8 +884,9 @@ export function EditarEventoConSubeventos() {
                     maxLength={500}
                     className="resize-none"
                     hasError={
-                      datosGenerales.descripcion.trim().length >= 500 ||
-                      !datosGenerales.descripcion.trim()
+                      Boolean(
+                        intentoGuardar && !datosGenerales.descripcion.trim(),
+                      ) || datosGenerales.descripcion.trim().length >= 500
                     }
                     onChange={(event) =>
                       setDatosGenerales({
@@ -756,11 +906,23 @@ export function EditarEventoConSubeventos() {
                 />
                 <FormField
                   label="Beneficio politécnico"
-                  className="!font-bold !text-black">
+                  className="!font-bold !text-black"
+                  errorMessage={
+                    intentoGuardar && !datosGenerales.justificacion.trim()
+                      ? "La justificación debe ser obligatoria"
+                      : datosGenerales.justificacion.trim().length >= 500
+                        ? "La justificación no puede exceder los 500 caracteres"
+                        : undefined
+                  }>
                   <TextArea
                     value={datosGenerales.justificacion}
                     maxLength={500}
                     className="resize-none"
+                    hasError={
+                      Boolean(
+                        intentoGuardar && !datosGenerales.justificacion.trim(),
+                      ) || datosGenerales.justificacion.trim().length >= 500
+                    }
                     onChange={(event) =>
                       setDatosGenerales({
                         ...datosGenerales,
@@ -839,6 +1001,10 @@ export function EditarEventoConSubeventos() {
                   );
                 }
 
+                const errorAct = intentoGuardar
+                  ? erroresActividades[actividad.llave]
+                  : undefined;
+
                 return (
                   <div
                     key={actividad.llave}
@@ -851,13 +1017,15 @@ export function EditarEventoConSubeventos() {
                         primeraFecha
                           ? "Máximo 15 días a partir de la fecha de inicio"
                           : undefined
-                      }>
+                      }
+                      errorMessage={errorAct?.fecha}>
                       <Input
                         id={`selectFecha-${indice}`}
                         min={minFecha}
                         max={maxFecha}
                         type="date"
                         value={actividad.fecha}
+                        hasError={Boolean(errorAct?.fecha)}
                         onChange={(e) =>
                           actualizarActividad(
                             actividad.llave,
@@ -871,7 +1039,8 @@ export function EditarEventoConSubeventos() {
                     <FormField
                       label="Espacio deseado"
                       htmlFor={`selectRecinto-${indice}`}
-                      required>
+                      required
+                      errorMessage={errorAct?.idRecinto}>
                       <Select
                         id={`selectRecinto-${indice}`}
                         placeholder="Selecciona un espacio"
@@ -883,6 +1052,7 @@ export function EditarEventoConSubeventos() {
                               : r.nombre,
                         }))}
                         value={actividad.idRecinto}
+                        hasError={Boolean(errorAct?.idRecinto)}
                         onChange={(e) => {
                           const idRecintoNum = Number(e.target.value);
                           actualizarActividad(
@@ -904,13 +1074,15 @@ export function EditarEventoConSubeventos() {
                     <FormField
                       label="Hora inicio"
                       htmlFor={`selectHoraInicio-${indice}`}
-                      required>
+                      required
+                      errorMessage={errorAct?.horaInicio}>
                       <Select
                         id={`selectHoraInicio-${indice}`}
                         placeholder="Selecciona la hora de inicio"
                         options={HORAS_INICIO}
                         value={actividad.horaInicio}
                         disabled={!actividad.fecha || !actividad.idRecinto}
+                        hasError={Boolean(errorAct?.horaInicio)}
                         onChange={(e) =>
                           actualizarActividad(
                             actividad.llave,
@@ -924,7 +1096,8 @@ export function EditarEventoConSubeventos() {
                     <FormField
                       label="Hora Fin"
                       htmlFor={`selectHoraFinal-${indice}`}
-                      required>
+                      required
+                      errorMessage={errorAct?.horaFin}>
                       <Select
                         id={`selectHoraFinal-${indice}`}
                         placeholder="Selecciona la hora final"
@@ -941,6 +1114,7 @@ export function EditarEventoConSubeventos() {
                           !actividad.idRecinto ||
                           !actividad.horaInicio
                         }
+                        hasError={Boolean(errorAct?.horaFin)}
                         onChange={(e) =>
                           actualizarActividad(
                             actividad.llave,
@@ -1073,58 +1247,43 @@ export function EditarEventoConSubeventos() {
         </form>
       )}
 
-      {mostrarModalMotivo && (
-        <Modal
-          titulo="Motivo de modificación logística"
-          contenido="Los cambios en las actividades requieren una nueva revisión por parte de Subdirección. Ingrese el motivo de la modificación para continuar."
+      {(mostrarModalMotivo || mostrarModalAviso) && (
+        <ModalMotivo
           mostrarModal={mostrarModalMotivo}
-          cerrarModal={() => setMostrarModalMotivo(false)}>
-          <FormField
-            label="Motivo de modificación"
-            className="!font-bold !text-black"
-            errorMessage={
-              !motivo.trim()
-                ? "El motivo de modificación es obligatorio."
-                : motivo.trim().length > 500
-                  ? "El motivo no puede exceder los 500 caracteres."
-                  : ""
-            }>
-            <TextArea
-              id="motivoModificacionLogistica"
-              className="h-32 resize-none"
-              value={motivo}
-              maxLength={500}
-              placeholder="Explica la razón por la que se modifican, agregan o cancelan las actividades..."
-              onChange={(e) => setMotivo(e.currentTarget.value)}
-            />
-          </FormField>
-          <div className="mt-4 flex justify-end gap-3">
-            <Button
-              text="Cancelar"
-              variant="secondary"
-              type="button"
-              onClick={() => setMostrarModalMotivo(false)}
-            />
-            <Button
-              text="Confirmar y guardar"
-              variant="primary"
-              type="button"
-              disabled={!motivo.trim() || motivo.trim().length > 500}
-              onClick={() => {
-                if (!motivo.trim()) return;
-                confirmoEnvioLogistica.current = true;
-                setMostrarModalMotivo(false);
-                const form = document.querySelector<HTMLFormElement>(
-                  "form[data-editar-evento-subeventos]",
-                );
-                if (form) {
-                  form.requestSubmit();
-                }
-              }}
-            />
-          </div>
-        </Modal>
+          mostrarModalAviso={mostrarModalAviso}
+          intentoMotivo={intentoMotivo}
+          esUrgente={esModificacionUrgente}
+          logistica={{ motivoModificacion: motivo } as any}
+          onCerrar={() => setMostrarModalMotivo(false)}
+          onCerrarAviso={() => {
+            setMostrarModalAviso(false);
+            if (esModificacionUrgente) {
+              setMostrarModalUrgente(true);
+            } else {
+              setMostrarModalMotivo(true);
+            }
+          }}
+          onCambioMotivo={(m) => setMotivo(m)}
+          onSolicitarConfirmacion={solicitarConfirmacionLogistica}
+          onConfirmar={confirmarEnvioLogistica}
+        />
       )}
+
+      <ModalMotivoUrgente
+        mostrar={mostrarModalUrgente}
+        motivo={motivoUrgente}
+        maxLength={500}
+        contenido="La fecha propuesta está dentro de los próximos 7 días. Explica por qué la modificación se solicita con carácter urgente."
+        cerrar={() => {
+          setMostrarModalUrgente(false);
+          setMostrarModalMotivo(true);
+        }}
+        onMotivoChange={setMotivoUrgente}
+        continuar={() => {
+          setMostrarModalUrgente(false);
+          setMostrarModalAviso(true);
+        }}
+      />
 
       {modalEspacio && (
         <SpaceRequerimentsDialog

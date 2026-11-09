@@ -129,6 +129,13 @@ export interface EditLogisticsValues {
   motivoModificacion: string;
 }
 
+export interface EditLogisticsErrors {
+  idRecinto?: string;
+  fecha?: string;
+  horaInicio?: string;
+  horaFin?: string;
+}
+
 interface EditLogisticsSectionProps {
   valores: EditLogisticsValues;
   alcance: AlcanceEvento | "";
@@ -143,6 +150,8 @@ interface EditLogisticsSectionProps {
   errorAgenda: string | null;
   deshabilitado: boolean;
   mostrarBanner?: boolean;
+  errores?: EditLogisticsErrors;
+  intentoGuardar?: boolean;
   onCambioLogistica: <K extends keyof EditLogisticsValues>(
     campo: K,
     valor: EditLogisticsValues[K],
@@ -166,6 +175,8 @@ export function EditLogisticsSection({
   errorAgenda,
   deshabilitado,
   mostrarBanner = true,
+  errores,
+  intentoGuardar = false,
   onCambioLogistica,
   onCambioAlcance,
   onCambioJustificacion,
@@ -262,7 +273,10 @@ export function EditLogisticsSection({
           </div>
         )}
         <div className="flex min-w-0 flex-col gap-2">
-          <FormField className="!font-bold !text-black" label="Recinto">
+          <FormField
+            className="!font-bold !text-black"
+            label="Recinto"
+            errorMessage={intentoGuardar ? errores?.idRecinto : undefined}>
             <Select
               id="campoEspacio"
               placeholder="Selecciona una opción"
@@ -275,6 +289,7 @@ export function EditLogisticsSection({
               }))}
               value={valores.idRecinto}
               disabled={deshabilitado || Boolean(errorRecintos)}
+              hasError={Boolean(intentoGuardar && errores?.idRecinto)}
               onChange={(event) => {
                 const idRecinto = Number(event.currentTarget.value);
                 if (String(idRecinto) !== valores.idRecinto) {
@@ -300,7 +315,10 @@ export function EditLogisticsSection({
           )}
         </div>
         <div className="flex min-w-0 flex-col gap-2">
-          <FormField className="!font-bold !text-black" label="Fecha">
+          <FormField
+            className="!font-bold !text-black"
+            label="Fecha"
+            errorMessage={intentoGuardar ? errores?.fecha : undefined}>
             <Input
               id="campoFecha"
               type="date"
@@ -308,6 +326,7 @@ export function EditLogisticsSection({
               min={fechaMinima}
               max={FECHA_FIN_SEMESTRE}
               disabled={deshabilitado}
+              hasError={Boolean(intentoGuardar && errores?.fecha)}
               onChange={(event) => {
                 const fecha = event.currentTarget.value;
                 if (fecha !== valores.fecha) {
@@ -320,7 +339,10 @@ export function EditLogisticsSection({
           </FormField>
         </div>
         <div className="flex min-w-0 flex-col gap-2">
-          <FormField className="!font-bold !text-black" label="Hora inicio">
+          <FormField
+            className="!font-bold !text-black"
+            label="Hora inicio"
+            errorMessage={intentoGuardar ? errores?.horaInicio : undefined}>
             <Select
               id="campoHoraInicio"
               options={horasInicioDisponibles}
@@ -339,6 +361,7 @@ export function EditLogisticsSection({
                 !valores.idRecinto ||
                 !valores.fecha
               }
+              hasError={Boolean(intentoGuardar && errores?.horaInicio)}
               onChange={(event) => {
                 onCambioLogistica("horaFin", "");
                 onCambioLogistica("horaInicio", event.currentTarget.value);
@@ -363,7 +386,14 @@ export function EditLogisticsSection({
         <div className="flex min-w-0 flex-col gap-2">
           <FormField
             className="!font-bold !text-black"
-            label="Hora de finalización">
+            label="Hora de finalización"
+            errorMessage={
+              intentoGuardar && errores?.horaFin
+                ? errores.horaFin
+                : horaFinInvalida
+                  ? "La hora de finalización debe ser posterior a la de inicio."
+                  : undefined
+            }>
             <Select
               id="campoHoraFin"
               options={horasFinDisponibles}
@@ -381,7 +411,9 @@ export function EditLogisticsSection({
                 Boolean(errorAgenda) ||
                 !valores.horaInicio
               }
-              hasError={horaFinInvalida}
+              hasError={Boolean(
+                horaFinInvalida || (intentoGuardar && errores?.horaFin),
+              )}
               onChange={(event) =>
                 onCambioLogistica("horaFin", event.currentTarget.value)
               }
@@ -475,11 +507,13 @@ export function EditLogisticsSection({
               <FormField
                 className="!font-bold !text-black"
                 errorMessage={
-                  !justificacion.trim()
-                    ? "La justificación debe ser obligatoria"
-                    : justificacion.trim().length >= 500
-                      ? "La justificación no puede exceder los 500 caracteres"
-                      : ""
+                  intentoGuardar
+                    ? !justificacion.trim()
+                      ? "La justificación debe ser obligatoria"
+                      : justificacion.trim().length >= 500
+                        ? "La justificación no puede exceder los 500 caracteres"
+                        : undefined
+                    : undefined
                 }>
                 <TextArea
                   id="campoJustificacion"
@@ -487,7 +521,11 @@ export function EditLogisticsSection({
                   maxLength={500}
                   disabled={deshabilitado}
                   hasError={
-                    !justificacion.trim() || justificacion.trim().length >= 500
+                    Boolean(
+                      intentoGuardar &&
+                        (!justificacion.trim() ||
+                          justificacion.trim().length >= 500),
+                    )
                   }
                   onChange={(event) =>
                     onCambioJustificacion(event.currentTarget.value)

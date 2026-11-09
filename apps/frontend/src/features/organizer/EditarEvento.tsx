@@ -18,6 +18,7 @@ import type { Columna } from "../../components/organisms/Table/Table";
 import Button from "../../components/atoms/Button/Button";
 import { EditLogisticsSection } from "./organism/EditLogisticsSection";
 import type {
+  EditLogisticsErrors,
   EditLogisticsValues,
   HorarioOcupado,
 } from "./organism/EditLogisticsSection";
@@ -448,6 +449,37 @@ export function EditarEvento() {
     void guardarCambios(true);
   }
 
+  const erroresLogistica: EditLogisticsErrors = {
+    idRecinto: !logistica.idRecinto
+      ? "Selecciona un espacio para el evento"
+      : undefined,
+    fecha: !logistica.fecha ? "Selecciona la fecha del evento" : undefined,
+    horaInicio: !logistica.horaInicio
+      ? "Selecciona la hora de inicio"
+      : undefined,
+    horaFin: !logistica.horaFin
+      ? "Selecciona la hora final"
+      : logistica.horaInicio &&
+          logistica.horaFin &&
+          logistica.horaInicio >= logistica.horaFin
+        ? "La hora de finalización debe ser posterior a la de inicio"
+        : undefined,
+  };
+  const hayErroresLogistica = Boolean(
+    erroresLogistica.idRecinto ||
+      erroresLogistica.fecha ||
+      erroresLogistica.horaInicio ||
+      erroresLogistica.horaFin,
+  );
+  const hayErroresGenerales = Boolean(
+    !nombre.trim() ||
+      nombre.trim().length > 150 ||
+      !descripcion.trim() ||
+      descripcion.trim().length > 500 ||
+      (idSubEventoSeleccionado === undefined &&
+        (!justificacion.trim() || justificacion.trim().length > 500)),
+  );
+
   async function guardarCambios(confirmarMotivoLogistica = false) {
     setIntentoGuardar(true);
     if (!evento || !subevento || !idEvento) return;
@@ -455,29 +487,18 @@ export function EditarEvento() {
     setError(null);
     setMensaje(null);
 
+    if (
+      hayErroresGenerales ||
+      (camposLogisticosModificados && hayErroresLogistica)
+    ) {
+      return;
+    }
+
     if (!informacionGeneralModificada && !logisticaModificada) {
       setMensaje("No hay cambios para guardar.");
       return;
     }
 
-    if (
-      !nombre.trim() ||
-      !descripcion.trim() ||
-      (idSubEventoSeleccionado === undefined && !justificacion.trim())
-    ) {
-      setError(
-        "Por favor, completa todos los campos obligatorios resaltados para continuar",
-      );
-      return;
-    }
-    if (nombre.trim().length > 150) {
-      setError("El nombre no puede exceder 150 caracteres.");
-      return;
-    }
-    if (descripcion.trim().length > 500) {
-      setError("La descripción no puede exceder 500 caracteres.");
-      return;
-    }
     const motivoModificacionCompleto = esModificacionUrgente
       ? `${logistica.motivoModificacion.trim()}${MARCADOR_MOTIVO_URGENCIA}${motivoUrgente.trim()}`
       : logistica.motivoModificacion.trim();
@@ -488,19 +509,6 @@ export function EditarEvento() {
             ? "Espera a que termine la consulta de disponibilidad del espacio."
             : `No se pudo comprobar la disponibilidad del espacio: ${errorAgenda}`,
         );
-        return;
-      }
-      if (
-        !logistica.idRecinto ||
-        !logistica.fecha ||
-        !logistica.horaInicio ||
-        !logistica.horaFin
-      ) {
-        setError("Completa espacio, fecha y horarios de la modificación.");
-        return;
-      }
-      if (logistica.horaInicio >= logistica.horaFin) {
-        setError("La hora de finalización debe ser posterior a la de inicio.");
         return;
       }
       if (!confirmarMotivoLogistica) {
@@ -777,6 +785,17 @@ export function EditarEvento() {
         </div>
       )}
 
+      {intentoGuardar &&
+        (hayErroresGenerales ||
+          (camposLogisticosModificados && hayErroresLogistica)) && (
+          <div
+            role="alert"
+            className="rounded-md border border-red-300 bg-red-50 p-4 text-sm font-semibold text-red-800">
+            Por favor, completa todos los campos obligatorios resaltados para
+            continuar
+          </div>
+        )}
+
       {evento && (
         <>
           {evento.solicitudModificacionPendiente && (
@@ -940,6 +959,8 @@ export function EditarEvento() {
                   errorAgenda={errorAgenda}
                   deshabilitado={guardando}
                   mostrarBanner={idSubEventoSeleccionado === undefined}
+                  errores={erroresLogistica}
+                  intentoGuardar={intentoGuardar}
                   onCambioLogistica={cambiarLogistica}
                   onCambioAlcance={setAlcance}
                   onCambioJustificacion={setJustificacion}
