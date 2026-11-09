@@ -554,7 +554,7 @@ export function AdministracionEvento() {
               {subeventosVisibles.map((subevento) => (
                 <article
                   key={subevento.idSubEvento}
-                  className="grid min-w-0 grid-cols-1 gap-x-6 gap-y-5 rounded-lg border border-gray-200 bg-white p-4 shadow-sm sm:grid-cols-2 sm:p-6">
+                  className="grid min-w-0 grid-cols-1 gap-x-6 gap-y-5 rounded-lg border border-[#E4C5C6] bg-eventos-primary-light p-4 shadow-sm sm:grid-cols-2 sm:p-6 text-gray-900">
                   <div className="flex min-w-0 flex-col gap-2">
                     <span className="font-bold">Espacio</span>
                     <span>{subevento.recinto?.nombre}</span>

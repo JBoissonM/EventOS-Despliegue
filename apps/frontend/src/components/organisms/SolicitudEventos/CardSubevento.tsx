@@ -231,7 +231,7 @@ export function CardSubevento(props: CardSubeventoProps) {
   }
 
   return (
-    <div className="grid min-w-0 grid-cols-1 gap-4 rounded-md bg-eventos-primary-light p-4 sm:grid-cols-2 sm:p-6 lg:grid-cols-3 lg:px-10 lg:py-8">
+    <div className="grid min-w-0 grid-cols-1 gap-4 rounded-md bg-eventos-primary-light p-4 sm:grid-cols-2 sm:p-6 lg:grid-cols-3 lg:px-10 lg:py-8 border border-[#E4C5C6] shadow-sm">
       <FormField
         label="Fecha"
         htmlFor={`selectFecha-${index}`}
@@ -436,7 +436,7 @@ export function CardSubevento(props: CardSubeventoProps) {
         cerrar={() => setMostrarModalEspacio(false)}
       />
       {!readOnly && (
-        <div className="col-span-full flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="col-span-full flex flex-col gap-3 border-t border-[#E4C5C6] pt-4 sm:flex-row sm:items-center sm:justify-between">
           {props.canEdit && index > 0 ? (
             <div id="contenedorBotonesCard">
               <Button
