@@ -300,16 +300,16 @@ export function AdministracionEventoConSubeventos() {
           {datosEvento.idEstadoEvento === EstadoEvento.RECHAZADO && (
             <div
               role="alert"
-              className="space-y-2 rounded-lg border border-red-300 bg-red-50 p-5 text-red-900 shadow-sm">
+              className="space-y-2 border border-gray-200 bg-white p-5 shadow-md">
               <div className="flex items-center gap-2">
-                <span className="inline-flex items-center rounded-md bg-red-200 px-2.5 py-0.5 text-xs font-semibold text-red-800">
+                <span className="inline-flex items-center rounded-md bg-red-100 px-2.5 py-0.5 text-xs font-semibold text-red-800">
                   Solicitud Rechazada
                 </span>
-                <h2 className="text-base font-bold text-red-900">
-                  Motivo del dictamen de rechazo
+                <h2 className="font-bold text-gray-900">
+                  Motivo de rechazo
                 </h2>
               </div>
-              <p className="break-words whitespace-pre-wrap text-sm text-red-800">
+              <p className="break-words text-sm text-gray-700">
                 {datosEvento.motivoRechazo ||
                   "No se especificó un motivo para el rechazo de la solicitud."}
               </p>

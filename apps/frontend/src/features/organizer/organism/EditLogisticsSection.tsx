@@ -1,11 +1,20 @@
-import { RecintoId, type Recinto } from "@eventos/shared";
+import { Pencil } from "lucide-react";
+import { AlcanceEvento, RecintoId, type Recinto } from "@eventos/shared";
 import { Input } from "../../../components/atoms/Input/Input";
 import { Select } from "../../../components/atoms/Select/Select";
+import { TextArea } from "../../../components/atoms/TextArea/TextArea";
+import { InputFile } from "../../../components/atoms/InputFile/InputFile";
 import { FormField } from "../../../components/molecules/FormField";
 
 const ACCESOS = [
   { value: "true", label: "Boleto con QR" },
   { value: "false", label: "Acceso libre" },
+];
+
+const ALCANCES = [
+  { value: String(AlcanceEvento.PUBLICO), label: "Público" },
+  { value: String(AlcanceEvento.INTERNO), label: "Interno" },
+  { value: String(AlcanceEvento.PRIVADO), label: "Privado" },
 ];
 
 const HORASINICIO = [
@@ -122,6 +131,10 @@ export interface EditLogisticsValues {
 
 interface EditLogisticsSectionProps {
   valores: EditLogisticsValues;
+  alcance: AlcanceEvento | "";
+  justificacion: string;
+  posterUrl: string | null;
+  archivoPoster: File | null;
   recintos: Recinto[];
   recintoActual: Recinto | null;
   errorRecintos: string | null;
@@ -129,14 +142,22 @@ interface EditLogisticsSectionProps {
   cargandoAgenda: boolean;
   errorAgenda: string | null;
   deshabilitado: boolean;
+  mostrarBanner?: boolean;
   onCambioLogistica: <K extends keyof EditLogisticsValues>(
     campo: K,
     valor: EditLogisticsValues[K],
   ) => void;
+  onCambioAlcance: (alcance: AlcanceEvento) => void;
+  onCambioJustificacion: (justificacion: string) => void;
+  onCambioPoster: (archivo: File | null) => void;
 }
 
 export function EditLogisticsSection({
   valores,
+  alcance,
+  justificacion,
+  posterUrl,
+  archivoPoster,
   recintos,
   recintoActual,
   errorRecintos,
@@ -144,7 +165,11 @@ export function EditLogisticsSection({
   cargandoAgenda,
   errorAgenda,
   deshabilitado,
+  mostrarBanner = true,
   onCambioLogistica,
+  onCambioAlcance,
+  onCambioJustificacion,
+  onCambioPoster,
 }: EditLogisticsSectionProps) {
   const opcionesRecinto = [...recintos];
   if (
@@ -218,6 +243,24 @@ export function EditLogisticsSection({
   return (
     <div id="contenedorDerecha" className="w-full min-w-0 space-y-4">
       <article className="grid min-w-0 grid-cols-1 gap-x-6 gap-y-5 rounded-lg border border-gray-200 bg-white p-4 shadow-sm sm:grid-cols-2 sm:p-6">
+        {mostrarBanner && (
+          <div className="flex min-w-0 flex-col gap-2">
+            <FormField
+              className="!font-bold !text-black"
+              label="Banner del evento"
+              mensajeAyuda="Resolución: 2048 x 1152">
+              <InputFile
+                key={archivoPoster?.name ?? posterUrl ?? "poster"}
+                id="campoPoster"
+                accept=".jpg"
+                disabled={deshabilitado}
+                onChange={(event) =>
+                  onCambioPoster(event.currentTarget.files?.[0] ?? null)
+                }
+              />
+            </FormField>
+          </div>
+        )}
         <div className="flex min-w-0 flex-col gap-2">
           <FormField className="!font-bold !text-black" label="Recinto">
             <Select
@@ -379,25 +422,82 @@ export function EditLogisticsSection({
             />
           </FormField>
         </div>
-        <div className="flex min-w-0 flex-col gap-2">
-          <FormField
-            label="Aforo estimado"
-            htmlFor="campoAforo"
-            className="!font-bold !text-black"
-            mensajeAyuda="Solo lectura (determinado por el espacio seleccionado)">
-            <Input
-              id="campoAforo"
-              value={
-                recintoSeleccionado?.aforo
-                  ? `${recintoSeleccionado.aforo} personas`
-                  : "No disponible"
-              }
-              readOnly
-              className="bg-gray-100 text-gray-600 cursor-not-allowed"
-              aria-label="Aforo máximo del espacio seleccionado"
+        {mostrarBanner && (
+          <div className="flex min-w-0 flex-col gap-2">
+            <label htmlFor="campoAlcance" className="font-bold">
+              Alcance
+            </label>
+            <Select
+              id="campoAlcance"
+              placeholder="Selecciona una opción"
+              options={ALCANCES}
+              value={alcance === "" ? "" : String(alcance)}
+              disabled={deshabilitado}
+              onChange={(event) => {
+                const valor = Number(event.currentTarget.value);
+                if (
+                  valor === AlcanceEvento.PUBLICO ||
+                  valor === AlcanceEvento.INTERNO ||
+                  valor === AlcanceEvento.PRIVADO
+                ) {
+                  onCambioAlcance(valor);
+                }
+              }}
             />
-          </FormField>
+          </div>
+        )}
+        <div className="flex min-w-0 flex-col gap-2">
+          <label htmlFor="campoAforo" className="font-bold">
+            Aforo estimado
+          </label>
+          <Input
+            id="campoAforo"
+            value={
+              recintoSeleccionado?.aforo
+                ? recintoSeleccionado.aforo
+                : "No disponible"
+            }
+            readOnly
+            aria-label="Aforo máximo del espacio seleccionado"
+          />
         </div>
+        {mostrarBanner && (
+          <div className="flex min-w-0 flex-col gap-2 sm:col-span-2">
+            <label htmlFor="campoJustificacion" className="font-bold">
+              Beneficio politécnico
+            </label>
+            <div className="relative">
+              <Pencil
+                size={18}
+                aria-hidden="true"
+                className="absolute right-3 top-4 text-gray-500"
+              />
+              <FormField
+                className="!font-bold !text-black"
+                errorMessage={
+                  !justificacion.trim()
+                    ? "La justificación debe ser obligatoria"
+                    : justificacion.trim().length >= 500
+                      ? "La justificación no puede exceder los 500 caracteres"
+                      : ""
+                }>
+                <TextArea
+                  id="campoJustificacion"
+                  value={justificacion}
+                  maxLength={500}
+                  disabled={deshabilitado}
+                  hasError={
+                    !justificacion.trim() || justificacion.trim().length >= 500
+                  }
+                  onChange={(event) =>
+                    onCambioJustificacion(event.currentTarget.value)
+                  }
+                  className="resize-none pr-10 h-30"
+                />
+              </FormField>
+            </div>
+          </div>
+        )}
       </article>
     </div>
   );

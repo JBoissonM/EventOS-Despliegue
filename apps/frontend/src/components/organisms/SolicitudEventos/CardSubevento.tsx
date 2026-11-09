@@ -197,6 +197,7 @@ export function CardSubevento(props: CardSubeventoProps) {
     !otrosSubeventos.some((otro) =>
       seTraslapan(horaInicio, horaFin, otro.horaInicio, otro.horaFin),
     );
+
   const horasInicioDisponibles = HORASINICIO.filter(({ value: horaInicio }) =>
     HORASFIN.some(
       ({ value: horaFin }) =>
@@ -231,7 +232,7 @@ export function CardSubevento(props: CardSubeventoProps) {
   }
 
   return (
-    <div className="grid min-w-0 grid-cols-1 gap-4 rounded-md bg-eventos-primary-light p-4 sm:grid-cols-2 sm:p-6 lg:grid-cols-3 lg:px-10 lg:py-8 border border-[#E4C5C6] shadow-sm">
+    <div className="grid min-w-0 grid-cols-1 gap-4 rounded-md bg-eventos-primary-light p-4 sm:grid-cols-2 sm:p-6 lg:grid-cols-3 lg:px-10 lg:py-8">
       <FormField
         label="Fecha"
         htmlFor={`selectFecha-${index}`}
@@ -259,9 +260,7 @@ export function CardSubevento(props: CardSubeventoProps) {
               : (e) => props.updateSubevento(index, "fecha", e.target.value)
           }
           onBlur={
-            readOnly
-              ? undefined
-              : () => props.markSubeventoTouched(index, "fecha")
+            readOnly ? undefined : () => props.markSubeventoTouched(index, "fecha")
           }
         />
       </FormField>
@@ -271,6 +270,16 @@ export function CardSubevento(props: CardSubeventoProps) {
         htmlFor={`selectRecinto-${index}`}
         readOnly={readOnly}
         required
+        mensajeAyuda={
+          recintoSeleccionado
+            ? `Capacidad: ${recintoSeleccionado.aforo} ${
+                recintoSeleccionado.idRecinto === RecintoId.LABORATORIO_A ||
+                recintoSeleccionado.idRecinto === RecintoId.LABORATORIO_B
+                  ? "equipos / personas"
+                  : "personas / asientos"
+              }`
+            : undefined
+        }
         errorMessage={touched.idRecinto ? errors.idRecinto : undefined}>
         <Select
           id={`selectRecinto-${index}`}
@@ -290,18 +299,6 @@ export function CardSubevento(props: CardSubeventoProps) {
               : () => props.markSubeventoTouched(index, "idRecinto")
           }
         />
-        {recintoSeleccionado && (
-          <p className="mt-1.5 text-xs font-medium text-gray-600">
-            Capacidad / Aforo:{" "}
-            <span className="font-semibold text-gray-800">
-              {recintoSeleccionado.aforo}{" "}
-              {recintoSeleccionado.idRecinto === RecintoId.LABORATORIO_A ||
-              recintoSeleccionado.idRecinto === RecintoId.LABORATORIO_B
-                ? "equipos / personas"
-                : "personas / asientos"}
-            </span>
-          </p>
-        )}
       </FormField>
       <FormField
         label="Hora inicio"
@@ -436,7 +433,7 @@ export function CardSubevento(props: CardSubeventoProps) {
         cerrar={() => setMostrarModalEspacio(false)}
       />
       {!readOnly && (
-        <div className="col-span-full flex flex-col gap-3 border-t border-[#E4C5C6] pt-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="col-span-full flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           {props.canEdit && index > 0 ? (
             <div id="contenedorBotonesCard">
               <Button

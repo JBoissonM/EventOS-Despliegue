@@ -12,8 +12,6 @@ import {
 } from "@eventos/shared";
 import { ArrowLeft, Pencil } from "lucide-react";
 import { Input } from "../../components/atoms/Input/Input";
-import { InputFile } from "../../components/atoms/InputFile/InputFile";
-import { Select } from "../../components/atoms/Select/Select";
 import { TextArea } from "../../components/atoms/TextArea/TextArea";
 import { Table } from "../../components/organisms/Table/Table";
 import type { Columna } from "../../components/organisms/Table/Table";
@@ -39,12 +37,6 @@ type TablaPonente = {
   nombre: string;
   correo: string;
 };
-
-const ALCANCES = [
-  { value: String(AlcanceEvento.PUBLICO), label: "Público" },
-  { value: String(AlcanceEvento.INTERNO), label: "Interno" },
-  { value: String(AlcanceEvento.PRIVADO), label: "Privado" },
-];
 
 function separarMotivoUrgencia(motivo: string) {
   const indice = motivo.lastIndexOf(MARCADOR_MOTIVO_URGENCIA);
@@ -149,15 +141,6 @@ function obtenerValoresLogistica(
     motivoModificacion:
       evento.solicitudModificacionPendiente?.motivoModificacion ?? "",
   };
-}
-
-function esEventoNoEditable(estado?: EstadoEvento): boolean {
-  if (estado === undefined) return false;
-  return [
-    EstadoEvento.CANCELADO,
-    EstadoEvento.FINALIZADO,
-    EstadoEvento.RECHAZADO,
-  ].includes(estado);
 }
 
 export function EditarEvento() {
@@ -268,7 +251,11 @@ export function EditarEvento() {
           detalle.solicitudModificacionPendiente?.subeventosPropuestos.find(
             (item) => item.idSubEvento === subeventoSeleccionado.idSubEvento,
           );
-        setNombre(propuestaSubevento?.nombre ?? subeventoSeleccionado?.nombre ?? detalle.nombre);
+        setNombre(
+          propuestaSubevento?.nombre ??
+            subeventoSeleccionado?.nombre ??
+            detalle.nombre,
+        );
         setDescripcion(
           propuestaSubevento?.descripcion ??
             subeventoSeleccionado?.descripcion ??
@@ -439,58 +426,37 @@ export function EditarEvento() {
     );
   }
 
-  async function sincronizarEstadoDetalle(
-    detalleActualizado: EventoOrganizadorDetalle,
-  ) {
-    const valoresLogisticaActualizados = obtenerValoresLogistica(
-      detalleActualizado,
-      idSubEventoSeleccionado,
-    );
-    const motivosActualizados = separarMotivoUrgencia(
-      valoresLogisticaActualizados.motivoModificacion,
-    );
-    const valoresActualizadosConMotivo = {
-      ...valoresLogisticaActualizados,
-      motivoModificacion: motivosActualizados.motivoModificacion,
-    };
-    const subeventoActualizado = idSubEventoSeleccionado
-      ? detalleActualizado.subEventos.find(
-          (item) => item.idSubEvento === idSubEventoSeleccionado,
-        )
-      : undefined;
-    const propuestaActualizada =
-      subeventoActualizado &&
-      detalleActualizado.solicitudModificacionPendiente?.subeventosPropuestos.find(
-        (item) => item.idSubEvento === subeventoActualizado.idSubEvento,
-      );
-    setEvento(detalleActualizado);
-    setNombre(
-      propuestaActualizada?.nombre ??
-        subeventoActualizado?.nombre ??
-        detalleActualizado.nombre,
-    );
-    setDescripcion(
-      propuestaActualizada?.descripcion ??
-        subeventoActualizado?.descripcion ??
-        detalleActualizado.descripcion,
-    );
-    setJustificacion(detalleActualizado.justificacion ?? "");
-    setAlcance(detalleActualizado.idAlcance ?? "");
-    setLogistica(valoresActualizadosConMotivo);
-    setLogisticaInicial(valoresActualizadosConMotivo);
-    setMotivoUrgente(motivosActualizados.motivoUrgente);
-    setArchivoPoster(null);
+  function solicitarConfirmacionLogistica() {
+    setIntentoMotivo(true);
+    if (
+      !logistica.motivoModificacion.trim() ||
+      logistica.motivoModificacion.trim().length > 500
+    ) {
+      return;
+    }
+
+    setMostrarModal(false);
+    if (esModificacionUrgente) {
+      setMostrarModalUrgente(true);
+    } else {
+      setMostrarModalAviso(true);
+    }
   }
 
-  async function guardarInformacionGeneral() {
+  function confirmarEnvioLogistica() {
+    setMostrarModalAviso(false);
+    void guardarCambios(true);
+  }
+
+  async function guardarCambios(confirmarMotivoLogistica = false) {
     setIntentoGuardar(true);
     if (!evento || !subevento || !idEvento) return;
 
     setError(null);
     setMensaje(null);
 
-    if (!informacionGeneralModificada) {
-      setMensaje("No hay cambios en la información general para guardar.");
+    if (!informacionGeneralModificada && !logisticaModificada) {
+      setMensaje("No hay cambios para guardar.");
       return;
     }
 
@@ -512,203 +478,218 @@ export function EditarEvento() {
       setError("La descripción no puede exceder 500 caracteres.");
       return;
     }
-
-    setGuardando(true);
-    try {
-      const payload: ActualizarInfoGeneralPayload = {};
-      if (idSubEventoSeleccionado !== undefined) {
-        payload.idSubEvento = idSubEventoSeleccionado;
-        payload.nombre = nombre.trim();
-        payload.descripcion = descripcion.trim();
-      } else {
-        if (nombre !== evento.nombre) {
-          payload.nombre = nombre.trim();
-        }
-        if (descripcion !== evento.descripcion) {
-          payload.descripcion = descripcion.trim();
-        }
-        if (justificacion !== (evento.justificacion ?? "")) {
-          payload.justificacion = justificacion.trim();
-        }
-        if (alcance !== (evento.idAlcance ?? "") && alcance !== "") {
-          payload.idAlcance = alcance;
-        }
-      }
-
-      if (archivoPoster && idSubEventoSeleccionado === undefined) {
-        const datos = new FormData();
-        for (const [campo, valor] of Object.entries(payload)) {
-          if (valor !== undefined) datos.append(campo, String(valor));
-        }
-        datos.append("poster", archivoPoster);
-        await apiRequest(`eventos/${idEvento}/info-general`, {
-          method: "PATCH",
-          body: datos,
-        });
-      } else {
-        await apiRequest(`eventos/${idEvento}/info-general`, {
-          method: "PATCH",
-          body: JSON.stringify(payload),
-        });
-      }
-
-      const detalleActualizado = await obtenerDetalleActualizado();
-      await sincronizarEstadoDetalle(detalleActualizado);
-      setMensaje(
-        idSubEventoSeleccionado !== undefined
-          ? "Los datos de la actividad se actualizaron de inmediato."
-          : "La información general del evento se actualizó de inmediato.",
-      );
-    } catch (errorOperacion) {
-      setError(obtenerMensajeError(errorOperacion));
-    } finally {
-      setGuardando(false);
-    }
-  }
-
-  function solicitarConfirmacionLogistica() {
-    setIntentoMotivo(true);
-    if (
-      !logistica.motivoModificacion.trim() ||
-      logistica.motivoModificacion.trim().length > 500
-    ) {
-      return;
-    }
-
-    setMostrarModal(false);
-    if (esModificacionUrgente) {
-      setMostrarModalUrgente(true);
-    } else {
-      setMostrarModalAviso(true);
-    }
-  }
-
-  function confirmarEnvioLogistica() {
-    setMostrarModalAviso(false);
-    void guardarCambiosLogistica(true);
-  }
-
-  async function guardarCambiosLogistica(confirmarMotivoLogistica = false) {
-    if (!evento || !subevento || !idEvento) return;
-
-    setError(null);
-    setMensaje(null);
-
-    if (!logisticaModificada) {
-      setMensaje("No hay cambios logísticos para enviar a revisión.");
-      return;
-    }
-
     const motivoModificacionCompleto = esModificacionUrgente
       ? `${logistica.motivoModificacion.trim()}${MARCADOR_MOTIVO_URGENCIA}${motivoUrgente.trim()}`
       : logistica.motivoModificacion.trim();
-
-    if (cargandoAgenda || errorAgenda) {
-      setError(
-        cargandoAgenda
-          ? "Espera a que termine la consulta de disponibilidad del espacio."
-          : `No se pudo comprobar la disponibilidad del espacio: ${errorAgenda}`,
-      );
-      return;
-    }
-    if (
-      !logistica.idRecinto ||
-      !logistica.fecha ||
-      !logistica.horaInicio ||
-      !logistica.horaFin
-    ) {
-      setError("Completa espacio, fecha y horarios de la modificación.");
-      return;
-    }
-    if (logistica.horaInicio >= logistica.horaFin) {
-      setError("La hora de finalización debe ser posterior a la de inicio.");
-      return;
-    }
-    if (!confirmarMotivoLogistica) {
-      setIntentoMotivo(false);
-      setMostrarModal(true);
-      return;
-    }
-    setIntentoMotivo(true);
-    if (
-      !logistica.motivoModificacion.trim() ||
-      logistica.motivoModificacion.trim().length > 500
-    ) {
-      return;
-    }
-    if (esModificacionUrgente && !motivoUrgente.trim()) {
-      setError("Escribe el motivo de urgencia para continuar.");
-      return;
-    }
-    if (motivoModificacionCompleto.length > 500) {
-      setError(
-        "Reduce el motivo de modificación o el de urgencia para que ambos no excedan 500 caracteres en total.",
-      );
-      return;
+    if (logisticaModificada) {
+      if (cargandoAgenda || errorAgenda) {
+        setError(
+          cargandoAgenda
+            ? "Espera a que termine la consulta de disponibilidad del espacio."
+            : `No se pudo comprobar la disponibilidad del espacio: ${errorAgenda}`,
+        );
+        return;
+      }
+      if (
+        !logistica.idRecinto ||
+        !logistica.fecha ||
+        !logistica.horaInicio ||
+        !logistica.horaFin
+      ) {
+        setError("Completa espacio, fecha y horarios de la modificación.");
+        return;
+      }
+      if (logistica.horaInicio >= logistica.horaFin) {
+        setError("La hora de finalización debe ser posterior a la de inicio.");
+        return;
+      }
+      if (!confirmarMotivoLogistica) {
+        setIntentoMotivo(false);
+        setMostrarModal(true);
+        return;
+      }
+      setIntentoMotivo(true);
+      if (
+        !logistica.motivoModificacion.trim() ||
+        logistica.motivoModificacion.trim().length > 500
+      ) {
+        return;
+      }
+      if (esModificacionUrgente && !motivoUrgente.trim()) {
+        setError("Escribe el motivo de urgencia para continuar.");
+        return;
+      }
+      if (motivoModificacionCompleto.length > 500) {
+        setError(
+          "Reduce el motivo de modificación o el de urgencia para que ambos no excedan 500 caracteres en total.",
+        );
+        return;
+      }
     }
 
     setMostrarModal(false);
     setGuardando(true);
+    let informacionGuardada = false;
+    let logisticaEnviada = false;
     try {
-      const subeventosAEnviar = evento.subEventos.map((otroSub) => {
-        if (otroSub.idSubEvento === subevento.idSubEvento) {
-          return {
-            idSubEvento: subevento.idSubEvento,
-            nombre:
-              idSubEventoSeleccionado !== undefined
-                ? nombre.trim() || subevento.nombre
-                : subevento.nombre,
-            descripcion:
-              idSubEventoSeleccionado !== undefined
-                ? descripcion.trim() || subevento.descripcion
-                : subevento.descripcion,
-            idRecinto: Number(logistica.idRecinto),
-            accesoQR: logistica.accesoQR === "true",
-            fecha: logistica.fecha,
-            horaInicio: logistica.horaInicio,
-            horaFin: logistica.horaFin,
-          };
+      if (informacionGeneralModificada) {
+        const payload: ActualizarInfoGeneralPayload = {};
+        if (idSubEventoSeleccionado === undefined) {
+          if (nombre !== evento.nombre) payload.nombre = nombre.trim();
+          if (descripcion !== evento.descripcion) payload.descripcion = descripcion.trim();
+          if (justificacion !== (evento.justificacion ?? "")) {
+            payload.justificacion = justificacion.trim();
+          }
+          if (alcance !== (evento.idAlcance ?? "") && alcance !== "") {
+            payload.idAlcance = alcance;
+          }
+        } else {
+          payload.idSubEvento = idSubEventoSeleccionado;
+          if (nombre !== (subeventoPropuesto?.nombre ?? subevento.nombre)) {
+            payload.nombre = nombre.trim();
+          }
+          if (
+            descripcion !==
+            (subeventoPropuesto?.descripcion ?? subevento.descripcion)
+          ) {
+            payload.descripcion = descripcion.trim();
+          }
         }
 
-        const propuesta =
-          evento.solicitudModificacionPendiente?.subeventosPropuestos.find(
-            (p) => p.idSubEvento === otroSub.idSubEvento,
-          );
+        if (archivoPoster) {
+          const datos = new FormData();
+          for (const [campo, valor] of Object.entries(payload)) {
+            if (valor !== undefined) datos.append(campo, String(valor));
+          }
+          datos.append("poster", archivoPoster);
+          await apiRequest(`eventos/${idEvento}/info-general`, {
+            method: "PATCH",
+            body: datos,
+          });
+        } else {
+          await apiRequest(`eventos/${idEvento}/info-general`, {
+            method: "PATCH",
+            body: JSON.stringify(payload),
+          });
+        }
+        informacionGuardada = true;
+      }
 
-        return {
-          idSubEvento: otroSub.idSubEvento,
-          nombre: propuesta?.nombre ?? otroSub.nombre,
-          descripcion: propuesta?.descripcion ?? otroSub.descripcion,
-          idRecinto: propuesta?.idRecinto ?? otroSub.recinto?.idRecinto ?? 0,
-          accesoQR: propuesta?.accesoQR ?? otroSub.accesoQR,
-          fecha: propuesta?.fecha ?? otroSub.fecha?.fecha.slice(0, 10) ?? "",
-          horaInicio:
-            propuesta?.horaInicio.slice(0, 5) ??
-            otroSub.fecha?.horaInicio.slice(0, 5) ??
-            "",
-          horaFin:
-            propuesta?.horaFin.slice(0, 5) ??
-            otroSub.fecha?.horaFin.slice(0, 5) ??
-            "",
+      if (logisticaModificada) {
+        const subeventosAEnviar = evento.subEventos.map((otroSub) => {
+          if (otroSub.idSubEvento === subevento.idSubEvento) {
+            return {
+              idSubEvento: subevento.idSubEvento,
+              nombre:
+                idSubEventoSeleccionado !== undefined
+                  ? nombre.trim()
+                  : subevento.nombre,
+              descripcion:
+                idSubEventoSeleccionado !== undefined
+                  ? descripcion.trim()
+                  : subevento.descripcion,
+              idRecinto: Number(logistica.idRecinto),
+              accesoQR: logistica.accesoQR === "true",
+              fecha: logistica.fecha,
+              horaInicio: logistica.horaInicio,
+              horaFin: logistica.horaFin,
+            };
+          }
+
+          const propuesta =
+            evento.solicitudModificacionPendiente?.subeventosPropuestos.find(
+              (p) => p.idSubEvento === otroSub.idSubEvento,
+            );
+
+          return {
+            idSubEvento: otroSub.idSubEvento,
+            nombre: propuesta?.nombre ?? otroSub.nombre,
+            descripcion: propuesta?.descripcion ?? otroSub.descripcion,
+            idRecinto: propuesta?.idRecinto ?? otroSub.recinto?.idRecinto ?? 0,
+            accesoQR: propuesta?.accesoQR ?? otroSub.accesoQR,
+            fecha:
+              propuesta?.fecha ?? otroSub.fecha?.fecha.slice(0, 10) ?? "",
+            horaInicio:
+              propuesta?.horaInicio.slice(0, 5) ??
+              otroSub.fecha?.horaInicio.slice(0, 5) ??
+              "",
+            horaFin:
+              propuesta?.horaFin.slice(0, 5) ??
+              otroSub.fecha?.horaFin.slice(0, 5) ??
+              "",
+          };
+        });
+
+        const payload: ModificarLogisticaPayload = {
+          motivoModificacion: motivoModificacionCompleto,
+          subeventos: subeventosAEnviar,
         };
-      });
-
-      const payload: ModificarLogisticaPayload = {
-        motivoModificacion: motivoModificacionCompleto,
-        subeventos: subeventosAEnviar,
-      };
-      await apiRequest(`eventos/${idEvento}/logistica`, {
-        method: "PATCH",
-        body: JSON.stringify(payload),
-      });
+        await apiRequest(`eventos/${idEvento}/logistica`, {
+          method: "PATCH",
+          body: JSON.stringify(payload),
+        });
+        logisticaEnviada = true;
+      }
 
       const detalleActualizado = await obtenerDetalleActualizado();
-      await sincronizarEstadoDetalle(detalleActualizado);
+      const valoresLogisticaActualizados =
+        obtenerValoresLogistica(detalleActualizado, idSubEventoSeleccionado);
+      const motivosActualizados = separarMotivoUrgencia(
+        valoresLogisticaActualizados.motivoModificacion,
+      );
+      const valoresActualizadosConMotivo = {
+        ...valoresLogisticaActualizados,
+        motivoModificacion: motivosActualizados.motivoModificacion,
+      };
+      const subeventoActualizado = idSubEventoSeleccionado
+        ? detalleActualizado.subEventos.find(
+            (item) => item.idSubEvento === idSubEventoSeleccionado,
+          )
+        : undefined;
+      const propuestaActualizada =
+        subeventoActualizado &&
+        detalleActualizado.solicitudModificacionPendiente?.subeventosPropuestos.find(
+          (item) => item.idSubEvento === subeventoActualizado.idSubEvento,
+        );
+      setEvento(detalleActualizado);
+      setNombre(
+        propuestaActualizada?.nombre ??
+          subeventoActualizado?.nombre ??
+          detalleActualizado.nombre,
+      );
+      setDescripcion(
+        propuestaActualizada?.descripcion ??
+          subeventoActualizado?.descripcion ??
+          detalleActualizado.descripcion,
+      );
+      setJustificacion(detalleActualizado.justificacion ?? "");
+      setAlcance(detalleActualizado.idAlcance ?? "");
+      setLogistica(valoresActualizadosConMotivo);
+      setLogisticaInicial(valoresActualizadosConMotivo);
+      setMotivoUrgente(motivosActualizados.motivoUrgente);
+      setArchivoPoster(null);
       setMensaje(
-        "La solicitud de modificación logística fue enviada a revisión de Subdirección.",
+        logisticaModificada
+          ? informacionGeneralModificada
+            ? "La información general se guardó y la modificación logística fue enviada a revisión."
+            : "La modificación logística fue enviada a revisión."
+          : "Los cambios se guardaron correctamente.",
       );
     } catch (errorOperacion) {
-      setError(obtenerMensajeError(errorOperacion));
+      const detalleError = obtenerMensajeError(errorOperacion);
+      if (logisticaEnviada) {
+        setError(
+          `La solicitud logística se envió${informacionGuardada ? " y la información general se guardó" : ""}, pero no se pudieron recargar los datos: ${detalleError}`,
+        );
+      } else if (informacionGuardada) {
+        setError(
+          logisticaModificada
+            ? `La información general se guardó, pero no se pudo enviar la modificación logística: ${detalleError}`
+            : `La información general se guardó, pero no se pudieron recargar los datos: ${detalleError}`,
+        );
+      } else {
+        setError(detalleError);
+      }
     } finally {
       setGuardando(false);
     }
@@ -716,7 +697,7 @@ export function EditarEvento() {
 
   function manejarEnvio(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    void guardarCambiosLogistica();
+    void guardarCambios();
   }
 
   if (cargando) {
@@ -747,7 +728,7 @@ export function EditarEvento() {
           titulo="Advertencia"
           contenido="¿Estás seguro que deseas regresar? Los cambios realizados se perderán"
           cerrarModal={() => setMostrarModal(false)}>
-          <div className="flex gap-3 justify-end">
+          <div className="flex justify-end gap-3">
             <Button
               text="Cancelar"
               variant="secondary"
@@ -758,9 +739,7 @@ export function EditarEvento() {
               text="Aceptar"
               variant="success"
               type="button"
-              onClick={() =>
-                navigate(rutaAdministracion)
-              }
+              onClick={() => navigate(rutaAdministracion)}
             />
           </div>
         </Modal>
@@ -803,225 +782,102 @@ export function EditarEvento() {
           {evento.solicitudModificacionPendiente && (
             <div
               role="status"
-              className="rounded-lg border border-amber-300 bg-amber-50 p-4 text-amber-900 shadow-sm">
-              <p className="font-semibold">
-                Solicitud de modificación logística en revisión
+              className="space-y-2 rounded-lg border border-amber-300 bg-amber-50 p-5 text-amber-950 shadow-sm">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="inline-flex items-center rounded-md bg-amber-200 px-2.5 py-0.5 text-xs font-semibold text-amber-900">
+                  Solicitud en Revisión
+                </span>
+                <h2 className="text-base font-bold text-amber-950">
+                  Modificación logística pendiente de evaluación por Subdirección
+                </h2>
+              </div>
+              <p className="text-sm text-amber-900">
+                <span className="font-semibold">Motivo registrado:</span>{" "}
+                {evento.solicitudModificacionPendiente.motivoModificacion}
               </p>
-              <p className="mt-1 text-sm whitespace-pre-wrap">
-                <span className="font-medium">Motivo actual enviado:</span>{" "}
-                {separarMotivoUrgencia(
-                  evento.solicitudModificacionPendiente.motivoModificacion,
-                ).motivoModificacion || "Sin motivo especificado"}
-              </p>
-              <p className="mt-2 text-xs text-amber-800">
-                Cualquier nuevo cambio logístico que envíes actualizará esta
-                misma solicitud en curso sin generar solicitudes duplicadas.
+              <p className="text-xs text-amber-800">
+                Mientras Subdirección dictamina esta solicitud, se conservan
+                vigentes las fechas y espacios originales. Cualquier nuevo
+                cambio logístico actualizará esta misma solicitud sin generar
+                duplicados.
               </p>
             </div>
           )}
 
-          <form onSubmit={manejarEnvio} className="space-y-10">
-            <fieldset disabled={guardando} className="space-y-10 border-0 p-0">
+          <form onSubmit={manejarEnvio} className="space-y-8">
+            <fieldset disabled={guardando} className="space-y-8 border-0 p-0">
               <div
                 id="contenedorDatosIniciales"
-                className="space-y-6 rounded-lg border border-gray-200 bg-white p-6 shadow-md">
-                <div className="border-b border-gray-100 pb-4">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <h2 className="text-xl font-bold text-gray-900 sm:text-2xl">
-                      {idSubEventoSeleccionado !== undefined
-                        ? "Datos generales de la actividad"
-                        : "Información general del evento"}
-                    </h2>
-                    <Badge variant="success">Aplicación inmediata</Badge>
-                  </div>
-                  <p className="mt-1 text-sm text-gray-600">
-                    Estos cambios se guardan y reflejan de inmediato sin
-                    requerir evaluación de Subdirección.
-                  </p>
-                </div>
-
-                {idSubEventoSeleccionado === undefined && (
-                  <div className="grid grid-cols-1 items-start gap-4 sm:grid-cols-2">
-                    <div className="w-fit">
-                      <FormField
-                        className="!font-bold !text-black"
-                        label="Banner del evento"
-                        mensajeAyuda="Resolución: 2048 x 1152">
-                        <InputFile
-                          key={
-                            archivoPoster?.name ?? evento.posterUrl ?? "poster"
-                          }
-                          id="campoPoster"
-                          accept=".jpg"
-                          disabled={guardando}
-                          onChange={(event) =>
-                            setArchivoPoster(
-                              event.currentTarget.files?.[0] ?? null,
-                            )
-                          }
-                        />
-                      </FormField>
-                    </div>
-                    <div className="max-w-xs">
-                      <FormField
-                        label="Alcance"
-                        htmlFor="campoAlcance"
-                        className="!font-bold !text-black">
-                        <Select
-                          id="campoAlcance"
-                          placeholder="Selecciona una opción"
-                          options={ALCANCES}
-                          value={alcance === "" ? "" : String(alcance)}
-                          disabled={guardando}
-                          onChange={(event) => {
-                            const valor = Number(event.currentTarget.value);
-                            if (
-                              valor === AlcanceEvento.PUBLICO ||
-                              valor === AlcanceEvento.INTERNO ||
-                              valor === AlcanceEvento.PRIVADO
-                            ) {
-                              setAlcance(valor);
-                            }
-                          }}
-                        />
-                      </FormField>
-                    </div>
-                  </div>
-                )}
-
-                <div className="space-y-4">
+                className="space-y-2 border border-gray-200 bg-white p-5 shadow-md">
+                <div className="relative">
+                  <label htmlFor="campoNombre" className="sr-only">
+                    Nombre del evento
+                  </label>
+                  <span className="text-xs">Máximo 150 caracteres</span>
                   <div className="relative">
-                    <label
-                      htmlFor="campoNombre"
-                      className="block text-sm font-bold text-black">
-                      {idSubEventoSeleccionado !== undefined
-                        ? "Nombre de la actividad"
-                        : "Nombre del evento"}
-                    </label>
-                    <span className="text-xs text-gray-500">
-                      Máximo 150 caracteres
-                    </span>
-                    <div className="relative mt-1">
-                      <Pencil
-                        size={18}
-                        aria-hidden="true"
-                        className="absolute right-3 top-4 text-gray-500"
+                    <Pencil
+                      size={18}
+                      aria-hidden="true"
+                      className="absolute right-3 top-4 text-gray-500"
+                    />
+                    <FormField
+                      errorMessage={
+                        !nombre.trim()
+                          ? "El nombre del evento es obligatorio"
+                          : ""
+                      }>
+                      <Input
+                        id="campoNombre"
+                        className="pr-10 font-merriweather text-xl font-bold text-secondary sm:text-2xl"
+                        value={nombre}
+                        hasError={intentoGuardar && !nombre.trim()}
+                        aria-errormessage="El nombre del evento es obligatorio"
+                        maxLength={150}
+                        onChange={(event) =>
+                          setNombre(event.currentTarget.value)
+                        }
                       />
-                      <FormField
-                        errorMessage={
-                          !nombre.trim() ? "El nombre es obligatorio" : ""
-                        }>
-                        <Input
-                          id="campoNombre"
-                          className="pr-10 font-merriweather text-xl font-bold text-secondary sm:text-2xl"
-                          value={nombre}
-                          hasError={intentoGuardar && !nombre.trim()}
-                          aria-errormessage="El nombre es obligatorio"
-                          maxLength={150}
-                          onChange={(event) =>
-                            setNombre(event.currentTarget.value)
-                          }
-                        />
-                      </FormField>
-                    </div>
+                    </FormField>
                   </div>
-
-                  <div>
-                    <label
-                      htmlFor="campoDescripcion"
-                      className="block text-sm font-bold text-black">
-                      {idSubEventoSeleccionado !== undefined
-                        ? "Descripción de la actividad"
-                        : "Descripción del evento"}
-                    </label>
-                    <span className="text-xs text-gray-500">
-                      Máximo 500 caracteres
-                    </span>
-                    <div className="relative mt-1">
-                      <Pencil
-                        size={18}
-                        aria-hidden="true"
-                        className="absolute right-3 top-4 text-gray-500"
-                      />
-                      <FormField
-                        errorMessage={
-                          !descripcion.trim()
-                            ? "La descripción es obligatoria"
-                            : ""
-                        }>
-                        <TextArea
-                          id="campoDescripcion"
-                          value={descripcion}
-                          maxLength={500}
-                          hasError={intentoGuardar && !descripcion.trim()}
-                          onChange={(event) =>
-                            setDescripcion(event.currentTarget.value)
-                          }
-                          className="resize-none"
-                        />
-                      </FormField>
-                    </div>
-                  </div>
-
-                  {idSubEventoSeleccionado === undefined && (
-                    <div>
-                      <label
-                        htmlFor="campoJustificacion"
-                        className="block text-sm font-bold text-black">
-                        Beneficio politécnico
-                      </label>
-                      <span className="text-xs text-gray-500">
-                        Máximo 500 caracteres
-                      </span>
-                      <div className="relative mt-1">
-                        <Pencil
-                          size={18}
-                          aria-hidden="true"
-                          className="absolute right-3 top-4 text-gray-500"
-                        />
-                        <FormField
-                          className="!font-bold !text-black"
-                          errorMessage={
-                            !justificacion.trim()
-                              ? "La justificación debe ser obligatoria"
-                              : justificacion.trim().length >= 500
-                                ? "La justificación no puede exceder los 500 caracteres"
-                                : ""
-                          }>
-                          <TextArea
-                            id="campoJustificacion"
-                            value={justificacion}
-                            maxLength={500}
-                            disabled={guardando}
-                            hasError={
-                              !justificacion.trim() ||
-                              justificacion.trim().length >= 500
-                            }
-                            onChange={(event) =>
-                              setJustificacion(event.currentTarget.value)
-                            }
-                            className="h-30 resize-none pr-10"
-                          />
-                        </FormField>
-                      </div>
-                    </div>
-                  )}
                 </div>
+                <div>
+                  <label htmlFor="campoDescripcion" className="sr-only">
+                    Descripción del evento
+                  </label>
+                  <span className="text-xs">Máximo 500 caracteres</span>
+                  <div className="relative">
+                    <Pencil
+                      size={18}
+                      aria-hidden="true"
+                      className="absolute right-3 top-4 text-gray-500"
+                    />
+                    <FormField
+                      errorMessage={
+                        !descripcion.trim()
+                          ? "La descripción es obligatoria"
+                          : ""
+                      }>
+                      <TextArea
+                        id="campoDescripcion"
+                        value={descripcion}
+                        maxLength={500}
+                        hasError={intentoGuardar && !descripcion.trim()}
+                        onChange={(event) =>
+                          setDescripcion(event.currentTarget.value)
+                        }
+                        className="resize-none"
+                      />
+                    </FormField>
+                  </div>
+                </div>
+              </div>
 
-                <div
-                  className={`grid min-w-0 grid-cols-1 items-start gap-8 pt-2 ${
-                    idSubEventoSeleccionado === undefined
-                      ? "lg:grid-cols-2"
-                      : ""
-                  }`}>
-                  <div id="contenedorPonentes" className="space-y-4">
-                    <h3 className="text-lg font-bold">
-                      {idSubEventoSeleccionado !== undefined
-                        ? "Ponentes de la actividad"
-                        : "Ponentes"}
-                    </h3>
+              <div className="grid min-w-0 grid-cols-1 items-start gap-8 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,0.9fr)] xl:gap-12">
+                <div className="w-full min-w-0 space-y-6">
+                  <div id="contenedorPonentes" className="space-y-5">
+                    <h2 className="text-xl font-bold sm:text-2xl">Ponentes</h2>
                     {ponentes.length > 0 ? (
-                      <div className="w-full min-w-0 overflow-x-auto rounded-md border border-gray-200 shadow-sm">
+                      <div className="mt-4 w-full min-w-0 overflow-x-auto rounded-md border border-gray-200 shadow-md">
                         <Table
                           columnas={columnasPonente}
                           filas={ponentes}
@@ -1030,8 +886,8 @@ export function EditarEvento() {
                         />
                       </div>
                     ) : (
-                      <p className="text-gray-600">
-                        No hay ponentes registrados.
+                      <p className="mt-3 text-gray-600">
+                        No hay ponentes registrados para este evento.
                       </p>
                     )}
                     <Button
@@ -1042,12 +898,12 @@ export function EditarEvento() {
                   </div>
 
                   {idSubEventoSeleccionado === undefined && (
-                    <div id="contenedorLogistica" className="space-y-4">
-                      <h3 className="text-lg font-bold">
-                        Personal de logística del evento
-                      </h3>
+                    <div id="contenedorLogistica" className="space-y-5">
+                      <h2 className="text-xl font-bold sm:text-2xl">
+                        Personal de logística
+                      </h2>
                       {personalLogistica.length > 0 ? (
-                        <div className="w-full min-w-0 overflow-x-auto rounded-md border border-gray-200 shadow-sm">
+                        <div className="mt-4 w-full min-w-0 overflow-x-auto rounded-md border border-gray-200 shadow-md">
                           <Table
                             columnas={columnasLogistica}
                             filas={personalLogistica}
@@ -1056,7 +912,7 @@ export function EditarEvento() {
                           />
                         </div>
                       ) : (
-                        <p className="text-gray-600">
+                        <p className="mt-3 text-gray-600">
                           No hay personal de logística registrado para este
                           evento.
                         </p>
@@ -1070,40 +926,12 @@ export function EditarEvento() {
                   )}
                 </div>
 
-                <div className="flex justify-end border-t border-gray-100 pt-4">
-                  <Button
-                    text={
-                      idSubEventoSeleccionado !== undefined
-                        ? "Guardar datos de la actividad"
-                        : "Guardar información general"
-                    }
-                    type="button"
-                    loading={guardando}
-                    onClick={() => void guardarInformacionGeneral()}
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-6 rounded-lg border border-gray-200 bg-white p-6 shadow-md">
-                <div className="border-b border-gray-100 pb-4">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <h2 className="text-xl font-bold text-gray-900 sm:text-2xl">
-                      Logística y espacio
-                    </h2>
-                    <Badge variant="warning">
-                      Requiere aprobación de Subdirección
-                    </Badge>
-                  </div>
-                  <p className="mt-1 text-sm text-gray-600">
-                    Modificar el recinto, la fecha, el horario o la modalidad de
-                    acceso generará (o actualizará si ya existe una en curso)
-                    una única solicitud de modificación para revisión de
-                    Subdirección.
-                  </p>
-                </div>
-
                 <EditLogisticsSection
                   valores={logistica}
+                  alcance={alcance}
+                  justificacion={justificacion}
+                  posterUrl={evento.posterUrl}
+                  archivoPoster={archivoPoster}
                   recintos={recintos}
                   recintoActual={recintoActual}
                   errorRecintos={errorRecintos}
@@ -1111,22 +939,21 @@ export function EditarEvento() {
                   cargandoAgenda={cargandoAgenda}
                   errorAgenda={errorAgenda}
                   deshabilitado={guardando}
+                  mostrarBanner={idSubEventoSeleccionado === undefined}
                   onCambioLogistica={cambiarLogistica}
+                  onCambioAlcance={setAlcance}
+                  onCambioJustificacion={setJustificacion}
+                  onCambioPoster={setArchivoPoster}
                 />
-
-                <div className="flex justify-end border-t border-gray-100 pt-4">
-                  <Button
-                    text={
-                      evento.solicitudModificacionPendiente
-                        ? "Actualizar solicitud en curso"
-                        : "Solicitar cambio logístico"
-                    }
-                    type="submit"
-                    loading={guardando}
-                  />
-                </div>
               </div>
             </fieldset>
+            <div className="flex justify-end">
+              <Button
+                text="Confirmar cambios"
+                type="submit"
+                loading={guardando}
+              />
+            </div>
             {(mostrarModal || mostrarModalAviso) && (
               <ModalMotivo
                 mostrarModal={mostrarModal}
