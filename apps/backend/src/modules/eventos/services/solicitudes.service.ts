@@ -513,6 +513,7 @@ export class SolicitudesService {
       justificacion: evento.justificacion,
       idAlcance: evento.idAlcance,
       idEstadoEvento: evento.idEstadoEvento,
+      motivoRechazo: evento.motivoRechazo ?? null,
       esUrgente: evento.esUrgente,
       motivoUrgencia: evento.motivoUrgencia ?? null,
       poster: evento.poster,
@@ -837,8 +838,16 @@ export class SolicitudesService {
       );
     }
 
+    const motivoLimpio = motivo?.trim() || null;
+    if (motivoLimpio && motivoLimpio.length > 500) {
+      throw new BadRequestException(
+        'La descripción excede el límite máximo de caracteres permitidos.',
+      );
+    }
+
     await this.eventoRepository.update(idEvento, {
       idEstadoEvento: EstadoEvento.RECHAZADO,
+      motivoRechazo: motivoLimpio,
     });
     await this.subEventoRepository.update(
       { idEvento },
@@ -859,6 +868,7 @@ export class SolicitudesService {
       mensaje: 'La solicitud fue rechazada exitosamente.',
       idEvento,
       idEstadoEvento: EstadoEvento.RECHAZADO,
+      motivoRechazo: motivoLimpio,
     };
   }
 

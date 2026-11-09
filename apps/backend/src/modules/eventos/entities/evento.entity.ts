@@ -36,6 +36,9 @@ export class EventoEntity implements Evento {
   @Column({ name: 'motivoUrgencia', type: 'text', nullable: true })
   motivoUrgencia?: string | null;
 
+  @Column({ name: 'motivoRechazo', type: 'text', nullable: true })
+  motivoRechazo?: string | null;
+
   @Column({ name: 'idOrganizador', type: 'int' })
   idOrganizador: number;
 

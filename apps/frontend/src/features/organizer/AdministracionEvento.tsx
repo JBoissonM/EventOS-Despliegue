@@ -249,6 +249,7 @@ function convertirEvento(valor: unknown): EventoOrganizadorDetalle {
     ...(idEstadoEvento !== undefined ? { idEstadoEvento } : {}),
     esUrgente: obtenerBooleano(valor, "esUrgente"),
     motivoUrgencia: obtenerTextoNullable(valor, "motivoUrgencia"),
+    motivoRechazo: obtenerTextoNullable(valor, "motivoRechazo"),
     idOrganizador: obtenerNumero(valor, "idOrganizador"),
     cupoMaximo: obtenerNumero(valor, "cupoMaximo"),
     boletosActivosCount: obtenerNumero(valor, "boletosActivosCount"),
@@ -418,6 +419,25 @@ export function AdministracionEvento() {
 
       {datosEvento && (
         <>
+          {datosEvento.idEstadoEvento === EstadoEvento.RECHAZADO && (
+            <div
+              role="alert"
+              className="space-y-2 rounded-lg border border-red-300 bg-red-50 p-5 text-red-900 shadow-sm">
+              <div className="flex items-center gap-2">
+                <span className="inline-flex items-center rounded-md bg-red-200 px-2.5 py-0.5 text-xs font-semibold text-red-800">
+                  Solicitud Rechazada
+                </span>
+                <h2 className="text-base font-bold text-red-900">
+                  Motivo del dictamen de rechazo
+                </h2>
+              </div>
+              <p className="break-words whitespace-pre-wrap text-sm text-red-800">
+                {datosEvento.motivoRechazo ||
+                  "No se especificó un motivo para el rechazo de la solicitud."}
+              </p>
+            </div>
+          )}
+
           <div
             id="contenedorTitulo"
             className="space-y-2 border border-gray-200 bg-white shadow-md p-5">
@@ -559,30 +579,33 @@ export function AdministracionEvento() {
                   onClick={() => setMostrarModal(true)}
                 />
               )}
-            {subevento?.estado !== "Finalizado" && !idSubEvento && (
-              <>
+            {datosEvento.idEstadoEvento !== EstadoEvento.RECHAZADO &&
+              subevento?.estado !== "Finalizado" &&
+              !idSubEvento && (
+                <>
+                  <Button
+                    text="Cancelar evento"
+                    variant="primary"
+                    type="button"
+                  />
+                </>
+              )}
+
+            {datosEvento.idEstadoEvento !== EstadoEvento.RECHAZADO &&
+              subevento?.estado !== "Finalizado" && (
                 <Button
-                  text="Cancelar evento"
+                  text={idSubEvento ? "Modificar actividad" : "Modificar Evento"}
                   variant="primary"
                   type="button"
+                  onClick={() =>
+                    navigate(
+                      idSubEventoSeleccionado
+                        ? `/organizador/editar-evento/${idEvento}/subevento/${idSubEventoSeleccionado}`
+                        : `/organizador/editar-evento/${idEvento}`,
+                    )
+                  }
                 />
-              </>
-            )}
-
-            {subevento?.estado !== "Finalizado" && (
-              <Button
-                text={idSubEvento ? "Modificar actividad" : "Modificar Evento"}
-                variant="primary"
-                type="button"
-                onClick={() =>
-                  navigate(
-                    idSubEventoSeleccionado
-                      ? `/organizador/editar-evento/${idEvento}/subevento/${idSubEventoSeleccionado}`
-                      : `/organizador/editar-evento/${idEvento}`,
-                  )
-                }
-              />
-            )}
+              )}
           </div>
           {subevento?.recinto && (
             <SpaceRequerimentsDialog

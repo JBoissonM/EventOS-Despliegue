@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router";
 import { ArrowLeft } from "lucide-react";
+import { EstadoEvento } from "@eventos/shared";
 import { EventBanner } from "../event-details/components/molecules/EventBanner";
 import { apiRequest } from "../../lib/apiClient";
 import {
@@ -14,6 +15,8 @@ interface EventoSubeventosVista {
   descripcion: string;
   justificacion: string | null;
   posterUrl: string | null;
+  idEstadoEvento?: number;
+  motivoRechazo?: string | null;
   subEventos: OrganizerSubeventCardData[];
 }
 
@@ -96,6 +99,10 @@ function convertirEvento(valor: unknown): EventoSubeventosVista {
     descripcion: valor.descripcion,
     justificacion: valor.justificacion,
     posterUrl: valor.posterUrl,
+    idEstadoEvento:
+      typeof valor.idEstadoEvento === "number" ? valor.idEstadoEvento : undefined,
+    motivoRechazo:
+      typeof valor.motivoRechazo === "string" ? valor.motivoRechazo : null,
     subEventos: valor.subEventos.map(convertirSubevento),
   };
 }
@@ -199,6 +206,25 @@ export function AdministracionEventoConSubeventos() {
 
       {datosEvento && (
         <>
+          {datosEvento.idEstadoEvento === EstadoEvento.RECHAZADO && (
+            <div
+              role="alert"
+              className="space-y-2 rounded-lg border border-red-300 bg-red-50 p-5 text-red-900 shadow-sm">
+              <div className="flex items-center gap-2">
+                <span className="inline-flex items-center rounded-md bg-red-200 px-2.5 py-0.5 text-xs font-semibold text-red-800">
+                  Solicitud Rechazada
+                </span>
+                <h2 className="text-base font-bold text-red-900">
+                  Motivo del dictamen de rechazo
+                </h2>
+              </div>
+              <p className="break-words whitespace-pre-wrap text-sm text-red-800">
+                {datosEvento.motivoRechazo ||
+                  "No se especificó un motivo para el rechazo de la solicitud."}
+              </p>
+            </div>
+          )}
+
           <div className="space-y-5 border border-gray-200 bg-white p-5 shadow-md">
             <h2 className="font-merriweather text-xl font-bold text-secondary sm:text-2xl">
               {datosEvento.nombre}
@@ -236,18 +262,20 @@ export function AdministracionEventoConSubeventos() {
             )}
           </div>
 
-          <div className="flex justify-end">
-            <button
-              type="button"
-              onClick={() =>
-                navigate(
-                  `/organizador/editar-evento-subeventos/${datosEvento.idEvento}`,
-                )
-              }
-              className="min-h-11 rounded-md bg-eventos-primary px-5 py-2 font-semibold text-eventos-on-primary hover:bg-eventos-action-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-eventos-primary">
-              Modificar evento
-            </button>
-          </div>
+          {datosEvento.idEstadoEvento !== EstadoEvento.RECHAZADO && (
+            <div className="flex justify-end">
+              <button
+                type="button"
+                onClick={() =>
+                  navigate(
+                    `/organizador/editar-evento-subeventos/${datosEvento.idEvento}`,
+                  )
+                }
+                className="min-h-11 rounded-md bg-eventos-primary px-5 py-2 font-semibold text-eventos-on-primary hover:bg-eventos-action-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-eventos-primary">
+                Modificar evento
+              </button>
+            </div>
+          )}
         </>
       )}
     </section>

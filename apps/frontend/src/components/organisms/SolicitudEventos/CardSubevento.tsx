@@ -10,8 +10,9 @@ import type {
 import Input from "../../atoms/Input/Input";
 import Button from "../../atoms/Button/Button";
 import { SpaceRequerimentsDialog } from "../../organisms/SpaceRequirementsDialog/SpaceRequerimentsDialog";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ModalSubevento } from "../ModalSubevento/ModalSubevento";
+import { apiRequest } from "../../../lib/apiClient";
 
 interface CardSubeventoBaseProps {
   subevento: SubeventoFormData;
@@ -46,11 +47,17 @@ const ACCESOS = [
   { value: "false", label: "Entrada libre" },
 ];
 
-const RECINTOS = [
-  { value: String(RecintoId.AUDITORIO), label: "Auditorio" },
-  { value: String(RecintoId.SALA_14), label: "Sala 14" },
-  { value: String(RecintoId.LABORATORIO_A), label: "Laboratorio 1104" },
-  { value: String(RecintoId.LABORATORIO_B), label: "Laboratorio 1105" },
+interface EspacioInfo {
+  idRecinto: number;
+  nombre: string;
+  aforo: number;
+}
+
+const RECINTOS_BASE: EspacioInfo[] = [
+  { idRecinto: RecintoId.AUDITORIO, nombre: "Auditorio", aforo: 242 },
+  { idRecinto: RecintoId.SALA_14, nombre: "Sala 14", aforo: 50 },
+  { idRecinto: RecintoId.LABORATORIO_A, nombre: "Laboratorio 1104", aforo: 36 },
+  { idRecinto: RecintoId.LABORATORIO_B, nombre: "Laboratorio 1105", aforo: 36 },
 ];
 
 const HORASINICIO = [
@@ -148,6 +155,43 @@ export function CardSubevento(props: CardSubeventoProps) {
   );
   const [mostrarModalEspacio, setMostrarModalEspacio] = useState(false);
   const [mostrarModalSubevento, setMostrarModalSubevento] = useState(false);
+  const [espacios, setEspacios] = useState<EspacioInfo[]>(RECINTOS_BASE);
+
+  useEffect(() => {
+    let activo = true;
+    const cargarEspacios = async () => {
+      try {
+        const respuesta = await apiRequest<
+          Array<{ idRecinto: number; nombre: string; aforo: number }>
+        >("espacios/disponibles");
+        if (activo && Array.isArray(respuesta)) {
+          setEspacios((prev) =>
+            prev.map((r) => {
+              const encontrado = respuesta.find(
+                (item) => item.idRecinto === r.idRecinto,
+              );
+              return encontrado ? { ...r, aforo: encontrado.aforo } : r;
+            }),
+          );
+        }
+      } catch {
+        // Se conservan los datos de RECINTOS_BASE
+      }
+    };
+    void cargarEspacios();
+    return () => {
+      activo = false;
+    };
+  }, []);
+
+  const opcionesRecintos = espacios.map((recinto) => ({
+    value: String(recinto.idRecinto),
+    label: `${recinto.nombre} (Aforo: ${recinto.aforo} personas)`,
+  }));
+
+  const recintoSeleccionado = espacios.find(
+    (recinto) => recinto.idRecinto === Number(subevento.idRecinto),
+  );
 
   const horaDisponible = (horaInicio: string, horaFin: string) =>
     !otrosSubeventos.some((otro) =>
@@ -231,7 +275,7 @@ export function CardSubevento(props: CardSubeventoProps) {
         <Select
           id={`selectRecinto-${index}`}
           placeholder="Selecciona un espacio"
-          options={RECINTOS}
+          options={opcionesRecintos}
           value={subevento.idRecinto ? String(subevento.idRecinto) : ""}
           disabled={readOnly}
           hasError={Boolean(touched.idRecinto && errors.idRecinto)}
@@ -246,6 +290,18 @@ export function CardSubevento(props: CardSubeventoProps) {
               : () => props.markSubeventoTouched(index, "idRecinto")
           }
         />
+        {recintoSeleccionado && (
+          <p className="mt-1.5 text-xs font-medium text-gray-600">
+            Capacidad / Aforo:{" "}
+            <span className="font-semibold text-gray-800">
+              {recintoSeleccionado.aforo}{" "}
+              {recintoSeleccionado.idRecinto === RecintoId.LABORATORIO_A ||
+              recintoSeleccionado.idRecinto === RecintoId.LABORATORIO_B
+                ? "equipos / personas"
+                : "personas / asientos"}
+            </span>
+          </p>
+        )}
       </FormField>
       <FormField
         label="Hora inicio"
@@ -350,9 +406,7 @@ export function CardSubevento(props: CardSubeventoProps) {
             id={`recintoDetalle-${index}`}
             value={
               props.nombreRecinto ??
-              RECINTOS.find(
-                (recinto) => recinto.value === String(subevento.idRecinto),
-              )?.label ??
+              recintoSeleccionado?.nombre ??
               "No disponible"
             }
             disabled
@@ -376,9 +430,7 @@ export function CardSubevento(props: CardSubeventoProps) {
       <SpaceRequerimentsDialog
         mostrar={mostrarModalEspacio}
         laboratorio={
-          RECINTOS.find(
-            (recinto) => recinto.value === String(subevento.idRecinto),
-          )?.label ?? "Espacio seleccionado"
+          recintoSeleccionado?.nombre ?? "Espacio seleccionado"
         }
         id={subevento.idRecinto}
         cerrar={() => setMostrarModalEspacio(false)}

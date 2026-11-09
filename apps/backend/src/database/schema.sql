@@ -102,6 +102,7 @@ CREATE TABLE evento (
   justificacion text,
   "esUrgente" boolean NOT NULL DEFAULT false,
   "motivoUrgencia" text,
+  "motivoRechazo" text,
   "idAlcance" integer NOT NULL REFERENCES alcance("idAlcance"),
   "idEstadoEvento" integer NOT NULL REFERENCES "estadoEvento"("idEstadoEvento"),
   "idOrganizador" integer NOT NULL REFERENCES usuario("idUsuario")

@@ -8,6 +8,7 @@ export interface Evento {
   idEstadoEvento?: EstadoEvento;
   esUrgente?: boolean;
   motivoUrgencia?: string | null;
+  motivoRechazo?: string | null;
   etiquetas?: TipoEtiqueta[];
   subEventos?: SubEvento[];
   justificacion?: string | null;
@@ -218,6 +219,7 @@ export interface EventoOrganizadorDetalle {
   idEstadoEvento?: EstadoEvento;
   esUrgente: boolean;
   motivoUrgencia?: string | null;
+  motivoRechazo?: string | null;
   idOrganizador: number;
   cupoMaximo: number;
   boletosActivosCount: number;

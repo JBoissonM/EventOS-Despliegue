@@ -323,6 +323,7 @@ export class OrganizadorService {
       posterUrl: this.obtenerPosterUrl(evento.poster),
       idAlcance: evento.idAlcance,
       idEstadoEvento: evento.idEstadoEvento,
+      motivoRechazo: evento.motivoRechazo ?? null,
       esUrgente: evento.esUrgente,
       motivoUrgencia: evento.motivoUrgencia ?? null,
       idOrganizador: evento.idOrganizador,
