@@ -12,6 +12,7 @@ import {
   EstadoBoleto,
   EstadoEvento,
   EstadoSubEvento,
+  TipoCuentaUsuario,
   type EventoOrganizadorDetalle,
   type EventoOrganizadorDetalleSubevento,
   type InvitadoEventoItem,
@@ -160,6 +161,7 @@ export class OrganizadorService {
   async obtenerDetalleOrganizador(
     idEvento: number,
     idOrganizador: number,
+    rolActor?: string,
   ): Promise<EventoOrganizadorDetalle> {
     const evento = await this.eventoRepository.findOne({
       where: { idEvento },
@@ -175,7 +177,10 @@ export class OrganizadorService {
       throw new NotFoundException('No se encontró el evento solicitado.');
     }
 
-    if (evento.idOrganizador !== idOrganizador) {
+    if (
+      evento.idOrganizador !== idOrganizador &&
+      rolActor !== TipoCuentaUsuario.SUBDIRECCION
+    ) {
       throw new ForbiddenException(
         'No tienes permisos para administrar este evento.',
       );
@@ -348,6 +353,7 @@ export class OrganizadorService {
     idEvento: number,
     idUsuario: number,
     dto: ModificarLogisticaDto,
+    rolActor?: string,
   ) {
     const evento = await this.eventoRepository.findOne({
       where: { idEvento },
@@ -363,7 +369,9 @@ export class OrganizadorService {
       throw new NotFoundException('No se encontró el evento solicitado.');
     }
 
-    if (evento.idOrganizador !== idUsuario) {
+    const esSubdireccion = rolActor === TipoCuentaUsuario.SUBDIRECCION;
+
+    if (!esSubdireccion && evento.idOrganizador !== idUsuario) {
       throw new ForbiddenException(
         'No tienes permisos para administrar este evento.',
       );
@@ -441,6 +449,31 @@ export class OrganizadorService {
 
     await this.solicitudesService.validarSubeventos(dto.subeventos, idEvento);
 
+    if (esSubdireccion) {
+      await this.solicitudesService.aplicarModificacionLogisticaDirecta(
+        idEvento,
+        dto.subeventos,
+        idUsuario,
+      );
+      return {
+        mensaje: 'Modificación aplicada directamente con éxito.',
+        idEvento,
+        directo: true,
+      };
+    }
+
+    const motivoLimpio = dto.motivoModificacion?.trim() ?? '';
+    if (!motivoLimpio) {
+      throw new BadRequestException(
+        'Dato requerido faltante. La justificación no puede estar vacía.',
+      );
+    }
+    if (motivoLimpio.length > 500) {
+      throw new BadRequestException(
+        'La descripción excede el límite máximo de caracteres permitidos.',
+      );
+    }
+
     const solicitudExistente =
       await this.solicitudModificacionRepository.findOne({
         where: { idEvento, estado: 'Pendiente' },
@@ -448,7 +481,7 @@ export class OrganizadorService {
 
     if (solicitudExistente) {
       solicitudExistente.subeventosPropuestos = dto.subeventos;
-      solicitudExistente.motivoModificacion = dto.motivoModificacion.trim();
+      solicitudExistente.motivoModificacion = motivoLimpio;
       const guardada =
         await this.solicitudModificacionRepository.save(solicitudExistente);
       return {
@@ -463,7 +496,7 @@ export class OrganizadorService {
 
     const nuevaSolicitud = this.solicitudModificacionRepository.create({
       idEvento,
-      motivoModificacion: dto.motivoModificacion.trim(),
+      motivoModificacion: motivoLimpio,
       subeventosPropuestos: dto.subeventos,
       estado: 'Pendiente',
     });
@@ -486,6 +519,7 @@ export class OrganizadorService {
     idUsuario: number,
     dto: ActualizarInfoGeneralDto,
     posterFile?: Express.Multer.File,
+    rolActor?: string,
   ) {
     const evento = await this.eventoRepository.findOne({
       where: { idEvento },
@@ -495,7 +529,10 @@ export class OrganizadorService {
       throw new NotFoundException('No se encontró el evento solicitado.');
     }
 
-    if (evento.idOrganizador !== idUsuario) {
+    if (
+      evento.idOrganizador !== idUsuario &&
+      rolActor !== TipoCuentaUsuario.SUBDIRECCION
+    ) {
       throw new ForbiddenException(
         'No tienes permisos para administrar este evento.',
       );

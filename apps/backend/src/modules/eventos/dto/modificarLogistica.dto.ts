@@ -58,18 +58,16 @@ export class ModificarLogisticaDto implements ModificarLogisticaPayload {
   @Type(() => SubEventoLogisticaItemDto)
   subeventos: SubEventoLogisticaItemDto[];
 
-  @ApiProperty()
+  @ApiPropertyOptional()
+  @IsOptional()
   @Transform(({ value }: { value: unknown }) =>
     typeof value === 'string' ? value.trim() : value,
   )
-  @IsNotEmpty({
-    message: 'Dato requerido faltante. La justificación no puede estar vacía.',
-  })
   @IsString({
     message: 'El motivo de modificación debe ser una cadena de texto.',
   })
   @MaxLength(500, {
     message: 'La descripción excede el límite máximo de caracteres permitidos.',
   })
-  motivoModificacion: string;
+  motivoModificacion?: string;
 }

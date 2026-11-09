@@ -274,7 +274,7 @@ export interface SubEventoLogisticaPayload extends SubeventoPayload {
 
 export interface ModificarLogisticaPayload {
   subeventos: SubEventoLogisticaPayload[];
-  motivoModificacion: string;
+  motivoModificacion?: string;
 }
 
 export interface PonentePayload {

@@ -184,6 +184,9 @@ export function EditarEvento() {
     useState<EditLogisticsValues | null>(null);
   const [archivoPoster, setArchivoPoster] = useState<File | null>(null);
 
+  const usuarioGuardado = JSON.parse(localStorage.getItem("usuario") || "{}");
+  const esSubdireccion = usuarioGuardado?.tipoCuenta === "Subdirección";
+
   useEffect(() => {
     const controller = new AbortController();
 
@@ -499,9 +502,11 @@ export function EditarEvento() {
       return;
     }
 
-    const motivoModificacionCompleto = esModificacionUrgente
-      ? `${logistica.motivoModificacion.trim()}${MARCADOR_MOTIVO_URGENCIA}${motivoUrgente.trim()}`
-      : logistica.motivoModificacion.trim();
+    const motivoModificacionCompleto = esSubdireccion
+      ? undefined
+      : esModificacionUrgente
+        ? `${logistica.motivoModificacion.trim()}${MARCADOR_MOTIVO_URGENCIA}${motivoUrgente.trim()}`
+        : logistica.motivoModificacion.trim();
     if (logisticaModificada) {
       if (cargandoAgenda || errorAgenda) {
         setError(
@@ -511,27 +516,32 @@ export function EditarEvento() {
         );
         return;
       }
-      if (!confirmarMotivoLogistica) {
+      if (!confirmarMotivoLogistica && !esSubdireccion) {
         setIntentoMotivo(false);
         setMostrarModal(true);
         return;
       }
-      setIntentoMotivo(true);
-      if (
-        !logistica.motivoModificacion.trim() ||
-        logistica.motivoModificacion.trim().length > 500
-      ) {
-        return;
-      }
-      if (esModificacionUrgente && !motivoUrgente.trim()) {
-        setError("Escribe el motivo de urgencia para continuar.");
-        return;
-      }
-      if (motivoModificacionCompleto.length > 500) {
-        setError(
-          "Reduce el motivo de modificación o el de urgencia para que ambos no excedan 500 caracteres en total.",
-        );
-        return;
+      if (!esSubdireccion) {
+        setIntentoMotivo(true);
+        if (
+          !logistica.motivoModificacion.trim() ||
+          logistica.motivoModificacion.trim().length > 500
+        ) {
+          return;
+        }
+        if (esModificacionUrgente && !motivoUrgente.trim()) {
+          setError("Escribe el motivo de urgencia para continuar.");
+          return;
+        }
+        if (
+          motivoModificacionCompleto &&
+          motivoModificacionCompleto.length > 500
+        ) {
+          setError(
+            "Reduce el motivo de modificación o el de urgencia para que ambos no excedan 500 caracteres en total.",
+          );
+          return;
+        }
       }
     }
 
@@ -678,9 +688,11 @@ export function EditarEvento() {
       setArchivoPoster(null);
       setMensaje(
         logisticaModificada
-          ? informacionGeneralModificada
-            ? "La información general se guardó y la modificación logística fue enviada a revisión."
-            : "La modificación logística fue enviada a revisión."
+          ? esSubdireccion
+            ? "Los cambios se aplicaron directamente con éxito."
+            : informacionGeneralModificada
+              ? "La información general se guardó y la modificación logística fue enviada a revisión."
+              : "La modificación logística fue enviada a revisión."
           : "Los cambios se guardaron correctamente.",
       );
     } catch (errorOperacion) {

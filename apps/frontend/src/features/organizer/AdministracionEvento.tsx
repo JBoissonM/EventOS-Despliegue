@@ -14,6 +14,9 @@ import { Table } from "../../components/organisms/Table/Table";
 import type { Columna } from "../../components/organisms/Table/Table";
 import { EventBanner } from "../event-details/components/molecules/EventBanner";
 import { SpaceRequerimentsDialog } from "../../components/organisms/SpaceRequirementsDialog/SpaceRequerimentsDialog";
+import { Modal } from "../../components/molecules/Modal";
+import { TextArea } from "../../components/atoms/TextArea/TextArea";
+import { FormField } from "../../components/molecules/FormField";
 import { useNavigate } from "react-router";
 import { apiRequest } from "../../lib/apiClient";
 
@@ -329,6 +332,36 @@ export function AdministracionEvento() {
     subevento && datosEvento ? (datosEvento.personalLogistica ?? []) : [];
   const navigate = useNavigate();
 
+  const [mostrarModalCancelar, setMostrarModalCancelar] = useState(false);
+  const [mostrarConfirmacionCancelar, setMostrarConfirmacionCancelar] =
+    useState(false);
+  const [motivoCancelacion, setMotivoCancelacion] = useState("");
+  const [errorMotivoCancelacion, setErrorMotivoCancelacion] = useState("");
+  const [cancelando, setCancelando] = useState(false);
+  const [mensajeExito, setMensajeExito] = useState<string | null>(null);
+
+  async function confirmarCancelacion() {
+    if (!idEvento) return;
+    setCancelando(true);
+    setError(null);
+    try {
+      await apiRequest(`eventos/${idEvento}/cancelar`, {
+        method: "PATCH",
+        body: JSON.stringify({ motivo: motivoCancelacion.trim() }),
+      });
+      setMostrarConfirmacionCancelar(false);
+      setMensajeExito("El evento se ha cancelado exitosamente.");
+      setDatosEvento((prev) =>
+        prev ? { ...prev, idEstadoEvento: EstadoEvento.CANCELADO } : prev,
+      );
+    } catch (err: any) {
+      setError(err?.message || "No se pudo cancelar el evento.");
+      setMostrarConfirmacionCancelar(false);
+    } finally {
+      setCancelando(false);
+    }
+  }
+
   useEffect(() => {
     const controller = new AbortController();
 
@@ -625,15 +658,19 @@ export function AdministracionEvento() {
                 />
               )}
             {datosEvento.idEstadoEvento !== EstadoEvento.RECHAZADO &&
+              datosEvento.idEstadoEvento !== EstadoEvento.CANCELADO &&
               subevento?.estado !== "Finalizado" &&
               !idSubEvento && (
-                <>
-                  <Button
-                    text="Cancelar evento"
-                    variant="primary"
-                    type="button"
-                  />
-                </>
+                <Button
+                  text="Cancelar evento"
+                  variant="danger"
+                  type="button"
+                  onClick={() => {
+                    setMotivoCancelacion("");
+                    setErrorMotivoCancelacion("");
+                    setMostrarModalCancelar(true);
+                  }}
+                />
               )}
 
             {datosEvento.idEstadoEvento !== EstadoEvento.RECHAZADO &&
@@ -652,6 +689,14 @@ export function AdministracionEvento() {
                 />
               )}
           </div>
+          {mensajeExito && (
+            <p
+              role="status"
+              className="rounded-lg bg-green-50 px-4 py-3 text-green-800">
+              {mensajeExito}
+            </p>
+          )}
+
           {subevento?.recinto && (
             <SpaceRequerimentsDialog
               laboratorio={subevento.recinto.nombre}
@@ -659,6 +704,86 @@ export function AdministracionEvento() {
               mostrar={mostrarModal}
               cerrar={() => setMostrarModal(false)}
             />
+          )}
+
+          {mostrarModalCancelar && (
+            <Modal
+              titulo="Motivo de cancelación"
+              contenido="Por favor, ingresa el motivo por el cual cancelas este evento. Esta justificación será notificada a los asistentes."
+              mostrarModal={mostrarModalCancelar}
+              cerrarModal={() => setMostrarModalCancelar(false)}>
+              <span className="text-xs text-gray-500">
+                Máximo 500 caracteres
+              </span>
+              <FormField errorMessage={errorMotivoCancelacion}>
+                <TextArea
+                  id="contenedorMotivoCancelacion"
+                  className="h-32 resize-none"
+                  value={motivoCancelacion}
+                  maxLength={500}
+                  hasError={Boolean(errorMotivoCancelacion)}
+                  onChange={(e) => {
+                    setMotivoCancelacion(e.currentTarget.value);
+                    if (errorMotivoCancelacion) setErrorMotivoCancelacion("");
+                  }}
+                />
+              </FormField>
+              <div className="flex justify-end gap-3 pt-2">
+                <Button
+                  text="Volver"
+                  variant="secondary"
+                  type="button"
+                  onClick={() => setMostrarModalCancelar(false)}
+                />
+                <Button
+                  text="Continuar"
+                  variant="primary"
+                  type="button"
+                  onClick={() => {
+                    const limpio = motivoCancelacion.trim();
+                    if (!limpio) {
+                      setErrorMotivoCancelacion(
+                        "Dato requerido faltante. La justificación no puede estar vacía.",
+                      );
+                      return;
+                    }
+                    if (limpio.length > 500) {
+                      setErrorMotivoCancelacion(
+                        "La descripción excede el límite máximo de caracteres permitidos.",
+                      );
+                      return;
+                    }
+                    setMostrarModalCancelar(false);
+                    setMostrarConfirmacionCancelar(true);
+                  }}
+                />
+              </div>
+            </Modal>
+          )}
+
+          {mostrarConfirmacionCancelar && (
+            <Modal
+              titulo="Confirmar cancelación"
+              contenido="¿Desea confirmar la cancelación del evento seleccionado? Esta acción es irreversible y cancelará todos los subeventos asociados."
+              mostrarModal={mostrarConfirmacionCancelar}
+              cerrarModal={() => setMostrarConfirmacionCancelar(false)}>
+              <div className="flex justify-end gap-3 pt-2">
+                <Button
+                  text="Volver"
+                  variant="secondary"
+                  type="button"
+                  disabled={cancelando}
+                  onClick={() => setMostrarConfirmacionCancelar(false)}
+                />
+                <Button
+                  text={cancelando ? "Cancelando..." : "Confirmar Cancelación"}
+                  variant="danger"
+                  type="button"
+                  disabled={cancelando}
+                  onClick={confirmarCancelacion}
+                />
+              </div>
+            </Modal>
           )}
         </>
       )}

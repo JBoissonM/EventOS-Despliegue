@@ -325,6 +325,9 @@ export function EditarEventoConSubeventos() {
     nombre: string;
   } | null>(null);
 
+  const usuarioGuardado = JSON.parse(localStorage.getItem("usuario") || "{}");
+  const esSubdireccion = usuarioGuardado?.tipoCuenta === "Subdirección";
+
   useEffect(() => {
     const controller = new AbortController();
     const cargar = async () => {
@@ -585,9 +588,11 @@ export function EditarEventoConSubeventos() {
       }
 
       if (enviarLogistica && cambiosActividades) {
-        const motivoCompleto = esModificacionUrgente
-          ? `${motivo.trim()}${MARCADOR_MOTIVO_URGENCIA}${motivoUrgente.trim()}`
-          : motivo.trim();
+        const motivoCompleto = esSubdireccion
+          ? undefined
+          : esModificacionUrgente
+            ? `${motivo.trim()}${MARCADOR_MOTIVO_URGENCIA}${motivoUrgente.trim()}`
+            : motivo.trim();
 
         const payload: ModificarLogisticaPayload = {
           motivoModificacion: motivoCompleto,
@@ -618,9 +623,11 @@ export function EditarEventoConSubeventos() {
 
       setMensaje(
         logisticaEnviada
-          ? generalesGuardados
-            ? "La información general se guardó y la modificación de actividades fue enviada a revisión."
-            : "La modificación de actividades fue enviada a revisión de Subdirección."
+          ? esSubdireccion
+            ? "Los cambios se aplicaron directamente con éxito."
+            : generalesGuardados
+              ? "La información general se guardó y la modificación de actividades fue enviada a revisión."
+              : "La modificación de actividades fue enviada a revisión de Subdirección."
           : "Los cambios se guardaron correctamente.",
       );
     } catch (errorGuardado) {
@@ -671,6 +678,11 @@ export function EditarEventoConSubeventos() {
 
     if (!cambiosActividades) {
       void ejecutarGuardadoFinal(false);
+      return;
+    }
+
+    if (esSubdireccion) {
+      void ejecutarGuardadoFinal(true);
       return;
     }
 
