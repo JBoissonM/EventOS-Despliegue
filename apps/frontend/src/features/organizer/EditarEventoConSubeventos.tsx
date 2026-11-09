@@ -909,7 +909,7 @@ export function EditarEventoConSubeventos() {
                 return (
                   <div
                     key={actividad.llave}
-                    className="grid min-w-0 grid-cols-1 gap-4 rounded-md bg-eventos-primary-light p-4 sm:grid-cols-2 sm:p-6 lg:grid-cols-3 lg:px-10 lg:py-8">
+                    className="grid min-w-0 grid-cols-1 gap-4 rounded-md bg-eventos-primary-light p-4 sm:grid-cols-2 sm:p-6 lg:grid-cols-3 lg:px-10 lg:py-8 border border-[#E4C5C6]">
                     <FormField
                       label="Fecha"
                       htmlFor={`selectFecha-${indice}`}
