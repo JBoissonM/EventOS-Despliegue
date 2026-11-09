@@ -14,7 +14,12 @@ export function EventBanner({
                             }: EventBannerProps) {
   const [failedUrl, setFailedUrl] = useState<string | null>(null);
 
-  const imageUrl = posterUrl?.trim() || null;
+  const rawUrl = posterUrl?.trim() || null;
+  const imageUrl = rawUrl
+    ? /^https?:\/\//i.test(rawUrl)
+      ? rawUrl
+      : `http://localhost:9000/eventos-public/${rawUrl.replace(/^\/+/, "")}`
+    : null;
   const showImage = imageUrl !== null && failedUrl !== imageUrl;
 
   return (

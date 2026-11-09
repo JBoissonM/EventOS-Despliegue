@@ -24,7 +24,9 @@ export function CatalogEventCard({
   const posterCandidate = event.poster?.trim() ?? "";
   const poster = /^https?:\/\//i.test(posterCandidate)
     ? posterCandidate
-    : null;
+    : posterCandidate
+      ? `http://localhost:9000/eventos-public/${posterCandidate.replace(/^\/+/, "")}`
+      : null;
 
   const imageAvailable = poster !== null && failedPoster !== poster;
 

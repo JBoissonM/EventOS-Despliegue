@@ -20,6 +20,7 @@ import { FechaEntity } from '../entities/fecha.entity';
 import { BitacoraEventoEntity } from '../entities/bitacoraEvento.entity';
 import { PonenteEntity } from '../entities/ponente.entity';
 import { AsientoEntity } from '../../reservas/entities/asiento.entity';
+import { StorageService } from '../../../common/storage/storage.service';
 
 @Injectable()
 export class EventosService {
@@ -37,7 +38,15 @@ export class EventosService {
     @InjectRepository(AsientoEntity)
     private readonly asientoRepository: Repository<AsientoEntity>,
     private readonly dataSource: DataSource,
+    private readonly storageService: StorageService,
   ) {}
+
+  private resolverPosterUrl(poster?: string | null): string | null {
+    if (!poster) return null;
+    return poster.startsWith('http://') || poster.startsWith('https://')
+      ? poster
+      : this.storageService.publicUrl(poster);
+  }
 
   private obtenerAhoraCDMX(): { fechaHoy: string; horaActual: string } {
     const ahora = new Date();
@@ -133,12 +142,14 @@ export class EventosService {
       const primerSub = subeventosVigentes[0];
 
       const esAccesoLibre = subeventosVigentes.some((s) => !s.accesoQR);
+      const posterUrl = this.resolverPosterUrl(evento.poster);
 
       cartelera.push({
         idEvento: evento.idEvento,
         nombre: evento.nombre,
         descripcion: evento.descripcion,
-        poster: evento.poster,
+        poster: posterUrl,
+        posterUrl,
         idAlcance: evento.idAlcance,
         esAccesoLibre,
         requiereCuenta: !esAccesoLibre,
@@ -283,11 +294,14 @@ export class EventosService {
       });
     }
 
+    const posterUrl = this.resolverPosterUrl(evento.poster);
+
     return {
       idEvento: evento.idEvento,
       nombre: evento.nombre,
       descripcion: evento.descripcion,
-      poster: evento.poster,
+      poster: posterUrl,
+      posterUrl,
       idAlcance: evento.idAlcance,
       esAccesoLibre,
       requiereCuenta: !esAccesoLibre,

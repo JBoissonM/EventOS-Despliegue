@@ -254,6 +254,13 @@ export function PanelEventosAsignados() {
                 ? new Date(item.fecha).toLocaleDateString("es-MX", { timeZone: "UTC", year: "numeric", month: "2-digit", day: "2-digit" }) 
                 : "Por definir";
 
+              const rawPoster = item.poster?.trim();
+              const posterSrc = rawPoster
+                ? /^https?:\/\//i.test(rawPoster)
+                  ? rawPoster
+                  : `http://localhost:9000/eventos-public/${rawPoster.replace(/^\/+/, "")}`
+                : null;
+
               return (
                 <div
                   key={`${item.idEvento}-${item.idSubEvento}`}
@@ -261,8 +268,8 @@ export function PanelEventosAsignados() {
                 >
                   <div className="space-y-3">
                     <div className="w-full h-40 bg-gray-100 rounded-md overflow-hidden border border-gray-200">
-                      {item.poster ? (
-                        <img src={item.poster} alt={item.nombreEvento} className="w-full h-full object-cover" />
+                      {posterSrc ? (
+                        <img src={posterSrc} alt={item.nombreEvento} className="w-full h-full object-cover" />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center text-gray-400 text-sm">
                           Sin imagen

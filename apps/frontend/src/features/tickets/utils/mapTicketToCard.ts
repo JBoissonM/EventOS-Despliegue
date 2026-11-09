@@ -23,6 +23,12 @@ export function mapTicketToCard(ticket: TicketSummaryResponse): TicketItem {
     speakers: (ticket.ponentes ?? []).map((speaker) => speaker.nombreCompleto),
     status: mapTicketStatus(ticket.estadoBoleto),
     visibility,
-    posterUrl: ticket.poster || undefined,
+    posterUrl: (() => {
+      const rawPoster = ticket.poster?.trim() ?? "";
+      if (!rawPoster) return undefined;
+      return /^https?:\/\//i.test(rawPoster)
+        ? rawPoster
+        : `http://localhost:9000/eventos-public/${rawPoster.replace(/^\/+/, "")}`;
+    })(),
   };
 }
