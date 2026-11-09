@@ -6,6 +6,7 @@ import { TextLink } from "../../components/atoms/TextLink/TextLink";
 import { FormField } from "../../components/molecules/FormField";
 import { AuthLayout } from "../../components/templates/AuthLayout";
 import { Modal } from "../../components/molecules/Modal";
+import { Mail } from "lucide-react";
 
 export function SolicitarRecuperacion() {
   const navigate = useNavigate();
@@ -51,6 +52,11 @@ export function SolicitarRecuperacion() {
     }
   };
 
+      const handleCerrarModalExito = () => {
+    setModalExitoAbierto(false);
+    navigate("/login");
+  };
+
   return (
     <AuthLayout title="Recuperar Contraseña" generalError={error}>
       <form onSubmit={handleSubmit} className="space-y-6">
@@ -71,30 +77,43 @@ export function SolicitarRecuperacion() {
         </div>
       </form>
 
-      <Modal
+    <Modal
         titulo="Correo enviado"
-        contenido="Si el correo electrónico se encuentra registrado, recibirás un enlace de recuperación en los próximos minutos."
         mostrarModal={modalExitoAbierto}
-        cerrarModal={() => {
-          setModalExitoAbierto(false);
-          navigate("/login");
-        }}
+        cerrarModal={handleCerrarModalExito}
       >
-        <div className="flex justify-end pt-4">
-          <Button
-            text="Aceptar"
-            type="button"
-            variant="primary"
-            onClick={() => {
-              setModalExitoAbierto(false);
-              navigate("/login");
-            }}
-            className="px-6 py-2 rounded-md shadow"
-          />
+        <div className="space-y-4 font-merriweather text-gray-700">
+          <div className="flex justify-center my-2">
+            <div className="bg-primary/10 p-4 rounded-full text-primary">
+              <Mail className="w-12 h-12" />
+            </div>
+          </div>
+          <p className="text-center font-bold text-gray-900 text-lg">
+            ¡Tu solicitud de recuperación ha sido procesada!
+          </p>
+          <p className="text-sm text-center leading-relaxed text-gray-600">
+            Hemos enviado un enlace al correo ingresado.
+          </p>
+          <div className="bg-amber-50 border border-amber-200 rounded-lg p-3.5 text-xs text-amber-900 space-y-1.5">
+            <p className="leading-relaxed">
+              Abre el correo que te enviamos y presiona el botón <strong>"Restablecer mi contraseña"</strong>. Esto te redirigirá para cambiar tu contraseña por una nueva.
+            </p>
+            <p className="text-amber-800 italic pt-1 border-t border-amber-200/70">
+              * Recuerda revisar tu carpeta de spam o correo no deseado. El enlace expira en 15 minutos.
+            </p>
+          </div>
+          <div className="flex justify-center pt-2">
+            <Button
+              text="Entendido, ir al inicio de sesión"
+              type="button"
+              onClick={handleCerrarModalExito}
+              className="font-merriweather text-sm px-6 py-2.5 rounded-md transition-colors shadow"
+            />
+          </div>
         </div>
       </Modal>
+
     </AuthLayout>
   );
 }
-
 export default SolicitarRecuperacion;
