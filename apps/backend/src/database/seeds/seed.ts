@@ -97,6 +97,17 @@ export async function runSeed() {
         tipoCuenta: TipoCuentaUsuario.INTERNO,
         esJefeAcademia: false,
       },
+      {
+        nombre: 'Juan',
+        apellidoPa: 'Pérez',
+        apellidoMa: 'NoVerificado',
+        correo: 'noverificado@ipn.mx',
+        contrasena: passwordHash,
+        estatus: true,
+        esVerificado: EstadoVerificacion.NO_VERIFICADO,
+        tipoCuenta: TipoCuentaUsuario.INTERNO,
+        esJefeAcademia: false,
+      },
     ];
 
     const idsUsuarios: Record<string, number> = {};
