@@ -1,10 +1,17 @@
 import { useState } from "react";
 import { Link } from "react-router";
-import { CalendarDays, Clock, MapPin, Users } from "lucide-react";
+import {
+  CalendarDays,
+  Clock3,
+  MapPin,
+  UsersRound,
+} from "lucide-react";
 import Button from "../../../components/atoms/Button/Button";
+import { Badge } from "../../../components/atoms/Badge/Badge";
 import { Modal } from "../../../components/molecules/Modal";
 import { TextArea } from "../../../components/atoms/TextArea/TextArea";
 import { FormField } from "../../../components/molecules/FormField";
+import { formatEventDate } from "../../event-details/utils/formatEventDate";
 
 export interface OrganizerSubeventCardData {
   idSubEvento: number;
@@ -12,7 +19,6 @@ export interface OrganizerSubeventCardData {
   descripcion: string;
   accesoQR: boolean;
   estado?: string;
-  boletosEmitidos?: number;
   fecha: {
     fecha: string;
     horaInicio: string;
@@ -35,19 +41,8 @@ interface OrganizerSubeventCardProps {
   onToggleDetails?: () => void;
 }
 
-function formatearFecha(fechaStr?: string | null): string {
-  if (!fechaStr) return "-";
-  const limpia = fechaStr.split("T")[0];
-  const partes = limpia.split("-");
-  if (partes.length === 3) {
-    const [anio, mes, dia] = partes;
-    return `${dia.padStart(2, "0")}/${mes.padStart(2, "0")}/${anio}`;
-  }
-  return fechaStr;
-}
-
 function formatearHora(horaStr?: string | null): string {
-  if (!horaStr) return "-";
+  if (!horaStr) return "Por confirmar";
   const limpia = horaStr.slice(0, 5);
   return `${limpia} hrs`;
 }
@@ -70,10 +65,6 @@ export function OrganizerSubeventCard({
     const motivo = motivoCancelacion.trim();
     if (!motivo) {
       setErrorMotivo("El motivo de cancelación es obligatorio.");
-      return;
-    }
-    if (motivo.length < 10) {
-      setErrorMotivo("El motivo debe tener al menos 10 caracteres.");
       return;
     }
     if (motivo.length > 500) {
@@ -102,146 +93,185 @@ export function OrganizerSubeventCard({
     setErrorMotivo("");
   }
 
-  const resolvedDetailsPath =
-    detailsPath ??
-    (onCancel
-      ? `/organizador/editar-evento/${idEvento}/subevento/${subevento.idSubEvento}`
-      : undefined);
-
-  const resolvedDetailsLabel =
-    detailsLabel ?? (onCancel ? "Modificar" : "Ver detalles");
+  const horaInicioFormateada = subevento.fecha?.horaInicio
+    ? formatearHora(subevento.fecha.horaInicio)
+    : "Por confirmar";
+  const horaFinFormateada = subevento.fecha?.horaFin
+    ? formatearHora(subevento.fecha.horaFin)
+    : "Por confirmar";
 
   return (
     <>
       <article className="rounded-md bg-eventos-primary-light h-fit p-6 text-gray-900 shadow-sm border border-[#E4C5C6]">
         <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-start">
+          {/* Columna Izquierda: Título, estado y descripción */}
           <div className="md:col-span-5 space-y-2">
             <div className="flex flex-wrap items-center gap-2">
-              <h3 className="font-merriweather font-bold text-gray-900 text-lg border-b-2 border-eventos-primary pb-0.5 inline-block">
+              <h3 className="font-merriweather text-base sm:text-lg font-bold text-gray-900">
                 {subevento.nombre}
               </h3>
               {subevento.estado && (
-                <span className="inline-flex items-center rounded-md px-2.5 py-0.5 text-xs font-semibold bg-[#f8e5e8] text-primary border border-[#e8c4cb]">
+                <Badge
+                  variant={
+                    subevento.estado === "Activo" ||
+                    subevento.estado === "Aprobado"
+                      ? "success"
+                      : subevento.estado === "Cancelado"
+                        ? "error"
+                        : "primary"
+                  }>
                   {subevento.estado}
-                </span>
+                </Badge>
               )}
             </div>
-            <p className="font-merriweather text-xs sm:text-sm text-gray-700 leading-relaxed text-justify whitespace-pre-wrap">
+            <p className="font-merriweather text-xs sm:text-sm text-gray-700 leading-relaxed text-justify">
               {subevento.descripcion}
             </p>
           </div>
 
-          <div className="md:col-span-7 flex flex-col justify-between h-full gap-5">
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-y-5 gap-x-4">
-              <div>
-                <div className="flex items-center gap-1.5 text-xs font-semibold text-gray-800">
-                  <MapPin className="h-4 w-4 text-gray-700 shrink-0" />
-                  <span>Espacio</span>
-                </div>
-                <p className="mt-1 font-merriweather text-xs sm:text-sm text-gray-700">
-                  {subevento.recinto?.nombre || "-"}
-                </p>
+          {/* Columna Derecha: Cuadrícula de 6 datos con iconos */}
+          <div className="md:col-span-7 grid grid-cols-2 sm:grid-cols-3 gap-y-5 gap-x-4">
+            <div>
+              <div className="flex items-center gap-1.5 text-xs font-semibold text-gray-800">
+                <MapPin className="h-4 w-4 text-gray-700 shrink-0" />
+                <span>Espacio</span>
               </div>
-
-              <div>
-                <div className="flex items-center gap-1.5 text-xs font-semibold text-gray-800">
-                  <CalendarDays className="h-4 w-4 text-gray-700 shrink-0" />
-                  <span>Fecha</span>
-                </div>
-                <p className="mt-1 font-merriweather text-xs sm:text-sm text-gray-700">
-                  {formatearFecha(subevento.fecha?.fecha)}
-                </p>
-              </div>
-
-              <div>
-                <div className="text-xs font-semibold text-gray-800">
-                  Modalidad de cupo
-                </div>
-                <p className="mt-1 font-merriweather text-xs sm:text-sm text-gray-700">
-                  {subevento.accesoQR ? "Boleto con QR" : "Acceso libre"}
-                </p>
-              </div>
-
-              <div>
-                <div className="flex items-center gap-1.5 text-xs font-semibold text-gray-800">
-                  <Clock className="h-4 w-4 text-gray-700 shrink-0" />
-                  <span>Hora de Inicio</span>
-                </div>
-                <p className="mt-1 font-merriweather text-xs sm:text-sm text-gray-700">
-                  {formatearHora(subevento.fecha?.horaInicio)}
-                </p>
-              </div>
-
-              <div>
-                <div className="flex items-center gap-1.5 text-xs font-semibold text-gray-800">
-                  <Clock className="h-4 w-4 text-gray-700 shrink-0" />
-                  <span>Hora de Finalización</span>
-                </div>
-                <p className="mt-1 font-merriweather text-xs sm:text-sm text-gray-700">
-                  {formatearHora(subevento.fecha?.horaFin)}
-                </p>
-              </div>
-
-              <div>
-                <div className="flex items-center gap-1.5 text-xs font-semibold text-gray-800">
-                  <Users className="h-4 w-4 text-gray-700 shrink-0" />
-                  <span>Aforo estimado</span>
-                </div>
-                <p className="mt-1 font-merriweather text-xs sm:text-sm text-gray-700">
-                  {subevento.recinto?.aforo ?? "-"}
-                </p>
-              </div>
+              <p className="mt-1 font-merriweather text-xs sm:text-sm text-gray-700">
+                {subevento.recinto?.nombre ?? "Por confirmar"}
+              </p>
             </div>
 
-            <div className="flex flex-wrap items-center justify-end gap-3 pt-2">
-              {resolvedDetailsPath && (
-                <Link
-                  to={resolvedDetailsPath}
-                  className="whitespace-nowrap rounded-md bg-eventos-primary px-4 py-2 text-sm font-semibold text-eventos-on-primary hover:bg-eventos-action-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-eventos-primary transition-colors">
-                  {resolvedDetailsLabel}
-                </Link>
-              )}
-              {onCancel && (
-                <Button
-                  text="Cancelar"
-                  type="button"
-                  variant="danger"
-                  className="whitespace-nowrap rounded-md px-4 py-2 text-sm"
-                  onClick={() => {
-                    setMotivoCancelacion("");
-                    setErrorMotivo("");
-                    setMostrarConfirmacion(true);
-                  }}
-                />
-              )}
-              {onToggleDetails && (
-                <Button
-                  text={detailsVisible ? "Ocultar detalles" : "Mostrar detalles"}
-                  type="button"
-                  variant="primary"
-                  className="whitespace-nowrap rounded-md px-4 py-2 text-sm"
-                  onClick={onToggleDetails}
-                />
-              )}
+            <div>
+              <div className="flex items-center gap-1.5 text-xs font-semibold text-gray-800">
+                <CalendarDays className="h-4 w-4 text-gray-700 shrink-0" />
+                <span>Fecha</span>
+              </div>
+              <p className="mt-1 font-merriweather text-xs sm:text-sm text-gray-700">
+                {formatEventDate(subevento.fecha?.fecha)}
+              </p>
+            </div>
+
+            <div>
+              <div className="text-xs font-semibold text-gray-800">
+                Modalidad de cupo
+              </div>
+              <p className="mt-1 font-merriweather text-xs sm:text-sm text-gray-700">
+                {subevento.accesoQR ? "Boleto con QR" : "Acceso libre"}
+              </p>
+            </div>
+
+            <div>
+              <div className="flex items-center gap-1.5 text-xs font-semibold text-gray-800">
+                <Clock3 className="h-4 w-4 text-gray-700 shrink-0" />
+                <span>Hora de Inicio</span>
+              </div>
+              <p className="mt-1 font-merriweather text-xs sm:text-sm text-gray-700">
+                {horaInicioFormateada}
+              </p>
+            </div>
+
+            <div>
+              <div className="flex items-center gap-1.5 text-xs font-semibold text-gray-800">
+                <Clock3 className="h-4 w-4 text-gray-700 shrink-0" />
+                <span>Hora de Finalización</span>
+              </div>
+              <p className="mt-1 font-merriweather text-xs sm:text-sm text-gray-700">
+                {horaFinFormateada}
+              </p>
+            </div>
+
+            <div>
+              <div className="flex items-center gap-1.5 text-xs font-semibold text-gray-800">
+                <UsersRound className="h-4 w-4 text-gray-700 shrink-0" />
+                <span>Aforo estimado</span>
+              </div>
+              <p className="mt-1 font-merriweather text-xs sm:text-sm text-gray-700">
+                {subevento.recinto?.aforo !== undefined
+                  ? `${subevento.recinto.aforo} personas`
+                  : "Por confirmar"}
+              </p>
             </div>
           </div>
         </div>
+
+        {/* Fila inferior de acciones con subrayado/borde superior rojizo */}
+        <div className="mt-5 flex flex-wrap items-center justify-end gap-3 border-t border-[#E4C5C6] pt-4">
+          {onCancel ? (
+            <>
+              <Link
+                to={
+                  detailsPath ??
+                  `/organizador/editar-evento/${idEvento}/subevento/${subevento.idSubEvento}`
+                }
+                className="whitespace-nowrap rounded-md bg-eventos-primary px-5 py-2.5 text-sm font-semibold text-eventos-on-primary hover:bg-eventos-action-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-eventos-primary">
+                Modificar
+              </Link>
+              <Button
+                text="Cancelar"
+                type="button"
+                variant="danger"
+                className="whitespace-nowrap rounded-md px-5 py-2.5 text-sm"
+                onClick={() => {
+                  setMotivoCancelacion("");
+                  setErrorMotivo("");
+                  setMostrarConfirmacion(true);
+                }}
+              />
+            </>
+          ) : (
+            <>
+              {detailsPath && (
+                <Link
+                  to={detailsPath}
+                  className="whitespace-nowrap rounded-md bg-eventos-primary px-5 py-2.5 text-sm font-semibold text-eventos-on-primary hover:bg-eventos-action-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-eventos-primary">
+                  {detailsLabel ?? "Mostrar detalles"}
+                </Link>
+              )}
+              {onToggleDetails && (
+                <Button
+                  text={
+                    detailsLabel ??
+                    (detailsVisible ? "Ocultar detalles" : "Mostrar detalles")
+                  }
+                  type="button"
+                  variant="primary"
+                  className="whitespace-nowrap rounded-md px-5 py-2.5 text-sm"
+                  onClick={onToggleDetails}
+                />
+              )}
+            </>
+          )}
+        </div>
       </article>
+
+      {detailsVisible && (
+        <section
+          aria-labelledby={`subevento-descripcion-${subevento.idSubEvento}`}
+          className="rounded-md border border-[#E4C5C6] bg-white px-5 py-4 shadow-sm">
+          <h4
+            id={`subevento-descripcion-${subevento.idSubEvento}`}
+            className="font-semibold text-eventos-ink">
+            Descripción de la actividad
+          </h4>
+          <p className="mt-2 whitespace-pre-wrap break-words text-sm text-eventos-body-text">
+            {subevento.descripcion}
+          </p>
+        </section>
+      )}
 
       {onCancel && (
         <Modal
           titulo="Motivo de cancelación"
-          contenido="Ingrese el motivo de cancelación de la actividad"
+          contenido="Ingrese el motivo de cancelación"
           mostrarModal={mostrarConfirmacion}
           cerrarModal={() => setMostrarConfirmacion(false)}>
-          <span className="text-xs text-gray-600">Máximo 500 caracteres (mínimo 10)</span>
+          <span className="text-xs">Máximo 500 caracteres</span>
           <FormField errorMessage={errorMotivo}>
             <TextArea
-              id={`contenedorMotivo-${subevento.idSubEvento}`}
-              className="h-32 resize-none"
+              id="contenedorMotivo"
+              className="h-50 resize-none"
               value={motivoCancelacion}
               maxLength={500}
-              placeholder="Ingresa el motivo de cancelación de la actividad..."
               hasError={Boolean(errorMotivo)}
               onChange={(event) => {
                 const valor = event.currentTarget.value;
@@ -251,16 +281,16 @@ export function OrganizerSubeventCard({
             />
           </FormField>
 
-          <div className="flex justify-end gap-3 pt-2">
+          <div className="flex justify-end gap-3">
             <Button
               text="Volver"
-              variant="outline"
+              variant="secondary"
               type="button"
               onClick={() => setMostrarConfirmacion(false)}
             />
             <Button
-              text="Continuar"
-              variant="primary"
+              text="Aceptar"
+              variant="success"
               type="button"
               onClick={continuarAConfirmacion}
             />
@@ -272,17 +302,17 @@ export function OrganizerSubeventCard({
         <Modal
           mostrarModal={mostrarAviso}
           titulo="Confirmar cancelación"
-          contenido={`¿Estás seguro de que deseas cancelar la actividad "${subevento.nombre}"?`}
+          contenido={`Estás seguro que deseas cancelar la actividad ${subevento.nombre}`}
           cerrarModal={() => setMostrarAviso(false)}>
-          <div className="flex justify-end gap-3 pt-2">
+          <div className="flex justify-end gap-3">
             <Button
               text="Volver"
-              variant="outline"
+              variant="secondary"
               type="button"
               onClick={() => setMostrarAviso(false)}
             />
             <Button
-              text="Confirmar cancelación"
+              text="Cancelar"
               variant="danger"
               type="button"
               onClick={confirmarCancelacion}
