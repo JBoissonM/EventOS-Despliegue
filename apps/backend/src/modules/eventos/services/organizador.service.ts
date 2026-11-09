@@ -524,17 +524,79 @@ export class OrganizadorService {
       evento.poster = dto.poster.trim();
     }
 
-    if (dto.nombre !== undefined) {
-      evento.nombre = dto.nombre.trim();
-    }
-    if (dto.descripcion !== undefined) {
-      evento.descripcion = dto.descripcion.trim();
-    }
-    if (dto.justificacion !== undefined) {
-      evento.justificacion = dto.justificacion.trim();
-    }
-    if (dto.idAlcance !== undefined) {
-      evento.idAlcance = dto.idAlcance;
+    if (dto.idSubEvento !== undefined) {
+      const subevento = await this.subEventoRepository.findOne({
+        where: { idSubEvento: dto.idSubEvento, idEvento },
+      });
+      if (!subevento) {
+        throw new BadRequestException(
+          'El subevento especificado no pertenece a este evento.',
+        );
+      }
+      if (dto.nombre !== undefined) {
+        subevento.nombre = dto.nombre.trim();
+      }
+      if (dto.descripcion !== undefined) {
+        subevento.descripcion = dto.descripcion.trim();
+      }
+      await this.subEventoRepository.save(subevento);
+
+      const solicitudPendiente =
+        await this.solicitudModificacionRepository.findOne({
+          where: { idEvento, estado: 'Pendiente' },
+        });
+      if (
+        solicitudPendiente &&
+        Array.isArray(solicitudPendiente.subeventosPropuestos)
+      ) {
+        solicitudPendiente.subeventosPropuestos =
+          solicitudPendiente.subeventosPropuestos.map((prop) =>
+            prop.idSubEvento === dto.idSubEvento
+              ? {
+                  ...prop,
+                  ...(dto.nombre !== undefined
+                    ? { nombre: dto.nombre.trim() }
+                    : {}),
+                  ...(dto.descripcion !== undefined
+                    ? { descripcion: dto.descripcion.trim() }
+                    : {}),
+                }
+              : prop,
+          );
+        await this.solicitudModificacionRepository.save(solicitudPendiente);
+      }
+    } else {
+      if (dto.nombre !== undefined) {
+        evento.nombre = dto.nombre.trim();
+      }
+      if (dto.descripcion !== undefined) {
+        evento.descripcion = dto.descripcion.trim();
+      }
+      if (dto.justificacion !== undefined) {
+        evento.justificacion = dto.justificacion.trim();
+      }
+      if (dto.idAlcance !== undefined) {
+        evento.idAlcance = dto.idAlcance;
+      }
+
+      if (dto.nombre !== undefined || dto.descripcion !== undefined) {
+        const subeventosActivos = await this.subEventoRepository.find({
+          where: { idEvento },
+        });
+        const noCancelados = subeventosActivos.filter(
+          (s) => s.estado !== EstadoSubEvento.CANCELADO,
+        );
+        if (noCancelados.length === 1) {
+          const unicoSub = noCancelados[0];
+          if (dto.nombre !== undefined) {
+            unicoSub.nombre = dto.nombre.trim();
+          }
+          if (dto.descripcion !== undefined) {
+            unicoSub.descripcion = dto.descripcion.trim();
+          }
+          await this.subEventoRepository.save(unicoSub);
+        }
+      }
     }
 
     if (dto.ponentes !== undefined) {
@@ -552,12 +614,12 @@ export class OrganizadorService {
       const subEventosIdsValidos = new Set(
         subeventos.map((s) => s.idSubEvento),
       );
-      const primerSubEventoId = subeventos[0]?.idSubEvento;
+      const subEventoIdDefault = dto.idSubEvento ?? subeventos[0]?.idSubEvento;
 
       const correosPorSubEvento = new Map<number, Set<string>>();
 
       for (const ponenteDto of dto.ponentes) {
-        const idSub = ponenteDto.idSubEvento ?? primerSubEventoId;
+        const idSub = ponenteDto.idSubEvento ?? subEventoIdDefault;
         if (!subEventosIdsValidos.has(idSub)) {
           throw new BadRequestException(
             'El subevento asignado al ponente no pertenece a este evento.',
@@ -579,7 +641,10 @@ export class OrganizadorService {
         correosSet.add(correoNormalizado);
       }
 
-      const subEventoIdsArray = [...subEventosIdsValidos];
+      const subEventoIdsArray =
+        dto.idSubEvento !== undefined
+          ? [dto.idSubEvento]
+          : [...subEventosIdsValidos];
       if (subEventoIdsArray.length > 0) {
         await this.ponenteRepository.delete({
           idSubEvento: In(subEventoIdsArray),
@@ -593,7 +658,7 @@ export class OrganizadorService {
             apellidoPa: p.apellidoPa.trim(),
             apellidoMa: p.apellidoMa ? p.apellidoMa.trim() : null,
             correo: p.correo.trim().toLowerCase(),
-            idSubEvento: p.idSubEvento ?? primerSubEventoId,
+            idSubEvento: p.idSubEvento ?? subEventoIdDefault,
           }),
         );
         await this.ponenteRepository.save(nuevosPonentes);

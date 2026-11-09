@@ -1,8 +1,13 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router";
 import { ArrowLeft } from "lucide-react";
-import { EstadoEvento } from "@eventos/shared";
+import {
+  AlcanceEvento,
+  EstadoEvento,
+  type PersonalLogisticaItem,
+} from "@eventos/shared";
 import { EventBanner } from "../event-details/components/molecules/EventBanner";
+import { Table, type Columna } from "../../components/organisms/Table/Table";
 import { apiRequest } from "../../lib/apiClient";
 import {
   OrganizerSubeventCard,
@@ -15,9 +20,44 @@ interface EventoSubeventosVista {
   descripcion: string;
   justificacion: string | null;
   posterUrl: string | null;
+  idAlcance?: AlcanceEvento;
   idEstadoEvento?: number;
   motivoRechazo?: string | null;
+  solicitudModificacionPendiente?: {
+    idSolicitudModificacion: number;
+    motivoModificacion: string;
+    estado: string;
+  } | null;
+  personalLogistica: PersonalLogisticaItem[];
   subEventos: OrganizerSubeventCardData[];
+}
+
+const columnasLogistica: Columna<PersonalLogisticaItem>[] = [
+  {
+    id: "nombreCompleto",
+    encabezado: "Nombre",
+    render: (personal) => personal.nombreCompleto,
+    className: "min-w-[10rem] break-all px-3",
+  },
+  {
+    id: "correo",
+    encabezado: "Correo",
+    render: (personal) => personal.correo,
+    className: "min-w-[12rem] break-all px-3",
+  },
+];
+
+function obtenerTextoAlcance(alcance?: AlcanceEvento): string {
+  switch (alcance) {
+    case AlcanceEvento.PUBLICO:
+      return "Público";
+    case AlcanceEvento.INTERNO:
+      return "Interno";
+    case AlcanceEvento.PRIVADO:
+      return "Privado";
+    default:
+      return "No especificado";
+  }
 }
 
 function esRegistro(valor: unknown): valor is Record<string, unknown> {
@@ -93,16 +133,67 @@ function convertirEvento(valor: unknown): EventoSubeventosVista {
     throw new Error("La respuesta del evento tiene un formato inválido.");
   }
 
+  let idAlcance: AlcanceEvento | undefined = undefined;
+  if (
+    valor.idAlcance === AlcanceEvento.PUBLICO ||
+    valor.idAlcance === AlcanceEvento.INTERNO ||
+    valor.idAlcance === AlcanceEvento.PRIVADO
+  ) {
+    idAlcance = valor.idAlcance;
+  }
+
+  let solicitudModificacionPendiente: EventoSubeventosVista["solicitudModificacionPendiente"] =
+    null;
+  if (
+    esRegistro(valor.solicitudModificacionPendiente) &&
+    typeof valor.solicitudModificacionPendiente.idSolicitudModificacion ===
+      "number" &&
+    typeof valor.solicitudModificacionPendiente.motivoModificacion ===
+      "string" &&
+    typeof valor.solicitudModificacionPendiente.estado === "string"
+  ) {
+    solicitudModificacionPendiente = {
+      idSolicitudModificacion:
+        valor.solicitudModificacionPendiente.idSolicitudModificacion,
+      motivoModificacion:
+        valor.solicitudModificacionPendiente.motivoModificacion,
+      estado: valor.solicitudModificacionPendiente.estado,
+    };
+  }
+
+  const personalLogistica: PersonalLogisticaItem[] = Array.isArray(
+    valor.personalLogistica,
+  )
+    ? valor.personalLogistica
+        .filter(
+          (item): item is Record<string, unknown> =>
+            esRegistro(item) &&
+            typeof item.idUsuario === "number" &&
+            typeof item.nombreCompleto === "string" &&
+            typeof item.correo === "string" &&
+            typeof item.tipoCuenta === "string",
+        )
+        .map((item) => ({
+          idUsuario: item.idUsuario as number,
+          nombreCompleto: item.nombreCompleto as string,
+          correo: item.correo as string,
+          tipoCuenta: item.tipoCuenta as string,
+        }))
+    : [];
+
   return {
     idEvento: valor.idEvento,
     nombre: valor.nombre,
     descripcion: valor.descripcion,
     justificacion: valor.justificacion,
     posterUrl: valor.posterUrl,
+    idAlcance,
     idEstadoEvento:
       typeof valor.idEstadoEvento === "number" ? valor.idEstadoEvento : undefined,
     motivoRechazo:
       typeof valor.motivoRechazo === "string" ? valor.motivoRechazo : null,
+    solicitudModificacionPendiente,
+    personalLogistica,
     subEventos: valor.subEventos.map(convertirSubevento),
   };
 }
@@ -225,6 +316,28 @@ export function AdministracionEventoConSubeventos() {
             </div>
           )}
 
+          {datosEvento.solicitudModificacionPendiente && (
+            <div
+              role="status"
+              className="space-y-2 rounded-lg border border-amber-300 bg-amber-50 p-5 text-amber-950 shadow-sm">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="inline-flex items-center rounded-md bg-amber-200 px-2.5 py-0.5 text-xs font-semibold text-amber-900">
+                  Solicitud en Revisión
+                </span>
+                <h2 className="text-base font-bold text-amber-950">
+                  Modificación logística pendiente de evaluación por Subdirección
+                </h2>
+              </div>
+              <p className="text-sm text-amber-900">
+                <span className="font-semibold">Motivo registrado:</span>{" "}
+                {datosEvento.solicitudModificacionPendiente.motivoModificacion}
+              </p>
+              <p className="text-xs text-amber-800">
+                Mientras Subdirección dictamina esta solicitud, el evento conserva vigentes sus fechas y espacios originales. Si realizas otro cambio logístico, se actualizará esta misma solicitud sin generar duplicados.
+              </p>
+            </div>
+          )}
+
           <div className="space-y-5 border border-gray-200 bg-white p-5 shadow-md">
             <h2 className="font-merriweather text-xl font-bold text-secondary sm:text-2xl">
               {datosEvento.nombre}
@@ -233,11 +346,37 @@ export function AdministracionEventoConSubeventos() {
               <h2 className="font-bold">Descripción</h2>
               <p className="break-words">{datosEvento.descripcion}</p>
             </div>
+            <div>
+              <h2 className="font-bold">Alcance</h2>
+              <p className="break-words">
+                {obtenerTextoAlcance(datosEvento.idAlcance)}
+              </p>
+            </div>
             {datosEvento.justificacion && (
               <div>
                 <h2 className="font-bold">Beneficio politécnico</h2>
                 <p className="break-words">{datosEvento.justificacion}</p>
               </div>
+            )}
+          </div>
+
+          <div className="space-y-4">
+            <h2 className="text-xl font-bold sm:text-2xl">
+              Personal de logística del evento
+            </h2>
+            {datosEvento.personalLogistica.length > 0 ? (
+              <div className="w-full min-w-0 overflow-x-auto rounded-md border border-gray-200 shadow-md">
+                <Table
+                  columnas={columnasLogistica}
+                  filas={datosEvento.personalLogistica}
+                  obtenerClave={(personal) => personal.idUsuario}
+                  className="table-auto min-w-full bg-white text-left text-sm [&_tbody_tr]:h-12 [&_thead_tr]:h-10 [&_th]:py-2 [&_td]:py-2"
+                />
+              </div>
+            ) : (
+              <p className="rounded-lg bg-gray-50 px-4 py-6 text-gray-600">
+                No hay personal de logística registrado para este evento.
+              </p>
             )}
           </div>
 

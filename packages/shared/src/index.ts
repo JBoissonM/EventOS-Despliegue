@@ -287,6 +287,7 @@ export interface PonentePayload {
 }
 
 export interface ActualizarInfoGeneralPayload {
+  idSubEvento?: number;
   nombre?: string;
   descripcion?: string;
   justificacion?: string;

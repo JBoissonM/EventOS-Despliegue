@@ -8,10 +8,11 @@ import {
   type ActualizarInfoGeneralPayload,
   type EventoOrganizadorDetalle,
   type ModificarLogisticaPayload,
+  type PersonalLogisticaItem,
   type Recinto,
   type SubEventoLogisticaPayload,
 } from "@eventos/shared";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Pencil } from "lucide-react";
 import { EventBanner } from "../event-details/components/molecules/EventBanner";
 import { Input } from "../../components/atoms/Input/Input";
 import { InputFile } from "../../components/atoms/InputFile/InputFile";
@@ -20,6 +21,7 @@ import { TextArea } from "../../components/atoms/TextArea/TextArea";
 import Button from "../../components/atoms/Button/Button";
 import { FormField } from "../../components/molecules/FormField";
 import { Modal } from "../../components/molecules/Modal";
+import { Table, type Columna } from "../../components/organisms/Table/Table";
 import { apiRequest } from "../../lib/apiClient";
 import { ModalSubevento } from "../../components/organisms/ModalSubevento/ModalSubevento";
 import { SpaceRequerimentsDialog } from "../../components/organisms/SpaceRequirementsDialog/SpaceRequerimentsDialog";
@@ -27,9 +29,30 @@ import {
   OrganizerSubeventCard,
   type OrganizerSubeventCardData,
 } from "./components/OrganizerSubeventCard";
-
-import { Pencil } from "lucide-react";
 import { Badge } from "../../components/atoms/Badge/Badge";
+import { MARCADOR_MOTIVO_URGENCIA } from "./organism/ModalMotivo";
+
+const columnasLogistica: Columna<PersonalLogisticaItem>[] = [
+  {
+    id: "correo",
+    encabezado: "Correo",
+    render: (personal) => personal.correo,
+    className: "min-w-[12rem] break-all px-3",
+  },
+  {
+    id: "acciones",
+    encabezado: "Acción",
+    render: () => {
+      return <Button text="Eliminar" variant="primary" type="button" />;
+    },
+    className: "min-w-[8rem] max-w-[8rem] break-all px-3",
+  },
+];
+
+function limpiarMotivoModificacion(motivo: string): string {
+  const indice = motivo.lastIndexOf(MARCADOR_MOTIVO_URGENCIA);
+  return indice < 0 ? motivo : motivo.slice(0, indice);
+}
 
 interface ActividadEditable {
   llave: string;
@@ -372,20 +395,95 @@ export function EditarEventoConSubeventos() {
   const maxFecha =
     maxFecha15 < FECHA_FIN_SEMESTRE ? maxFecha15 : FECHA_FIN_SEMESTRE;
 
-  function validarCambios(): string | null {
+  async function guardarInformacionGeneral() {
+    if (!idEvento || !evento || !datosGenerales) return;
+    setError(null);
+    setMensaje(null);
+
+    if (!cambiosGenerales) {
+      setMensaje("No hay cambios en la información general para guardar.");
+      return;
+    }
+
     if (
-      !datosGenerales ||
       !datosGenerales.nombre.trim() ||
       !datosGenerales.descripcion.trim() ||
       !datosGenerales.justificacion.trim()
     ) {
-      return "Por favor, completa todos los campos obligatorios resaltados para continuar";
+      setError(
+        "Por favor, completa todos los campos obligatorios resaltados para continuar",
+      );
+      return;
+    }
+
+    if (datosGenerales.nombre.trim().length > 150) {
+      setError("El nombre del evento no puede exceder 150 caracteres.");
+      return;
     }
 
     if (datosGenerales.descripcion.trim().length > 500) {
-      return "La descripción del evento no puede exceder 500 caracteres.";
+      setError("La descripción del evento no puede exceder 500 caracteres.");
+      return;
     }
 
+    setGuardando(true);
+    try {
+      const payload: ActualizarInfoGeneralPayload = {};
+      if (datosGenerales.nombre !== datosGeneralesIniciales?.nombre) {
+        payload.nombre = datosGenerales.nombre.trim();
+      }
+      if (
+        datosGenerales.descripcion !== datosGeneralesIniciales?.descripcion
+      ) {
+        payload.descripcion = datosGenerales.descripcion.trim();
+      }
+      if (
+        datosGenerales.justificacion !==
+        datosGeneralesIniciales?.justificacion
+      ) {
+        payload.justificacion = datosGenerales.justificacion.trim();
+      }
+      if (
+        datosGenerales.idAlcance !== datosGeneralesIniciales?.idAlcance &&
+        datosGenerales.idAlcance !== ""
+      ) {
+        payload.idAlcance = datosGenerales.idAlcance;
+      }
+
+      if (archivoPoster) {
+        const formData = new FormData();
+        for (const [campo, valor] of Object.entries(payload)) {
+          if (valor !== undefined) formData.append(campo, String(valor));
+        }
+        formData.append("poster", archivoPoster);
+        await apiRequest(`eventos/${idEvento}/info-general`, {
+          method: "PATCH",
+          body: formData,
+        });
+      } else {
+        await apiRequest(`eventos/${idEvento}/info-general`, {
+          method: "PATCH",
+          body: JSON.stringify(payload),
+        });
+      }
+
+      const detalleActualizado = await apiRequest<EventoOrganizadorDetalle>(
+        `eventos/${idEvento}/detalle-organizador`,
+      );
+      setEvento(detalleActualizado);
+      const generales = obtenerDatosGenerales(detalleActualizado);
+      setDatosGenerales(generales);
+      setDatosGeneralesIniciales(generales);
+      setArchivoPoster(null);
+      setMensaje("La información general del evento se actualizó de inmediato.");
+    } catch (errorGuardado) {
+      setError(obtenerMensajeError(errorGuardado));
+    } finally {
+      setGuardando(false);
+    }
+  }
+
+  function validarActividades(): string | null {
     if (actividades.length === 0) {
       return "El evento debe conservar al menos una actividad.";
     }
@@ -431,112 +529,69 @@ export function EditarEventoConSubeventos() {
       }
     }
 
-    if (cambiosActividades && !motivo.trim()) {
-      return "Escribe el motivo de la modificación logística.";
-    }
-    if (motivo.trim().length > 500) {
-      return "El motivo no puede exceder 500 caracteres.";
-    }
     return null;
   }
 
-  async function guardarCambios(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
+  function iniciarGuardadoActividades() {
     setError(null);
     setMensaje(null);
 
-    const errorValidacion = validarCambios();
+    const errorValidacion = validarActividades();
     if (errorValidacion) {
-      if (cambiosActividades && !motivo.trim()) {
-        setMostrarModalMotivo(true);
-      } else {
-        setError(errorValidacion);
-      }
+      setError(errorValidacion);
       return;
     }
-    if (!cambiosGenerales && !cambiosActividades) {
-      setMensaje("No hay cambios para guardar.");
-      return;
-    }
-    if (cambiosActividades && !confirmoEnvioLogistica.current) {
-      setMostrarModalMotivo(true);
-      return;
-    }
-    if (!idEvento || !evento || !datosGenerales) return;
 
+    if (!cambiosActividades) {
+      setMensaje("No hay cambios en las actividades para enviar.");
+      return;
+    }
+
+    setMostrarModalMotivo(true);
+  }
+
+  async function confirmarGuardadoActividades() {
+    if (!idEvento || !evento) return;
+    setError(null);
+    setMensaje(null);
+
+    if (!motivo.trim()) {
+      setError("Escribe el motivo de la modificación logística.");
+      return;
+    }
+    if (motivo.trim().length > 500) {
+      setError("El motivo no puede exceder 500 caracteres.");
+      return;
+    }
+
+    setMostrarModalMotivo(false);
     setGuardando(true);
-    let generalesGuardados = false;
     try {
-      if (cambiosGenerales) {
-        const payload: ActualizarInfoGeneralPayload = {};
-        if (datosGenerales.nombre !== datosGeneralesIniciales?.nombre) {
-          payload.nombre = datosGenerales.nombre.trim();
-        }
-        if (
-          datosGenerales.descripcion !== datosGeneralesIniciales?.descripcion
-        ) {
-          payload.descripcion = datosGenerales.descripcion.trim();
-        }
-        if (
-          datosGenerales.justificacion !==
-          datosGeneralesIniciales?.justificacion
-        ) {
-          payload.justificacion = datosGenerales.justificacion.trim();
-        }
-        if (
-          datosGenerales.idAlcance !== datosGeneralesIniciales?.idAlcance &&
-          datosGenerales.idAlcance !== ""
-        ) {
-          payload.idAlcance = datosGenerales.idAlcance;
-        }
+      const payload: ModificarLogisticaPayload = {
+        motivoModificacion: motivo.trim(),
+        subeventos: payloadActividades,
+      };
+      await apiRequest(`eventos/${idEvento}/logistica`, {
+        method: "PATCH",
+        body: JSON.stringify(payload),
+      });
 
-        if (archivoPoster) {
-          const formData = new FormData();
-          for (const [campo, valor] of Object.entries(payload)) {
-            if (valor !== undefined) formData.append(campo, String(valor));
-          }
-          formData.append("poster", archivoPoster);
-          await apiRequest(`eventos/${idEvento}/info-general`, {
-            method: "PATCH",
-            body: formData,
-          });
-        } else {
-          await apiRequest(`eventos/${idEvento}/info-general`, {
-            method: "PATCH",
-            body: JSON.stringify(payload),
-          });
-        }
-        generalesGuardados = true;
-        setDatosGeneralesIniciales(datosGenerales);
-        setArchivoPoster(null);
-      }
-
-      if (cambiosActividades) {
-        const payload: ModificarLogisticaPayload = {
-          motivoModificacion: motivo.trim(),
-          subeventos: payloadActividades,
-        };
-        await apiRequest(`eventos/${idEvento}/logistica`, {
-          method: "PATCH",
-          body: JSON.stringify(payload),
-        });
-        setActividadesIniciales(actividades);
-        setMostrarModalMotivo(false);
-        setMensaje(
-          "Los cambios de actividades se enviaron a revisión. Se aplicarán cuando sean aprobados.",
-        );
-      } else {
-        setMensaje("Los cambios se guardaron correctamente.");
-      }
-    } catch (errorGuardado) {
-      const detalle = obtenerMensajeError(errorGuardado);
-      setError(
-        generalesGuardados
-          ? `La información general se guardó, pero no se pudo enviar la modificación de actividades: ${detalle}`
-          : detalle,
+      const detalleActualizado = await apiRequest<EventoOrganizadorDetalle>(
+        `eventos/${idEvento}/detalle-organizador`,
       );
+      setEvento(detalleActualizado);
+      const listaActividades = obtenerActividades(detalleActualizado);
+      setActividades(listaActividades);
+      setActividadesIniciales(listaActividades);
+      setMotivo(
+        detalleActualizado.solicitudModificacionPendiente?.motivoModificacion ?? "",
+      );
+      setMensaje(
+        "Los cambios de actividades se enviaron a revisión de Subdirección.",
+      );
+    } catch (errorGuardado) {
+      setError(obtenerMensajeError(errorGuardado));
     } finally {
-      confirmoEnvioLogistica.current = false;
       setGuardando(false);
     }
   }
@@ -592,146 +647,226 @@ export function EditarEventoConSubeventos() {
         </div>
       )}
 
+      {evento?.solicitudModificacionPendiente && (
+        <div
+          role="status"
+          className="rounded-lg border border-amber-300 bg-amber-50 p-4 text-amber-900 shadow-sm">
+          <p className="font-semibold">
+            Solicitud de modificación logística en revisión
+          </p>
+          <p className="mt-1 text-sm whitespace-pre-wrap">
+            <span className="font-medium">Motivo actual enviado:</span>{" "}
+            {limpiarMotivoModificacion(
+              evento.solicitudModificacionPendiente.motivoModificacion,
+            ) || "Sin motivo especificado"}
+          </p>
+          <p className="mt-2 text-xs text-amber-800">
+            Cualquier nuevo cambio logístico que envíes actualizará esta misma
+            solicitud en curso sin generar solicitudes duplicadas.
+          </p>
+        </div>
+      )}
+
       {datosGenerales && (
-        <form
-          data-editar-evento-subeventos
-          onSubmit={guardarCambios}
-          className="space-y-8">
-          <fieldset disabled={guardando} className="space-y-8 border-0 p-0">
-            <section className="space-y-4 border border-gray-200 bg-white p-5 shadow-md">
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 items-start">
-                <div className="w-fit">
-                  <FormField
-                    className="!font-bold !text-black"
-                    label="Banner del evento"
-                    mensajeAyuda="Resolución: 2048 x 1152">
-                    <InputFile
-                      id="campoPoster"
-                      accept=".jpg"
-                      disabled={guardando}
-                      onChange={(event) =>
-                        setArchivoPoster(event.currentTarget.files?.[0] ?? null)
-                      }
-                    />
-                  </FormField>
-                </div>
-                <div id="contenedorAlcance" className="max-w-xs">
-                  <FormField
-                    label="Alcance"
-                    htmlFor="campoAlcance"
-                    className="!font-bold !text-black">
-                    <Select
-                      id="campoAlcance"
-                      placeholder="Selecciona una opción"
-                      options={ALCANCES}
-                      value={
-                        datosGenerales.idAlcance === ""
-                          ? ""
-                          : String(datosGenerales.idAlcance)
-                      }
-                      disabled={guardando}
-                      onChange={(event) => {
-                        const valor = Number(event.currentTarget.value);
-                        if (
-                          valor === AlcanceEvento.PUBLICO ||
-                          valor === AlcanceEvento.INTERNO ||
-                          valor === AlcanceEvento.PRIVADO
-                        ) {
-                          setDatosGenerales({
-                            ...datosGenerales,
-                            idAlcance: valor,
-                          });
-                        }
-                      }}
-                    />
-                  </FormField>
-                </div>
+        <div className="space-y-10">
+          <section className="space-y-6 rounded-lg border border-gray-200 bg-white p-6 shadow-md">
+            <div className="border-b border-gray-100 pb-4">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <h2 className="text-xl font-bold text-gray-900 sm:text-2xl">
+                  Información general del evento
+                </h2>
+                <Badge variant="success">Aplicación inmediata</Badge>
               </div>
-              <div id="contenedorNombre" className="relative">
-                <Pencil
-                  size={18}
-                  aria-hidden="true"
-                  className="absolute right-3 top-10 text-gray-500"
-                />
-                <FormField
-                  label="Nombre del evento"
-                  className="!font-bold !text-black">
-                  <Input
-                    id="campoNombre"
-                    className="pr-10 font-merriweather text-xl font-bold text-secondary sm:text-2xl"
-                    value={datosGenerales.nombre}
-                    maxLength={150}
-                    onChange={(event) =>
-                      setDatosGenerales({
-                        ...datosGenerales,
-                        nombre: event.currentTarget.value,
-                      })
-                    }
-                  />
-                </FormField>
-              </div>
+              <p className="mt-1 text-sm text-gray-600">
+                Estos cambios se guardan y reflejan de inmediato sin requerir
+                evaluación de Subdirección.
+              </p>
+            </div>
 
-              <div id="contenedorDescripcion" className="relative">
-                <Pencil
-                  size={18}
-                  aria-hidden="true"
-                  className="absolute right-3 top-10 text-gray-500"
-                />
+            <div className="grid grid-cols-1 items-start gap-4 sm:grid-cols-2">
+              <div className="w-fit">
                 <FormField
-                  label="Descripción del evento"
                   className="!font-bold !text-black"
-                  errorMessage={
-                    !datosGenerales.descripcion.trim()
-                      ? "La descripción es obligatoria"
-                      : datosGenerales.descripcion.trim().length >= 500
-                        ? "La descripción no puede exceder los 500 caracteres"
-                        : ""
-                  }>
-                  <TextArea
-                    value={datosGenerales.descripcion}
-                    maxLength={500}
-                    className="resize-none"
-                    hasError={
-                      datosGenerales.descripcion.trim().length >= 500 ||
-                      !datosGenerales.descripcion.trim()
-                    }
+                  label="Banner del evento"
+                  mensajeAyuda="Resolución: 2048 x 1152">
+                  <InputFile
+                    id="campoPoster"
+                    accept=".jpg"
+                    disabled={guardando}
                     onChange={(event) =>
-                      setDatosGenerales({
-                        ...datosGenerales,
-                        descripcion: event.currentTarget.value,
-                      })
+                      setArchivoPoster(event.currentTarget.files?.[0] ?? null)
                     }
                   />
                 </FormField>
               </div>
-
-              <div id="contenedorJustificacion" className="relative">
-                <Pencil
-                  size={18}
-                  aria-hidden="true"
-                  className="absolute right-3 top-10 text-gray-500"
-                />
+              <div id="contenedorAlcance" className="max-w-xs">
                 <FormField
-                  label="Beneficio politécnico"
+                  label="Alcance"
+                  htmlFor="campoAlcance"
                   className="!font-bold !text-black">
-                  <TextArea
-                    value={datosGenerales.justificacion}
-                    maxLength={500}
-                    className="resize-none"
-                    onChange={(event) =>
-                      setDatosGenerales({
-                        ...datosGenerales,
-                        justificacion: event.currentTarget.value,
-                      })
+                  <Select
+                    id="campoAlcance"
+                    placeholder="Selecciona una opción"
+                    options={ALCANCES}
+                    value={
+                      datosGenerales.idAlcance === ""
+                        ? ""
+                        : String(datosGenerales.idAlcance)
                     }
+                    disabled={guardando}
+                    onChange={(event) => {
+                      const valor = Number(event.currentTarget.value);
+                      if (
+                        valor === AlcanceEvento.PUBLICO ||
+                        valor === AlcanceEvento.INTERNO ||
+                        valor === AlcanceEvento.PRIVADO
+                      ) {
+                        setDatosGenerales({
+                          ...datosGenerales,
+                          idAlcance: valor,
+                        });
+                      }
+                    }}
                   />
                 </FormField>
               </div>
-            </section>
+            </div>
 
-            <section className="space-y-5">
-              <h2 className="text-xl font-bold sm:text-2xl">Actividades</h2>
+            <div id="contenedorNombre" className="relative">
+              <Pencil
+                size={18}
+                aria-hidden="true"
+                className="absolute right-3 top-10 text-gray-500"
+              />
+              <FormField
+                label="Nombre del evento"
+                className="!font-bold !text-black">
+                <Input
+                  id="campoNombre"
+                  className="pr-10 font-merriweather text-xl font-bold text-secondary sm:text-2xl"
+                  value={datosGenerales.nombre}
+                  maxLength={150}
+                  onChange={(event) =>
+                    setDatosGenerales({
+                      ...datosGenerales,
+                      nombre: event.currentTarget.value,
+                    })
+                  }
+                />
+              </FormField>
+            </div>
 
+            <div id="contenedorDescripcion" className="relative">
+              <Pencil
+                size={18}
+                aria-hidden="true"
+                className="absolute right-3 top-10 text-gray-500"
+              />
+              <FormField
+                label="Descripción del evento"
+                className="!font-bold !text-black"
+                errorMessage={
+                  !datosGenerales.descripcion.trim()
+                    ? "La descripción es obligatoria"
+                    : datosGenerales.descripcion.trim().length >= 500
+                      ? "La descripción no puede exceder los 500 caracteres"
+                      : ""
+                }>
+                <TextArea
+                  value={datosGenerales.descripcion}
+                  maxLength={500}
+                  className="resize-none"
+                  hasError={
+                    datosGenerales.descripcion.trim().length >= 500 ||
+                    !datosGenerales.descripcion.trim()
+                  }
+                  onChange={(event) =>
+                    setDatosGenerales({
+                      ...datosGenerales,
+                      descripcion: event.currentTarget.value,
+                    })
+                  }
+                />
+              </FormField>
+            </div>
+
+            <div id="contenedorJustificacion" className="relative">
+              <Pencil
+                size={18}
+                aria-hidden="true"
+                className="absolute right-3 top-10 text-gray-500"
+              />
+              <FormField
+                label="Beneficio politécnico"
+                className="!font-bold !text-black">
+                <TextArea
+                  value={datosGenerales.justificacion}
+                  maxLength={500}
+                  className="resize-none"
+                  onChange={(event) =>
+                    setDatosGenerales({
+                      ...datosGenerales,
+                      justificacion: event.currentTarget.value,
+                    })
+                  }
+                />
+              </FormField>
+            </div>
+
+            <div id="contenedorLogistica" className="space-y-4 pt-2">
+              <h3 className="text-lg font-bold">
+                Personal de logística del evento
+              </h3>
+              {(evento?.personalLogistica ?? []).length > 0 ? (
+                <div className="w-full min-w-0 overflow-x-auto rounded-md border border-gray-200 shadow-sm">
+                  <Table
+                    columnas={columnasLogistica}
+                    filas={evento?.personalLogistica ?? []}
+                    obtenerClave={(personal) => personal.idUsuario}
+                    className="table-auto min-w-full bg-white text-left text-sm [&_tbody_tr]:h-12 [&_thead_tr]:h-10 [&_th]:py-2 [&_td]:py-2"
+                  />
+                </div>
+              ) : (
+                <p className="text-gray-600">
+                  No hay personal de logística registrado para este evento.
+                </p>
+              )}
+              <Button
+                text="Agregar personal de logística"
+                variant="primary"
+                type="button"
+              />
+            </div>
+
+            <div className="flex justify-end border-t border-gray-100 pt-4">
+              <Button
+                text="Guardar información general"
+                variant="primary"
+                type="button"
+                loading={guardando}
+                onClick={() => void guardarInformacionGeneral()}
+              />
+            </div>
+          </section>
+
+          <section className="space-y-6 rounded-lg border border-gray-200 bg-white p-6 shadow-md">
+            <div className="border-b border-gray-100 pb-4">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <h2 className="text-xl font-bold text-gray-900 sm:text-2xl">
+                  Actividades y logística
+                </h2>
+                <Badge variant="warning">
+                  Requiere aprobación de Subdirección
+                </Badge>
+              </div>
+              <p className="mt-1 text-sm text-gray-600">
+                Agregar nuevas actividades, cancelar existentes o modificar su
+                logística genera (o actualiza si ya existe una activa) una
+                solicitud de modificación para evaluación de Subdirección.
+              </p>
+            </div>
+
+            <div className="space-y-5">
               {actividades.map((actividad, indice) => {
                 const recinto = recintos.find(
                   (item) => String(item.idRecinto) === actividad.idRecinto,
@@ -809,7 +944,10 @@ export function EditarEventoConSubeventos() {
                         placeholder="Selecciona un espacio"
                         options={recintos.map((r) => ({
                           value: String(r.idRecinto),
-                          label: r.nombre,
+                          label:
+                            r.aforo > 0
+                              ? `${r.nombre} (Aforo: ${r.aforo} personas)`
+                              : r.nombre,
                         }))}
                         value={actividad.idRecinto}
                         onChange={(e) => {
@@ -981,25 +1119,29 @@ export function EditarEventoConSubeventos() {
                   </div>
                 );
               })}
-            </section>
-          </fieldset>
+            </div>
 
-          <div id="contenedorBotones" className="flex justify-end gap-3">
-            <Button
-              text="Agregar actividad"
-              variant="primary"
-              type="button"
-              onClick={agregarActividad}
-            />
-            <Button
-              text="Guardar cambios"
-              variant="primary"
-              type="submit"
-              loading={guardando}
-              loadingText="Guardando..."
-            />
-          </div>
-        </form>
+            <div id="contenedorBotones" className="flex flex-wrap items-center justify-end gap-3 border-t border-gray-100 pt-4">
+              <Button
+                text="Agregar actividad"
+                variant="secondary"
+                type="button"
+                onClick={agregarActividad}
+              />
+              <Button
+                text={
+                  evento.solicitudModificacionPendiente
+                    ? "Actualizar solicitud de actividades"
+                    : "Solicitar modificación de actividades"
+                }
+                variant="primary"
+                type="button"
+                loading={guardando}
+                onClick={iniciarGuardadoActividades}
+              />
+            </div>
+          </section>
+        </div>
       )}
 
       {mostrarModalMotivo && (
@@ -1035,21 +1177,11 @@ export function EditarEventoConSubeventos() {
               onClick={() => setMostrarModalMotivo(false)}
             />
             <Button
-              text="Confirmar y guardar"
+              text="Confirmar y enviar a revisión"
               variant="primary"
               type="button"
               disabled={!motivo.trim() || motivo.trim().length > 500}
-              onClick={() => {
-                if (!motivo.trim()) return;
-                confirmoEnvioLogistica.current = true;
-                setMostrarModalMotivo(false);
-                const form = document.querySelector<HTMLFormElement>(
-                  "form[data-editar-evento-subeventos]",
-                );
-                if (form) {
-                  form.requestSubmit();
-                }
-              }}
+              onClick={() => void confirmarGuardadoActividades()}
             />
           </div>
         </Modal>

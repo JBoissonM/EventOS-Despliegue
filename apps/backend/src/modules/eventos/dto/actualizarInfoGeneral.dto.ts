@@ -78,6 +78,15 @@ export class ActualizarInfoGeneralDto implements ActualizarInfoGeneralPayload {
   @ApiPropertyOptional()
   @IsOptional()
   @Transform(({ value }: { value: unknown }) =>
+    value !== undefined && value !== null ? Number(value) : value,
+  )
+  @IsInt({ message: 'El idSubEvento debe ser un número entero.' })
+  @IsPositive({ message: 'El idSubEvento debe ser un número positivo.' })
+  idSubEvento?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @Transform(({ value }: { value: unknown }) =>
     typeof value === 'string' ? value.trim() : value,
   )
   @IsNotEmpty({ message: 'El nombre del evento es obligatorio.' })

@@ -237,6 +237,24 @@ function convertirEvento(valor: unknown): EventoOrganizadorDetalle {
     valor.idEstadoEvento === undefined
       ? undefined
       : convertirEstadoEvento(valor.idEstadoEvento);
+  const solicitudModificacionPendiente =
+    esRegistro(valor.solicitudModificacionPendiente) &&
+    typeof valor.solicitudModificacionPendiente.idSolicitudModificacion ===
+      "number" &&
+    typeof valor.solicitudModificacionPendiente.motivoModificacion ===
+      "string" &&
+    typeof valor.solicitudModificacionPendiente.estado === "string" &&
+    Array.isArray(valor.solicitudModificacionPendiente.subeventosPropuestos)
+      ? {
+          idSolicitudModificacion:
+            valor.solicitudModificacionPendiente.idSolicitudModificacion,
+          motivoModificacion:
+            valor.solicitudModificacionPendiente.motivoModificacion,
+          subeventosPropuestos:
+            valor.solicitudModificacionPendiente.subeventosPropuestos,
+          estado: valor.solicitudModificacionPendiente.estado,
+        }
+      : null;
 
   return {
     idEvento: obtenerNumero(valor, "idEvento"),
@@ -250,6 +268,7 @@ function convertirEvento(valor: unknown): EventoOrganizadorDetalle {
     esUrgente: obtenerBooleano(valor, "esUrgente"),
     motivoUrgencia: obtenerTextoNullable(valor, "motivoUrgencia"),
     motivoRechazo: obtenerTextoNullable(valor, "motivoRechazo"),
+    solicitudModificacionPendiente,
     idOrganizador: obtenerNumero(valor, "idOrganizador"),
     cupoMaximo: obtenerNumero(valor, "cupoMaximo"),
     boletosActivosCount: obtenerNumero(valor, "boletosActivosCount"),
@@ -438,6 +457,28 @@ export function AdministracionEvento() {
             </div>
           )}
 
+          {datosEvento.solicitudModificacionPendiente && (
+            <div
+              role="status"
+              className="space-y-2 rounded-lg border border-amber-300 bg-amber-50 p-5 text-amber-950 shadow-sm">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="inline-flex items-center rounded-md bg-amber-200 px-2.5 py-0.5 text-xs font-semibold text-amber-900">
+                  Solicitud en Revisión
+                </span>
+                <h2 className="text-base font-bold text-amber-950">
+                  Modificación logística pendiente de evaluación por Subdirección
+                </h2>
+              </div>
+              <p className="text-sm text-amber-900">
+                <span className="font-semibold">Motivo registrado:</span>{" "}
+                {datosEvento.solicitudModificacionPendiente.motivoModificacion}
+              </p>
+              <p className="text-xs text-amber-800">
+                Mientras Subdirección dictamina esta solicitud, se conservan vigentes las fechas y espacios originales. Cualquier nuevo cambio logístico actualizará esta misma solicitud sin generar duplicados.
+              </p>
+            </div>
+          )}
+
           <div
             id="contenedorTitulo"
             className="space-y-2 border border-gray-200 bg-white shadow-md p-5">
@@ -481,15 +522,15 @@ export function AdministracionEvento() {
                   </div>
                 ) : (
                   <p className="mt-3 text-gray-600">
-                    No hay ponentes registrados para este evento.
+                    No hay ponentes registrados para esta actividad.
                   </p>
                 )}
               </div>
 
-              {subevento && (
+              {!idSubEvento && subevento && (
                 <div id="contenedorLogistica">
                   <h2 className="text-xl font-bold sm:text-2xl">
-                    Personal de lógistica
+                    Personal de logística
                   </h2>
                   {personalLogistica.length > 0 ? (
                     <div className="mt-4 w-full min-w-0 overflow-x-auto rounded-md border border-gray-200 shadow-md">
@@ -502,7 +543,7 @@ export function AdministracionEvento() {
                     </div>
                   ) : (
                     <p className="mt-3 text-gray-600">
-                      No hay personal de lógistica registrado para este evento.
+                      No hay personal de logística registrado para este evento.
                     </p>
                   )}
                 </div>
@@ -527,7 +568,7 @@ export function AdministracionEvento() {
                     <span>{formatearHora(subevento.fecha?.horaInicio)}</span>
                   </div>
                   <div className="flex min-w-0 flex-col gap-2">
-                    <span className="font-bold">Hora de finalizacion</span>
+                    <span className="font-bold">Hora de finalización</span>
                     <span>{formatearHora(subevento.fecha?.horaFin)}</span>
                   </div>
                   <div className="flex min-w-0 flex-col gap-2">
@@ -538,10 +579,12 @@ export function AdministracionEvento() {
                         : "Acceso libre"}
                     </span>
                   </div>
-                  <div className="flex min-w-0 flex-col gap-2">
-                    <span className="font-bold">Alcance</span>
-                    <span>{obtenerTextoAlcance(datosEvento.idAlcance)}</span>
-                  </div>
+                  {!idSubEvento && (
+                    <div className="flex min-w-0 flex-col gap-2">
+                      <span className="font-bold">Alcance</span>
+                      <span>{obtenerTextoAlcance(datosEvento.idAlcance)}</span>
+                    </div>
+                  )}
                   <div className="flex min-w-0 flex-col gap-2">
                     <span className="font-bold">Aforo estimado</span>
                     <span>
@@ -557,12 +600,14 @@ export function AdministracionEvento() {
                     <span>{subevento.estado}</span>
                   </div>
 
-                  <div className="flex min-w-0 flex-col gap-2 sm:col-span-2">
-                    <span className="font-bold">Beneficio politécnico</span>
-                    <p className="mt-2 break-words">
-                      {datosEvento.justificacion || "No especificado"}
-                    </p>
-                  </div>
+                  {!idSubEvento && (
+                    <div className="flex min-w-0 flex-col gap-2 sm:col-span-2">
+                      <span className="font-bold">Beneficio politécnico</span>
+                      <p className="mt-2 break-words">
+                        {datosEvento.justificacion || "No especificado"}
+                      </p>
+                    </div>
+                  )}
                 </article>
               ))}
             </div>
