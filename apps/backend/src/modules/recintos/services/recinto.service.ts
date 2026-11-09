@@ -25,8 +25,8 @@ export class RecintoService {
 
     private esLaboratorio(idRecinto: number): boolean {
         return (
-            idRecinto === RecintoId.LABORATORIO_A ||
-            idRecinto === RecintoId.LABORATORIO_B
+            idRecinto !== RecintoId.AUDITORIO &&
+            idRecinto !== RecintoId.SALA_14
         );
     }
 

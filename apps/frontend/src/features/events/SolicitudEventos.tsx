@@ -391,8 +391,8 @@ export function SolicitudEvento() {
             updated.horaFin = "";
           }
           if (
-            idRecinto === RecintoId.LABORATORIO_A ||
-            idRecinto === RecintoId.LABORATORIO_B
+            idRecinto !== RecintoId.AUDITORIO &&
+            idRecinto !== RecintoId.SALA_14
           ) {
             updated.accesoQR = true;
           } else if (idRecinto === RecintoId.SALA_14) {
@@ -523,8 +523,8 @@ export function SolicitudEvento() {
             horaInicio: subevento.horaInicio,
             horaFin: subevento.horaFin,
             accesoQR:
-              subevento.idRecinto === RecintoId.LABORATORIO_A ||
-              subevento.idRecinto === RecintoId.LABORATORIO_B
+              subevento.idRecinto !== RecintoId.AUDITORIO &&
+              subevento.idRecinto !== RecintoId.SALA_14
                 ? true
                 : subevento.idRecinto === RecintoId.SALA_14
                   ? false

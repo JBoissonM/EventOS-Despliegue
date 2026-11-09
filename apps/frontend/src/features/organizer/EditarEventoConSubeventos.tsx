@@ -1046,8 +1046,8 @@ export function EditarEventoConSubeventos() {
                       mensajeAyuda={
                         recintoSeleccionado && recintoSeleccionado.aforo > 0
                           ? `Capacidad: ${recintoSeleccionado.aforo} ${
-                              recintoSeleccionado.idRecinto === RecintoId.LABORATORIO_A ||
-                              recintoSeleccionado.idRecinto === RecintoId.LABORATORIO_B
+                              recintoSeleccionado.idRecinto !== RecintoId.AUDITORIO &&
+                              recintoSeleccionado.idRecinto !== RecintoId.SALA_14
                                 ? "equipos / personas"
                                 : "personas / asientos"
                             }`
@@ -1075,6 +1075,12 @@ export function EditarEventoConSubeventos() {
                               actividad.llave,
                               "accesoQR",
                               false,
+                            );
+                          } else if (idRecintoNum !== RecintoId.AUDITORIO) {
+                            actualizarActividad(
+                              actividad.llave,
+                              "accesoQR",
+                              true,
                             );
                           }
                         }}
@@ -1142,8 +1148,9 @@ export function EditarEventoConSubeventos() {
                       mensajeAyuda={
                         Number(actividad.idRecinto) === RecintoId.SALA_14
                           ? "Al elegir la sala 14 el acceso es libre"
-                          : Number(actividad.idRecinto) === RecintoId.LABORATORIO_A ||
-                              Number(actividad.idRecinto) === RecintoId.LABORATORIO_B
+                          : Number(actividad.idRecinto) !==
+                              RecintoId.AUDITORIO &&
+                            Boolean(actividad.idRecinto)
                             ? "Al elegir un laboratorio el cupo pasa a ser limitado"
                             : ""
                       }>

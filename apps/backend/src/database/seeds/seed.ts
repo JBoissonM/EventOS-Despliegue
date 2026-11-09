@@ -131,9 +131,11 @@ export async function runSeed() {
     console.log('Creando recintos iniciales...');
     const recintos = [
       { id: 1, nombre: 'Auditorio Principal', aforo: 242, idEstadoRecinto: 1 },
-      { id: 2, nombre: 'Laboratorio de Cómputo A', aforo: 36, idEstadoRecinto: 1 },
-      { id: 3, nombre: 'Laboratorio de Cómputo B', aforo: 36, idEstadoRecinto: 1 },
+      { id: 2, nombre: 'Laboratorio 2104', aforo: 36, idEstadoRecinto: 1 },
+      { id: 3, nombre: 'Laboratorio 2105', aforo: 36, idEstadoRecinto: 1 },
       { id: 4, nombre: 'Sala 14', aforo: 50, idEstadoRecinto: 1 },
+      { id: 5, nombre: 'Laboratorio 2106', aforo: 36, idEstadoRecinto: 1 },
+      { id: 6, nombre: 'Laboratorio 2107', aforo: 36, idEstadoRecinto: 1 },
     ];
 
     for (const r of recintos) {
@@ -165,7 +167,7 @@ export async function runSeed() {
     `);
 
     console.log('Poblando equipos/computadoras en estadoEquipo...');
-    const laboratoriosIds = [2, 3];
+    const laboratoriosIds = [2, 3, 5, 6];
 
     for (const recintoId of laboratoriosIds) {
       await client.query(`DELETE FROM "estadoEquipo" WHERE "idRecinto" = $1;`, [recintoId]);

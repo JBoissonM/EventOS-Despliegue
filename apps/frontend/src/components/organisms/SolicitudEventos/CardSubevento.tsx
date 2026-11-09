@@ -54,10 +54,12 @@ interface EspacioInfo {
 }
 
 const RECINTOS_BASE: EspacioInfo[] = [
-  { idRecinto: RecintoId.AUDITORIO, nombre: "Auditorio", aforo: 242 },
+  { idRecinto: RecintoId.AUDITORIO, nombre: "Auditorio Principal", aforo: 242 },
+  { idRecinto: RecintoId.LABORATORIO_2104, nombre: "Laboratorio 2104", aforo: 36 },
+  { idRecinto: RecintoId.LABORATORIO_2105, nombre: "Laboratorio 2105", aforo: 36 },
   { idRecinto: RecintoId.SALA_14, nombre: "Sala 14", aforo: 50 },
-  { idRecinto: RecintoId.LABORATORIO_A, nombre: "Laboratorio 1104", aforo: 36 },
-  { idRecinto: RecintoId.LABORATORIO_B, nombre: "Laboratorio 1105", aforo: 36 },
+  { idRecinto: RecintoId.LABORATORIO_2106, nombre: "Laboratorio 2106", aforo: 36 },
+  { idRecinto: RecintoId.LABORATORIO_2107, nombre: "Laboratorio 2107", aforo: 36 },
 ];
 
 const HORASINICIO = [
@@ -164,15 +166,8 @@ export function CardSubevento(props: CardSubeventoProps) {
         const respuesta = await apiRequest<
           Array<{ idRecinto: number; nombre: string; aforo: number }>
         >("espacios/disponibles");
-        if (activo && Array.isArray(respuesta)) {
-          setEspacios((prev) =>
-            prev.map((r) => {
-              const encontrado = respuesta.find(
-                (item) => item.idRecinto === r.idRecinto,
-              );
-              return encontrado ? { ...r, aforo: encontrado.aforo } : r;
-            }),
-          );
+        if (activo && Array.isArray(respuesta) && respuesta.length > 0) {
+          setEspacios(respuesta);
         }
       } catch {
         // Se conservan los datos de RECINTOS_BASE
@@ -273,8 +268,8 @@ export function CardSubevento(props: CardSubeventoProps) {
         mensajeAyuda={
           recintoSeleccionado
             ? `Capacidad: ${recintoSeleccionado.aforo} ${
-                recintoSeleccionado.idRecinto === RecintoId.LABORATORIO_A ||
-                recintoSeleccionado.idRecinto === RecintoId.LABORATORIO_B
+                recintoSeleccionado.idRecinto !== RecintoId.AUDITORIO &&
+                recintoSeleccionado.idRecinto !== RecintoId.SALA_14
                   ? "equipos / personas"
                   : "personas / asientos"
               }`
@@ -367,8 +362,8 @@ export function CardSubevento(props: CardSubeventoProps) {
         mensajeAyuda={
           subevento.idRecinto === RecintoId.SALA_14
             ? "Al elegir la sala 14 el acceso es libre"
-            : subevento.idRecinto === RecintoId.LABORATORIO_A ||
-              subevento.idRecinto === RecintoId.LABORATORIO_B
+            : subevento.idRecinto &&
+                subevento.idRecinto !== RecintoId.AUDITORIO
               ? "Al elegir un laboratorio el cupo pasa a ser limitado"
               : ""
         }>

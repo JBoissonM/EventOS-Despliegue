@@ -363,6 +363,10 @@ export enum RecintoId {
   LABORATORIO_A = 2,
   LABORATORIO_B = 3,
   SALA_14 = 4,
+  LABORATORIO_2104 = 2,
+  LABORATORIO_2105 = 3,
+  LABORATORIO_2106 = 5,
+  LABORATORIO_2107 = 6,
 }
 
 export enum TipoPerfilVerificacion {

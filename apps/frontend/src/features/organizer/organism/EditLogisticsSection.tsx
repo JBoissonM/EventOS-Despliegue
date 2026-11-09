@@ -210,9 +210,8 @@ export function EditLogisticsSection({
     ) ?? recintoActual;
 
   const accesoFijo =
-    recintoSeleccionado?.idRecinto === RecintoId.LABORATORIO_A ||
-    recintoSeleccionado?.idRecinto === RecintoId.LABORATORIO_B ||
-    recintoSeleccionado?.idRecinto === RecintoId.SALA_14;
+    Boolean(recintoSeleccionado?.idRecinto) &&
+    recintoSeleccionado?.idRecinto !== RecintoId.AUDITORIO;
 
   const horasFinCandidatas = [
     ...new Set([...HORASFIN, valores.horaFin].filter(Boolean)),
@@ -279,8 +278,8 @@ export function EditLogisticsSection({
             mensajeAyuda={
               recintoSeleccionado && recintoSeleccionado.aforo > 0
                 ? `Capacidad: ${recintoSeleccionado.aforo} ${
-                    recintoSeleccionado.idRecinto === RecintoId.LABORATORIO_A ||
-                    recintoSeleccionado.idRecinto === RecintoId.LABORATORIO_B
+                    recintoSeleccionado.idRecinto !== RecintoId.AUDITORIO &&
+                    recintoSeleccionado.idRecinto !== RecintoId.SALA_14
                       ? "equipos / personas"
                       : "personas / asientos"
                   }`
@@ -305,8 +304,8 @@ export function EditLogisticsSection({
                 }
                 onCambioLogistica("idRecinto", String(idRecinto));
                 if (
-                  idRecinto === RecintoId.LABORATORIO_A ||
-                  idRecinto === RecintoId.LABORATORIO_B
+                  idRecinto !== RecintoId.AUDITORIO &&
+                  idRecinto !== RecintoId.SALA_14
                 ) {
                   onCambioLogistica("accesoQR", "true");
                 } else if (idRecinto === RecintoId.SALA_14) {
@@ -444,8 +443,8 @@ export function EditLogisticsSection({
             mensajeAyuda={
               recintoSeleccionado?.idRecinto === RecintoId.SALA_14
                 ? "El evento pasará a ser de acceso libre"
-                : recintoSeleccionado?.idRecinto === RecintoId.LABORATORIO_A ||
-                    recintoSeleccionado?.idRecinto === RecintoId.LABORATORIO_B
+                : recintoSeleccionado?.idRecinto !== RecintoId.AUDITORIO &&
+                    Boolean(recintoSeleccionado?.idRecinto)
                   ? "El evento pasará a requerir acceso QR"
                   : ""
             }>

@@ -65,14 +65,10 @@ const FECHAS = [
 const RECINTOS = [
   { value: "Auditorio Principal", label: "Auditorio Principal" },
   { value: "Sala 14", label: "Sala 14" },
-  {
-    value: "Laboratorio de Cómputo A",
-    label: "Laboratorio de Cómputo A",
-  },
-  {
-    value: "Laboratorio de Cómputo B",
-    label: "Laboratorio de Cómputo B",
-  },
+  { value: "Laboratorio 2104", label: "Laboratorio 2104" },
+  { value: "Laboratorio 2105", label: "Laboratorio 2105" },
+  { value: "Laboratorio 2106", label: "Laboratorio 2106" },
+  { value: "Laboratorio 2107", label: "Laboratorio 2107" },
 ];
 
 export function MisEventos() {
