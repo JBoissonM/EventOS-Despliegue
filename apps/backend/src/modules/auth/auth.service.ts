@@ -286,8 +286,11 @@ export class AuthService {
       );
     }
 
+    // Si la cuenta está deshabilitada, se informa al usuario que puede contactar al administrador
     if (!usuario.estatus) {
-      throw new UnauthorizedException('La cuenta se encuentra inactiva.');
+      throw new UnauthorizedException(
+        'La cuenta se encuentra deshabilitada. Si consideras que se trata de un error, contacta al administrador para solicitar su habilitación.',
+      );
     }
 
     if (
@@ -392,7 +395,7 @@ export class AuthService {
 
     if (!usuario.estatus) {
       throw new BadRequestException(
-        'La cuenta asociada a este correo se encuentra inactiva.',
+        'La cuenta asociada a este correo se encuentra deshabilitada. Contacta al administrador para solicitar su habilitación.',
       );
     }
 
