@@ -73,17 +73,21 @@ export class UsuariosController {
     );
   }
 
-  // SUBDIRECCIÓN: Listar solicitudes de verificación pendientes
+  // SUBDIRECCIÓN: Listar solicitudes de verificación pendientes y buscar por rol o solicitante
   @ApiOperation({
     summary:
-      'Subdirección: Listar solicitudes de verificación de usuario pendientes',
+      'Subdirección: Listar solicitudes de verificación de usuario pendientes con filtro por rol o solicitante',
   })
   @Get('verificaciones/pendientes')
   @Roles(TipoCuentaUsuario.SUBDIRECCION, TipoCuentaUsuario.ADMINISTRADOR)
-  async listarVerificacionesPendientes(@Query('todas') todas?: string) {
+  async listarVerificacionesPendientes(
+    @Query('todas') todas?: string,
+    @Query('buscar') buscar?: string,
+  ) {
     const soloPendientes = todas !== 'true';
     return await this.usuariosService.listarSolicitudesVerificacion(
       soloPendientes,
+      buscar,
     );
   }
 
@@ -109,14 +113,24 @@ export class UsuariosController {
     return await this.usuariosService.aprobarVerificacionUsuario(id);
   }
 
-  // SUBDIRECCIÓN Botón [Rechazar]
+  // SUBDIRECCIÓN Botón [Rechazar] con motivo del modal
   @ApiOperation({
-    summary: 'Subdirección: Rechazar solicitud de verificación de usuario',
+    summary:
+      'Subdirección: Rechazar solicitud de verificación de usuario enviando motivo por correo',
   })
   @Patch('verificaciones/:id/rechazar')
   @Roles(TipoCuentaUsuario.SUBDIRECCION, TipoCuentaUsuario.ADMINISTRADOR)
-  async rechazarVerificacion(@Param('id', ParseIntPipe) id: number) {
-    return await this.usuariosService.rechazarVerificacionUsuario(id);
+  async rechazarVerificacion(
+    @Param('id', ParseIntPipe) id: number,
+    @Body()
+    body?: {
+      motivo?: string;
+      motivoRechazo?: string;
+      detalle?: string | null;
+      observaciones?: string | null;
+    },
+  ) {
+    return await this.usuariosService.rechazarVerificacionUsuario(id, body);
   }
 
   // ADMINISTRADOR Listar cuentas del sistema
