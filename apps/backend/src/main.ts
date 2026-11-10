@@ -7,14 +7,20 @@ async function bootstrap() {
 
   app.setGlobalPrefix('api');
 
+  // Permite tanto tu entorno local como la futura URL de Vercel en producción
+  const origenesPermitidos = [
+    'http://localhost:5173',
+    process.env.FRONTEND_URL,
+  ].filter(Boolean) as string[];
+
   app.enableCors({
-    origin: 'http://localhost:5173',
+    origin: origenesPermitidos,
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
     credentials: true,
   });
 
-  // Swagger solo en desarrollo/pruebas; en producción /api/docs no existe (404)
-  if (process.env.NODE_ENV !== 'production') {
+  // Dejamos Swagger disponible a menos que desactives explícitamente SWAGGER_ENABLED=false
+  if (process.env.SWAGGER_ENABLED !== 'false') {
     const config = new DocumentBuilder()
       .setTitle('EventOS API')
       .setDescription('Documentación de la API de EventOS')
@@ -25,6 +31,7 @@ async function bootstrap() {
     SwaggerModule.setup('api/docs', app, document);
   }
 
-  await app.listen(3000);
+  const port = Number(process.env.PORT ?? 3000);
+  await app.listen(port, '0.0.0.0');
 }
 bootstrap();
