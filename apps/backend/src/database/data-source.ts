@@ -19,4 +19,4 @@ export default new DataSource({                 // este objeto solo lo usa el CL
   ...dbOptions,                                 // copia los datos de conexión de arriba
   entities: ['src/**/*.entity.ts'],             // dónde buscar las entidades (tablas)
   migrations: ['src/database/migrations/*.ts'], // dónde están/se guardan las migraciones
-});
+}); 

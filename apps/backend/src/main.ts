@@ -19,7 +19,7 @@ async function bootstrap() {
     credentials: true,
   });
 
-  // Dejamos Swagger disponible a menos que desactives explícitamente SWAGGER_ENABLED=false
+  // Dejamos Swagger disponible a menos que se desactive explícitamente SWAGGER_ENABLED=false
   if (process.env.SWAGGER_ENABLED !== 'false') {
     const config = new DocumentBuilder()
       .setTitle('EventOS API')

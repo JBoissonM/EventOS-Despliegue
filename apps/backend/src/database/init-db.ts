@@ -14,7 +14,7 @@ export async function initDb() {
     password: process.env.DB_PASSWORD ?? 'postgres',
     database: process.env.DB_NAME ?? 'eventos',
     ssl: usarSsl ? { rejectUnauthorized: false } : false,
-  });
+  }); 
 
   try {
     await client.connect();
