@@ -225,9 +225,10 @@ export class UsuariosService {
     });
   }
 
-  //Listar solicitudes de verificación
+  //Listar solicitudes de verificación y filtrar por rol o nombre del solicitante
   async listarSolicitudesVerificacion(
     soloPendientes = true,
+    buscar?: string,
   ): Promise<SolicitudVerificacionItem[]> {
     const verificaciones = await this.verificacionRepository.find({
       order: { fecha: 'DESC', idVerificacion: 'DESC' },
@@ -249,7 +250,7 @@ export class UsuariosService {
       }
     }
 
-    const resultado: SolicitudVerificacionItem[] = [];
+    let resultado: SolicitudVerificacionItem[] = [];
     const hoy = new Date();
     const milisegundosEnTresMeses = 1000 * 60 * 60 * 24 * 90;
 
@@ -277,6 +278,25 @@ export class UsuariosService {
         numeroBoleta: verif.informacionAdicional || null,
         informacionAdicional: verif.informacionAdicional || null,
         archivo: verif.archivo,
+      });
+    }
+
+    if (buscar && buscar.trim() !== '') {
+      const termino = buscar.trim().toLowerCase();
+      resultado = resultado.filter((item) => {
+        const rolMin = item.perfilSolicita.toLowerCase();
+        const coincideDocenteProfesor =
+          (termino === 'docente' || termino === 'profesor') &&
+          (rolMin === 'docente' || rolMin === 'profesor');
+
+        return (
+          coincideDocenteProfesor ||
+          item.nombre.toLowerCase().includes(termino) ||
+          rolMin.includes(termino) ||
+          item.correo.toLowerCase().includes(termino) ||
+          (item.numeroBoleta &&
+            item.numeroBoleta.toLowerCase().includes(termino))
+        );
       });
     }
 
