@@ -12,13 +12,17 @@ import {
 const { Client } = pg;
 
 export async function runSeed() {
+  const host = process.env.DB_HOST ?? 'localhost';
+  const usarSsl = process.env.DB_SSL === 'true' || (host !== 'localhost' && host !== '127.0.0.1');
+
   const client = new Client({
-    host: process.env.DB_HOST ?? 'localhost',
+    host,
     port: Number(process.env.DB_PORT ?? 5433),
     user: process.env.DB_USER ?? 'postgres',
     password: process.env.DB_PASSWORD ?? 'postgres',
     database: process.env.DB_NAME ?? 'eventos',
-  });
+    ssl: usarSsl ? { rejectUnauthorized: false } : false,
+  }); 
 
   try {
     await client.connect();
