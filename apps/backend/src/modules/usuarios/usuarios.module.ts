@@ -5,10 +5,12 @@ import { UsuariosService } from './services/usuarios.service';
 import { UsuarioEntity } from '../auth/entities/usuario.entity';
 import { VerificacionEntity } from '../auth/entities/verificacion.entity';
 import { RolEntity } from './entities/rol.entity';
+import { ReservationsModule } from '../reservas/reservations.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([UsuarioEntity, VerificacionEntity, RolEntity]),
+    ReservationsModule,
   ],
   controllers: [UsuariosController],
   providers: [UsuariosService],

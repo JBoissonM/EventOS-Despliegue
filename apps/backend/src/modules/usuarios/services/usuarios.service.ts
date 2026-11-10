@@ -9,6 +9,7 @@ import { Repository, DataSource } from 'typeorm';
 import { UsuarioEntity } from '../../auth/entities/usuario.entity';
 import { VerificacionEntity } from '../../auth/entities/verificacion.entity';
 import { RolEntity } from '../entities/rol.entity';
+import { MailService } from '../../reservas/services/mail.service';
 import {
   EstadoVerificacion,
   TipoCuentaUsuario,
@@ -40,6 +41,7 @@ export class UsuariosService {
     @InjectRepository(RolEntity)
     private readonly rolRepository: Repository<RolEntity>,
     private readonly dataSource: DataSource,
+    private readonly mailService: MailService,
   ) {}
 
   // Consulta el Perfil y evalúa caducidad de 3 meses (90 días) o si está Pendiente de Subdirección
@@ -379,6 +381,16 @@ export class UsuariosService {
     usuario.esVerificado = EstadoVerificacion.VERIFICADO;
     await this.usuarioRepository.save(usuario);
 
+    const nombreUsuario =
+      `${usuario.nombre} ${usuario.apellidoPa} ${usuario.apellidoMa || ''}`.trim();
+    const perfilVerificado = this.mapaRoles[verif.idRol] ?? 'Externo';
+
+    await this.mailService.enviarCorreoVerificacionAprobada({
+      destinatario: usuario.correo,
+      nombreUsuario,
+      perfilVerificado,
+    });
+
     return {
       mensaje: 'Usuario verificado con éxito por Subdirección.',
       idVerificacion: verif.idVerificacion,
@@ -388,8 +400,46 @@ export class UsuariosService {
     };
   }
 
-  // SUBDIRECCIÓN: Botón rojo [Rechazar] Rechaza la solicitud y permite al usuario enviar una nueva
-  async rechazarVerificacionUsuario(id: number) {
+  // SUBDIRECCIÓN: Botón [Rechazar] Rechaza la solicitud, envía correo con el motivo y permite al usuario enviar una nueva
+  async rechazarVerificacionUsuario(
+    id: number,
+    datosRechazo?: {
+      motivo?: string;
+      motivoRechazo?: string;
+      detalle?: string | null;
+      observaciones?: string | null;
+    },
+  ) {
+    const motivoBase = (
+      datosRechazo?.motivo ??
+      datosRechazo?.motivoRechazo ??
+      ''
+    ).trim();
+    const detalleExtra = (
+      datosRechazo?.detalle ??
+      datosRechazo?.observaciones ??
+      ''
+    ).trim();
+
+    if (!motivoBase) {
+      throw new BadRequestException(
+        'Debes seleccionar o indicar el motivo por el cual se rechaza la verificación de la cuenta.',
+      );
+    }
+
+    const esOtroMotivo = motivoBase.toLowerCase() === 'otro motivo';
+    if (esOtroMotivo && !detalleExtra) {
+      throw new BadRequestException(
+        'Debes escribir el detalle u observaciones adicionales cuando seleccionas Otro motivo.',
+      );
+    }
+
+    const motivoFinal = esOtroMotivo
+      ? `Otro motivo: ${detalleExtra}`
+      : detalleExtra
+        ? `${motivoBase}. ${detalleExtra}`
+        : motivoBase;
+
     let verif = await this.verificacionRepository.findOne({
       where: { idVerificacion: id },
     });
@@ -419,12 +469,26 @@ export class UsuariosService {
     // Eliminamos todas las solicitudes pendientes de ese usuario para que pueda volver a subir su documento corregido
     await this.verificacionRepository.delete({ idUsuario: verif.idUsuario });
 
+    if (usuario) {
+      const nombreUsuario =
+        `${usuario.nombre} ${usuario.apellidoPa} ${usuario.apellidoMa || ''}`.trim();
+      const perfilSolicitado = this.mapaRoles[verif.idRol] ?? 'Externo';
+
+      await this.mailService.enviarCorreoVerificacionRechazada({
+        destinatario: usuario.correo,
+        nombreUsuario,
+        perfilSolicitado,
+        motivoRechazo: motivoFinal,
+      });
+    }
+
     return {
       mensaje: 'Solicitud de verificación rechazada.',
       idVerificacion: verif.idVerificacion,
       idUsuario: verif.idUsuario,
       esVerificado: EstadoVerificacion.NO_VERIFICADO,
       estado: 'Rechazado',
+      motivoRechazo: motivoFinal,
     };
   }
 
