@@ -3,7 +3,6 @@ import {
   Get,
   Post,
   Patch,
-  Delete,
   Body,
   Param,
   Query,
@@ -122,7 +121,7 @@ export class UsuariosController {
 
   // ADMINISTRADOR Listar cuentas del sistema
   @ApiOperation({
-    summary: 'Administrador (UI21): Listar cuentas del sistema con filtros',
+    summary: 'Administrador: Listar cuentas del sistema con filtros',
   })
   @Get('admin/cuentas')
   @Roles(TipoCuentaUsuario.ADMINISTRADOR)
@@ -144,19 +143,24 @@ export class UsuariosController {
     });
   }
 
-  // ADMINISTRADOR Botón [Eliminar]
+  // ADMINISTRADOR Habilitar o deshabilitar cuenta de usuario
   @ApiOperation({
     summary:
-      'Administrador: Eliminar lógicamente (inhabilitar) cuenta de usuario',
+      'Administrador: Habilitar o deshabilitar cuenta de usuario',
   })
-  @Delete('admin/cuentas/:id')
+  @Patch('admin/cuentas/:id')
   @Roles(TipoCuentaUsuario.ADMINISTRADOR)
-  async eliminarCuenta(
+  async cambiarEstatusCuenta(
     @Param('id', ParseIntPipe) id: number,
     @Req() req: any,
+    @Body() body?: { estatus?: boolean },
   ) {
     const idAdminActor = Number(req.user.sub ?? req.user.idUsuario);
-    return await this.usuariosService.eliminarCuentaLogica(id, idAdminActor);
+    return await this.usuariosService.cambiarEstatusCuenta(
+      id,
+      idAdminActor,
+      body?.estatus,
+    );
   }
 
   // Tab 1 Asignar Jefe. Candidatos que aún NO son jefes (Excluye Subdirección y Admin)
