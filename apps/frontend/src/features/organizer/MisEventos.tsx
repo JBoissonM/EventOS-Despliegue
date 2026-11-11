@@ -155,9 +155,9 @@ export function MisEventos() {
       <div
         id="contenedorFiltros"
         className="flex flex-col gap-50 lg:flex-row lg:items-center">
-          <h1 className="font-merriweather text-4xl font-bold sm:text-4xl">
-            Mis eventos
-          </h1>
+        <h1 className="font-merriweather text-4xl font-bold sm:text-4xl">
+          Mis eventos
+        </h1>
         <div className="grid w-full min-w-0 flex-1 grid-cols-1 gap-2 sm:grid-cols-3">
           <SearchBar
             classname="w-full min-w-0"

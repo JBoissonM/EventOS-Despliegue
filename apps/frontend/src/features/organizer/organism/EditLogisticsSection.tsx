@@ -7,7 +7,7 @@ import { InputFile } from "../../../components/atoms/InputFile/InputFile";
 import { FormField } from "../../../components/molecules/FormField";
 
 const ACCESOS = [
-  { value: "true", label: "Boleto con QR" },
+  { value: "true", label: "Acceso con boleto" },
   { value: "false", label: "Acceso libre" },
 ];
 
@@ -224,25 +224,25 @@ export function EditLogisticsSection({
     cargandoAgenda || errorAgenda || !valores.idRecinto || !valores.fecha
       ? []
       : opcionesHora(HORASINICIO, valores.horaInicio).filter(
-          ({ value }) =>
-            !agendaOcupada.some(
-              (ocupado) =>
-                horaEnMinutos(value) >= horaEnMinutos(ocupado.horaInicio) &&
-                horaEnMinutos(value) < horaEnMinutos(ocupado.horaFin),
-            ) &&
-            horasFinCandidatas.some((horaFin) =>
-              puedeTerminarEn(value, horaFin),
-            ),
-        );
+        ({ value }) =>
+          !agendaOcupada.some(
+            (ocupado) =>
+              horaEnMinutos(value) >= horaEnMinutos(ocupado.horaInicio) &&
+              horaEnMinutos(value) < horaEnMinutos(ocupado.horaFin),
+          ) &&
+          horasFinCandidatas.some((horaFin) =>
+            puedeTerminarEn(value, horaFin),
+          ),
+      );
   const horasFinDisponibles =
     !cargandoAgenda &&
-    !errorAgenda &&
-    valores.idRecinto &&
-    valores.fecha &&
-    valores.horaInicio
+      !errorAgenda &&
+      valores.idRecinto &&
+      valores.fecha &&
+      valores.horaInicio
       ? opcionesHora(HORASFIN, valores.horaFin).filter(({ value }) =>
-          puedeTerminarEn(valores.horaInicio, value),
-        )
+        puedeTerminarEn(valores.horaInicio, value),
+      )
       : [];
   const horaFinInvalida = Boolean(
     valores.horaInicio &&
@@ -274,17 +274,7 @@ export function EditLogisticsSection({
         <div className="flex min-w-0 flex-col gap-2">
           <FormField
             className="!font-bold !text-black"
-            label="Recinto"
-            mensajeAyuda={
-              recintoSeleccionado && recintoSeleccionado.aforo > 0
-                ? `Capacidad: ${recintoSeleccionado.aforo} ${
-                    recintoSeleccionado.idRecinto !== RecintoId.AUDITORIO &&
-                    recintoSeleccionado.idRecinto !== RecintoId.SALA_14
-                      ? "equipos / personas"
-                      : "personas / asientos"
-                  }`
-                : undefined
-            }
+            label="Espacio"
             errorMessage={intentoGuardar ? errores?.idRecinto : undefined}>
             <Select
               id="campoEspacio"
@@ -442,10 +432,10 @@ export function EditLogisticsSection({
             className="!font-bold !text-black"
             mensajeAyuda={
               recintoSeleccionado?.idRecinto === RecintoId.SALA_14
-                ? "El evento pasará a ser de acceso libre"
+                ? "Al elegir la sala 14 el acceso es libre"
                 : recintoSeleccionado?.idRecinto !== RecintoId.AUDITORIO &&
-                    Boolean(recintoSeleccionado?.idRecinto)
-                  ? "El evento pasará a requerir acceso QR"
+                  Boolean(recintoSeleccionado?.idRecinto)
+                  ? "Al elegir un laboratorio el acceso es con boleto"
                   : ""
             }>
             <Select
@@ -486,7 +476,7 @@ export function EditLogisticsSection({
         )}
         <div className="flex min-w-0 flex-col gap-2">
           <label htmlFor="campoAforo" className="font-bold">
-            Aforo estimado
+            Aforo del espacio
           </label>
           <Input
             id="campoAforo"
@@ -495,7 +485,7 @@ export function EditLogisticsSection({
                 ? recintoSeleccionado.aforo
                 : "No disponible"
             }
-            readOnly
+            disabled
             aria-label="Aforo máximo del espacio seleccionado"
           />
         </div>
@@ -529,8 +519,8 @@ export function EditLogisticsSection({
                   hasError={
                     Boolean(
                       intentoGuardar &&
-                        (!justificacion.trim() ||
-                          justificacion.trim().length >= 500),
+                      (!justificacion.trim() ||
+                        justificacion.trim().length >= 500),
                     )
                   }
                   onChange={(event) =>
