@@ -4,6 +4,7 @@ import type { MisEventosItem } from "@eventos/shared";
 import { SearchBar } from "../../components/molecules/SearchBar";
 import Button from "../../components/atoms/Button/Button";
 import { useNavigate } from "react-router";
+import { API_BASE_URL } from "../../lib/apiClient";
 import Select from "../../components/atoms/Select/Select";
 
 function normalizarTexto(texto: string): string {
@@ -111,7 +112,7 @@ export function MisEventos() {
           throw new Error("Sesión no iniciada");
         }
         const response = await fetch(
-          "http://localhost:3000/api/eventos/mis-eventos",
+          `${API_BASE_URL}/eventos/mis-eventos`,
           {
             headers: {
               Authorization: `Bearer ${token}`,

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
+import { API_BASE_URL } from "../../../lib/apiClient";
 import { getAuthPathWithReturnUrl, getEventReturnPath } from "../../event-details/utils/eventReturnUrl";
 
 export function useRegistro() {
@@ -233,7 +234,7 @@ export function useRegistro() {
         contrasena: formData.contrasena,
       };
 
-      const response = await fetch("http://localhost:3000/api/auth/registro", {
+      const response = await fetch(`${API_BASE_URL}/auth/registro`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

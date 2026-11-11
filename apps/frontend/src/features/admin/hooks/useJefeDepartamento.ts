@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router";
+import { API_BASE_URL } from "../../../lib/apiClient";
 
 export interface CandidatoJefe {
   idUsuario: number;
@@ -32,8 +33,8 @@ export function useJefeDepartamento() {
     try {
       const endpoint =
         tab === "asignar"
-          ? `http://localhost:3000/api/usuarios/jefes-departamento/candidatos${query ? `?buscar=${encodeURIComponent(query)}` : ""}`
-          : `http://localhost:3000/api/usuarios/jefes-departamento/activos${query ? `?buscar=${encodeURIComponent(query)}` : ""}`;
+          ? `${API_BASE_URL}/usuarios/jefes-departamento/candidatos${query ? `?buscar=${encodeURIComponent(query)}` : ""}`
+          : `${API_BASE_URL}/usuarios/jefes-departamento/activos${query ? `?buscar=${encodeURIComponent(query)}` : ""}`;
 
       const response = await fetch(endpoint, {
         headers: {
@@ -91,8 +92,8 @@ export function useJefeDepartamento() {
     try {
       const endpoint =
         accionTipo === "asignar"
-          ? `http://localhost:3000/api/usuarios/${usuarioSeleccionado.idUsuario}/asignar-jefe`
-          : `http://localhost:3000/api/usuarios/${usuarioSeleccionado.idUsuario}/revocar-jefe`;
+          ? `${API_BASE_URL}/usuarios/${usuarioSeleccionado.idUsuario}/asignar-jefe`
+          : `${API_BASE_URL}/usuarios/${usuarioSeleccionado.idUsuario}/revocar-jefe`;
 
       const response = await fetch(endpoint, {
         method: "PATCH",

@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router";
+import { API_BASE_URL } from "../../../lib/apiClient";
 
 export interface BitacoraItem {
   idBitacoraEvento?: number;
@@ -25,7 +26,7 @@ export function useBitacoraGeneral() {
   const cargarBitacora = useCallback(async (query = "") => {
     setLoading(true);
     try {
-      const endpoint = `http://localhost:3000/api/eventos/bitacora${query ? `?buscar=${encodeURIComponent(query)}` : ""}`;
+      const endpoint = `${API_BASE_URL}/eventos/bitacora${query ? `?buscar=${encodeURIComponent(query)}` : ""}`;
       const response = await fetch(endpoint, {
         headers: {
           Authorization: `Bearer ${getToken()}`,
@@ -62,7 +63,7 @@ export function useBitacoraGeneral() {
 
   const handleExportar = async () => {
     try {
-      const endpoint = `http://localhost:3000/api/eventos/bitacora/exportar${busqueda ? `?buscar=${encodeURIComponent(busqueda)}` : ""}`;
+      const endpoint = `${API_BASE_URL}/eventos/bitacora/exportar${busqueda ? `?buscar=${encodeURIComponent(busqueda)}` : ""}`;
       const response = await fetch(endpoint, {
         headers: {
           Authorization: `Bearer ${getToken()}`,

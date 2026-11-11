@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate, useSearchParams, Link } from "react-router";
+import { API_BASE_URL } from "../../lib/apiClient";
 import { Button } from "../../components/atoms/Button/Button";
 import { LoaderCircle, CheckCircle2, AlertCircle, CheckCircle, ArrowRight } from "lucide-react";
 
@@ -28,7 +29,7 @@ export function ConfirmarRegistro() {
 
     const verificarToken = async () => {
       try {
-        const response = await fetch("http://localhost:3000/api/auth/confirmar-registro", {
+        const response = await fetch(`${API_BASE_URL}/auth/confirmar-registro`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",

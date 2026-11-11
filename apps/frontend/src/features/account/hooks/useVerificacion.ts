@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router";
+import { API_BASE_URL } from "../../../lib/apiClient";
 
 export function useVerificacion() {
   const navigate = useNavigate();
@@ -47,7 +48,7 @@ export function useVerificacion() {
       data.append("informacionAdicional", formData.infoAdicional);
       data.append("documentoPDF", formData.archivo);
 
-      const response = await fetch("http://localhost:3000/api/usuarios/verificar", {
+      const response = await fetch(`${API_BASE_URL}/usuarios/verificar`, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${getToken()}`,

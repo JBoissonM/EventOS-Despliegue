@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router";
+import { API_BASE_URL } from "../../lib/apiClient";
 import { Input } from "../../components/atoms/Input/Input";
 import { Button } from "../../components/atoms/Button/Button";
 import { TextLink } from "../../components/atoms/TextLink/TextLink";
@@ -30,7 +31,7 @@ export function SolicitarRecuperacion() {
     setLoading(true);
 
     try {
-      const response = await fetch("http://localhost:3000/api/auth/recuperar-contrasena", {
+      const response = await fetch(`${API_BASE_URL}/auth/recuperar-contrasena`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

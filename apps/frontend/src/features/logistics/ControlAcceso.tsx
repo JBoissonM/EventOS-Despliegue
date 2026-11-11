@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router";
 import { QrCode, Users, LoaderCircle, AlertCircle } from "lucide-react";
+import { API_BASE_URL } from "../../lib/apiClient";
 import { Button } from "../../components/atoms/Button/Button";
 
 interface Asistente {
@@ -40,7 +41,7 @@ export function ControlAcceso() {
     setError(null);
 
     try {
-      const response = await fetch(`http://localhost:3000/api/logistica/subeventos/${idSubEvento}/control-acceso`, {
+      const response = await fetch(`${API_BASE_URL}/logistica/subeventos/${idSubEvento}/control-acceso`, {
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${getToken()}`,
