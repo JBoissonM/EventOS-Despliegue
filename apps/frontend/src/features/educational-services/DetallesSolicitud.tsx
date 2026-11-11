@@ -409,7 +409,7 @@ export function DetallesSolicitud() {
   }
 
   return (
-    <section className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+    <section className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-6 space-y-6">
       <div>
         <button
           type="button"
@@ -427,63 +427,57 @@ export function DetallesSolicitud() {
 
       <EventBanner posterUrl={datos.posterUrl ?? ""} eventName={datos.nombre} />
 
-      <h2 className="font-merriweather text-xl sm:text-2xl font-bold text-gray-900">
-        {datos.nombre}
-      </h2>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <FormField label="Solicitante">
-          <Input
-            name="nombre"
-            value={datos.nombreSolicitante}
-            disabled
-            onChange={() => { }}
-          />
-        </FormField>
-        <FormField label="Alcance">
-          <Input
-            name="alcance"
-            disabled
-            value={datos.alcanceTexto}
-            onChange={() => { }}
-          />
-        </FormField>
-      </div>
 
-      <div className="space-y-1">
-        <h3 className="font-merriweather text-base font-bold">
-          Descripción del evento
-        </h3>
-        <p className="font-merriweather text-justify">
-          {datos.descripcion}
-        </p>
-      </div>
+      <div className="bg-white rounded-md shadow-md p-4 space-y-5 ">
+        <h2 className="font-merriweather text-xl font-bold text-secondary sm:text-2xl">
+          {datos.nombre}
+        </h2>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <h3 className="font-merriweather text-base font-bold">Solicitante</h3>
+            <span>{datos.nombreSolicitante}</span>
+          </div>
+          <div>
+            <h3 className="font-merriweather text-base font-bold">Alcance</h3>
+            <span>{datos.alcanceTexto}</span>
+          </div>
+        </div>
 
-      <div className="space-y-1">
-        <h3 className="font-merriweather text-base font-bold">
-          Beneficio Politécnico
-        </h3>
-        <p className="font-merriweather text-justify">
-          {datos.justificacion || "Sin información proporcionada."}
-        </p>
-      </div>
-
-      {datos.esUrgente && datos.motivoUrgencia && (
         <div className="space-y-1">
+          <h3 className="font-merriweather text-base font-bold">
+            Descripción del evento
+          </h3>
+          <p className="font-merriweather text-left leading-relaxed">
+            {datos.descripcion}
+          </p>
+        </div>
+
+        <div className="space-y-1">
+          <h3 className="font-merriweather text-base font-bold">
+            Beneficio Politécnico
+          </h3>
+          <p className="font-merriweather text-left leading-relaxed">
+            {datos.justificacion || "Sin información proporcionada."}
+          </p>
+        </div>
+      </div>
+      {datos.esUrgente && datos.motivoUrgencia && (
+        <div className="space-y-1  border border-red-200 bg-red-50 p-4 rounded-md shadow-sm">
           <div className="flex items-center gap-2">
             <AlertTriangle className="h-5 w-5 text-red-600 shrink-0" />
             <span className="font-merriweather text-base font-bold text-gray-900">
               Motivo de urgencia
             </span>
           </div>
-          <p className="font-merriweather text-sm text-gray-700 leading-relaxed text-justify">
+          <p className="font-merriweather text-sm text-red-900 leading-relaxed text-justify">
             {datos.motivoUrgencia}
           </p>
         </div>
       )}
 
       {datos.esModificacion && datos.motivoModificacion && (
-        <div className="space-y-1">
+        <div className="space-y-1 space-y-2 rounded-lg border border-amber-300 bg-amber-50 p-5 text-amber-950 shadow-md">
           <h3 className="font-merriweather text-base font-bold text-gray-900">
             Motivo de modificación
           </h3>
@@ -492,6 +486,11 @@ export function DetallesSolicitud() {
           </p>
         </div>
       )}
+
+      <br></br>
+      <div>
+        <h2 className="font-merriweather font-bold text-2xl">Actividades</h2>
+      </div>
 
       <div className="space-y-4 pt-2">
         {datos.subEventos.map((subevento) => (
@@ -593,13 +592,13 @@ export function DetallesSolicitud() {
             text="Modificar evento"
             variant="primary"
             onClick={() => {
-              if (!datos?.idEvento) return;
-              if (datos.actividades && datos.actividades.length > 1) {
+              if (!id) return;
+              if (datos.subEventos && datos.subEventos.length > 1) {
                 navigate(
-                  `/organizador/editar-evento-subeventos/${datos.idEvento}`,
+                  `/organizador/editar-evento-subeventos/${id}`,
                 );
               } else {
-                navigate(`/organizador/editar-evento/${datos.idEvento}`);
+                navigate(`/organizador/editar-evento/${id}`);
               }
             }}
           />

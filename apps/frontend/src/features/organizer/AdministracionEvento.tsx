@@ -21,6 +21,7 @@ import { useNavigate } from "react-router";
 import { apiRequest } from "../../lib/apiClient";
 
 import { ArrowLeft } from "lucide-react";
+import { Badge } from "../../components/atoms/Badge/Badge";
 
 type TablaPonente = {
   id: number;
@@ -242,21 +243,21 @@ function convertirEvento(valor: unknown): EventoOrganizadorDetalle {
       : convertirEstadoEvento(valor.idEstadoEvento);
   const solicitudModificacionPendiente =
     esRegistro(valor.solicitudModificacionPendiente) &&
-    typeof valor.solicitudModificacionPendiente.idSolicitudModificacion ===
+      typeof valor.solicitudModificacionPendiente.idSolicitudModificacion ===
       "number" &&
-    typeof valor.solicitudModificacionPendiente.motivoModificacion ===
+      typeof valor.solicitudModificacionPendiente.motivoModificacion ===
       "string" &&
-    typeof valor.solicitudModificacionPendiente.estado === "string" &&
-    Array.isArray(valor.solicitudModificacionPendiente.subeventosPropuestos)
+      typeof valor.solicitudModificacionPendiente.estado === "string" &&
+      Array.isArray(valor.solicitudModificacionPendiente.subeventosPropuestos)
       ? {
-          idSolicitudModificacion:
-            valor.solicitudModificacionPendiente.idSolicitudModificacion,
-          motivoModificacion:
-            valor.solicitudModificacionPendiente.motivoModificacion,
-          subeventosPropuestos:
-            valor.solicitudModificacionPendiente.subeventosPropuestos,
-          estado: valor.solicitudModificacionPendiente.estado,
-        }
+        idSolicitudModificacion:
+          valor.solicitudModificacionPendiente.idSolicitudModificacion,
+        motivoModificacion:
+          valor.solicitudModificacionPendiente.motivoModificacion,
+        subeventosPropuestos:
+          valor.solicitudModificacionPendiente.subeventosPropuestos,
+        estado: valor.solicitudModificacionPendiente.estado,
+      }
       : null;
 
   return {
@@ -474,11 +475,9 @@ export function AdministracionEvento() {
           {datosEvento.idEstadoEvento === EstadoEvento.RECHAZADO && (
             <div
               role="alert"
-              className="space-y-2 border border-gray-200 bg-white p-5 shadow-md">
+              className=" border border-red-500 space-y-2 bg-red-50 p-5 shadow-md">
               <div className="flex items-center gap-2">
-                <span className="inline-flex items-center rounded-md bg-red-100 px-2.5 py-0.5 text-xs font-semibold text-red-800">
-                  Solicitud Rechazada
-                </span>
+                <Badge variant="error">Solicitud rechazada</Badge>
                 <h2 className="font-bold text-gray-900">
                   Motivo de rechazo
                 </h2>
@@ -605,7 +604,7 @@ export function AdministracionEvento() {
                     <span>{formatearHora(subevento.fecha?.horaFin)}</span>
                   </div>
                   <div className="flex min-w-0 flex-col gap-2">
-                    <span className="font-bold">Modalidad de cupo</span>
+                    <span className="font-bold">Acceso</span>
                     <span>
                       {subevento.accesoQR
                         ? "Acceso con boleto"
@@ -619,7 +618,7 @@ export function AdministracionEvento() {
                     </div>
                   )}
                   <div className="flex min-w-0 flex-col gap-2">
-                    <span className="font-bold">Aforo estimado</span>
+                    <span className="font-bold">Aforo del espacio</span>
                     <span>
                       {subevento.recinto?.aforo ?? datosEvento.cupoMaximo}
                     </span>
@@ -647,16 +646,7 @@ export function AdministracionEvento() {
           </div>
 
           <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:justify-end">
-            {subevento?.recinto &&
-              subevento.recinto.nombre !== "Auditorio Principal" &&
-              subevento.recinto.nombre !== "Sala 14" && (
-                <Button
-                  text="Ver detalles de laboratorio"
-                  variant="primary"
-                  type="button"
-                  onClick={() => setMostrarModal(true)}
-                />
-              )}
+
             {datosEvento.idEstadoEvento !== EstadoEvento.RECHAZADO &&
               datosEvento.idEstadoEvento !== EstadoEvento.CANCELADO &&
               subevento?.estado !== "Finalizado" &&
@@ -670,6 +660,16 @@ export function AdministracionEvento() {
                     setErrorMotivoCancelacion("");
                     setMostrarModalCancelar(true);
                   }}
+                />
+              )}
+            {subevento?.recinto &&
+              subevento.recinto.nombre !== "Auditorio Principal" &&
+              subevento.recinto.nombre !== "Sala 14" && (
+                <Button
+                  text="Ver detalles de laboratorio"
+                  variant="primary"
+                  type="button"
+                  onClick={() => setMostrarModal(true)}
                 />
               )}
 
