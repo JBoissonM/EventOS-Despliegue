@@ -41,15 +41,14 @@ export function Modal({
       onClick={(event) => {
         if (event.target === event.currentTarget) cerrarModal();
       }}
-      className={`rounded-md m-auto w-[calc(100%-2rem)] ${
-        ancho === "amplio" ? "max-w-2xl" : "max-w-lg"
-      } border-0 bg-gray p-0 text-gray-900 backdrop:bg-black/50`}
+      className={`rounded-md m-auto w-[calc(100%-2rem)] ${ancho === "amplio" ? "max-w-2xl" : "max-w-lg"
+        } border-0 bg-gray p-0 text-gray-900 backdrop:bg-black/50`}
     >
       <div className="bg-white p-6 text-left shadow-xl sm:p-8 space-y-5">
         <h2 id={tituloId} className="text-2xl font-merriweather font-bold">
           {titulo}
         </h2>
-        <p id={contenidoId} className="mb-6 font-merriweather text-justify">
+        <p id={contenidoId} className="mb-6 font-merriweather text-left">
           {contenido}
         </p>
         {children}

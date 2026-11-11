@@ -32,12 +32,8 @@ import {
   ModalMotivo,
 } from "./organism/ModalMotivo";
 import { ModalMotivoUrgente } from "../../components/organisms/ModalMotivoUrgente/ModalMotivoUrgente";
-
-type TablaPonente = {
-  id: number;
-  nombre: string;
-  correo: string;
-};
+import { ModalPonentes } from "./organism/ModalPonentes";
+import type { TablaPonente } from "./organism/ModalPonentes";
 
 function separarMotivoUrgencia(motivo: string) {
   const indice = motivo.lastIndexOf(MARCADOR_MOTIVO_URGENCIA);
@@ -70,22 +66,7 @@ function diasHastaFecha(fecha: string): number | null {
   return (fechaUTC - hoyUTC) / 86_400_000;
 }
 
-const columnasPonente: Columna<TablaPonente>[] = [
-  {
-    id: "nombre",
-    encabezado: "Nombre",
-    render: (ponente) => ponente.nombre,
-    className: "min-w-[12rem] break-all px-3",
-  },
-  {
-    id: "acciones",
-    encabezado: "Acción",
-    render: () => {
-      return <Button text="Eliminar" variant="primary" type="button" />;
-    },
-    className: "min-w-[8rem] max-w-[8rem] break-all px-3",
-  },
-];
+
 
 const columnasLogistica: Columna<PersonalLogisticaItem>[] = [
   {
@@ -172,6 +153,7 @@ export function EditarEvento() {
   const [mostrarModalRegreso, setMostrarModalRegreso] = useState(false);
   const [intentoMotivo, setIntentoMotivo] = useState(false);
   const [motivoUrgente, setMotivoUrgente] = useState("");
+  const [modalPontente, setModalPonente] = useState(false);
   const [logistica, setLogistica] = useState<EditLogisticsValues>({
     idRecinto: "",
     fecha: "",
@@ -182,10 +164,13 @@ export function EditarEvento() {
   });
   const [logisticaInicial, setLogisticaInicial] =
     useState<EditLogisticsValues | null>(null);
-  const [archivoPoster, setArchivoPoster] = useState<File | null>(null);
 
+  const [archivoPoster, setArchivoPoster] = useState<File | null>(null);
   const usuarioGuardado = JSON.parse(localStorage.getItem("usuario") || "{}");
   const esSubdireccion = usuarioGuardado?.tipoCuenta === "Subdirección";
+  const [ponentes, setPonentes] = useState<TablaPonente[]>([]);
+  const [ponentesIniciales, setPonentesIniciales] = useState<TablaPonente[]>([]);
+  const [ponenteAEliminar, setPonenteAEliminar] = useState<TablaPonente | null>(null);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -247,8 +232,8 @@ export function EditarEvento() {
         const subeventoSeleccionado =
           idSubEventoSeleccionado !== undefined
             ? detalle.subEventos.find(
-                (item) => item.idSubEvento === idSubEventoSeleccionado,
-              )
+              (item) => item.idSubEvento === idSubEventoSeleccionado,
+            )
             : undefined;
         const propuestaSubevento =
           subeventoSeleccionado &&
@@ -257,13 +242,13 @@ export function EditarEvento() {
           );
         setNombre(
           propuestaSubevento?.nombre ??
-            subeventoSeleccionado?.nombre ??
-            detalle.nombre,
+          subeventoSeleccionado?.nombre ??
+          detalle.nombre,
         );
         setDescripcion(
           propuestaSubevento?.descripcion ??
-            subeventoSeleccionado?.descripcion ??
-            detalle.descripcion,
+          subeventoSeleccionado?.descripcion ??
+          detalle.descripcion,
         );
         setJustificacion(detalle.justificacion ?? "");
         setAlcance(detalle.idAlcance ?? "");
@@ -282,6 +267,25 @@ export function EditarEvento() {
         setLogisticaInicial(valoresConMotivo);
         setMotivoUrgente(motivos.motivoUrgente);
         setArchivoPoster(null);
+
+        const subeventoActual =
+          idSubEventoSeleccionado !== undefined
+            ? detalle.subEventos.find(
+              (item) => item.idSubEvento === idSubEventoSeleccionado,
+            )
+            : detalle.subEventos[0];
+
+        const ponentesIniciales: TablaPonente[] =
+          subeventoActual?.ponentes.map((ponente) => ({
+            id: ponente.idPonente,
+            nombre: [ponente.nombre, ponente.apellidoPa, ponente.apellidoMa]
+              .filter(Boolean)
+              .join(" "),
+            correo: ponente.correo,
+          })) ?? [];
+
+        setPonentes(ponentesIniciales);
+        setPonentesIniciales(ponentesIniciales);
       } catch (errorCarga) {
         if (!controller.signal.aborted) {
           setError(obtenerMensajeError(errorCarga));
@@ -341,22 +345,56 @@ export function EditarEvento() {
 
   const subevento = idSubEventoSeleccionado
     ? evento?.subEventos.find(
-        (item) => item.idSubEvento === idSubEventoSeleccionado,
-      ) ?? null
+      (item) => item.idSubEvento === idSubEventoSeleccionado,
+    ) ?? null
     : evento?.subEventos[0] ?? null;
   const subeventoPropuesto = idSubEventoSeleccionado
     ? evento?.solicitudModificacionPendiente?.subeventosPropuestos.find(
-        (item) => item.idSubEvento === idSubEventoSeleccionado,
-      )
+      (item) => item.idSubEvento === idSubEventoSeleccionado,
+    )
     : undefined;
-  const ponentes: TablaPonente[] =
-    subevento?.ponentes.map((ponente) => ({
-      id: ponente.idPonente,
-      nombre: [ponente.nombre, ponente.apellidoPa, ponente.apellidoMa]
-        .filter(Boolean)
-        .join(" "),
-      correo: ponente.correo,
-    })) ?? [];
+
+
+
+  const ponentesModificados = Boolean(
+    ponentes.length !== ponentesIniciales.length ||
+    ponentes.some(
+      (p, i) =>
+        p.correo !== ponentesIniciales[i]?.correo ||
+        p.nombre !== ponentesIniciales[i]?.nombre,
+    ),
+  );
+
+  const columnasPonente: Columna<TablaPonente>[] = [
+    {
+      id: "nombre",
+      encabezado: "Nombre",
+      render: (ponente) => ponente.nombre,
+      className: "min-w-[12rem] break-all px-3",
+    },
+    {
+      id: "correo",
+      encabezado: "Correo",
+      render: (ponente) => ponente.correo,
+      className: "min-w-[12rem] break-all px-3",
+    },
+    {
+      id: "acciones",
+      encabezado: "Acción",
+      render: (ponente) => {
+        return (
+          <Button
+            text="Eliminar"
+            variant="danger"
+            type="button"
+            onClick={() => setPonenteAEliminar(ponente)}
+          />
+        );
+      },
+      className: "min-w-[8rem] max-w-[8rem] break-all px-3",
+    },
+  ];
+
   const personalLogistica = evento?.personalLogistica ?? [];
   const recintoActual =
     recintos.find(
@@ -368,14 +406,16 @@ export function EditarEvento() {
     evento &&
     (idSubEventoSeleccionado === undefined
       ? nombre !== evento.nombre ||
-        descripcion !== evento.descripcion ||
-        justificacion !== (evento.justificacion ?? "") ||
-        alcance !== (evento.idAlcance ?? "") ||
-        archivoPoster
+      descripcion !== evento.descripcion ||
+      justificacion !== (evento.justificacion ?? "") ||
+      alcance !== (evento.idAlcance ?? "") ||
+      archivoPoster ||
+      ponentesModificados
       : subevento &&
-        (nombre !== (subeventoPropuesto?.nombre ?? subevento.nombre) ||
-          descripcion !==
-            (subeventoPropuesto?.descripcion ?? subevento.descripcion))),
+      (nombre !== (subeventoPropuesto?.nombre ?? subevento.nombre) ||
+        descripcion !==
+        (subeventoPropuesto?.descripcion ?? subevento.descripcion) ||
+        ponentesModificados)),
   );
   const camposLogisticosModificados = Boolean(
     subevento &&
@@ -388,11 +428,11 @@ export function EditarEvento() {
   );
   const cambioLogisticoOperativo = Boolean(
     subevento &&
-      logisticaInicial &&
-      (logistica.idRecinto !== logisticaInicial.idRecinto ||
-        logistica.fecha !== logisticaInicial.fecha ||
-        logistica.horaInicio !== logisticaInicial.horaInicio ||
-        logistica.horaFin !== logisticaInicial.horaFin),
+    logisticaInicial &&
+    (logistica.idRecinto !== logisticaInicial.idRecinto ||
+      logistica.fecha !== logisticaInicial.fecha ||
+      logistica.horaInicio !== logisticaInicial.horaInicio ||
+      logistica.horaFin !== logisticaInicial.horaFin),
   );
   const diasParaFechaPropuesta = diasHastaFecha(logistica.fecha);
   const esModificacionUrgente =
@@ -463,25 +503,42 @@ export function EditarEvento() {
     horaFin: !logistica.horaFin
       ? "Selecciona la hora final"
       : logistica.horaInicio &&
-          logistica.horaFin &&
-          logistica.horaInicio >= logistica.horaFin
+        logistica.horaFin &&
+        logistica.horaInicio >= logistica.horaFin
         ? "La hora de finalización debe ser posterior a la de inicio"
         : undefined,
   };
   const hayErroresLogistica = Boolean(
     erroresLogistica.idRecinto ||
-      erroresLogistica.fecha ||
-      erroresLogistica.horaInicio ||
-      erroresLogistica.horaFin,
+    erroresLogistica.fecha ||
+    erroresLogistica.horaInicio ||
+    erroresLogistica.horaFin,
   );
   const hayErroresGenerales = Boolean(
     !nombre.trim() ||
-      nombre.trim().length > 150 ||
-      !descripcion.trim() ||
-      descripcion.trim().length > 500 ||
-      (idSubEventoSeleccionado === undefined &&
-        (!justificacion.trim() || justificacion.trim().length > 500)),
+    nombre.trim().length > 150 ||
+    !descripcion.trim() ||
+    descripcion.trim().length > 500 ||
+    (idSubEventoSeleccionado === undefined &&
+      (!justificacion.trim() || justificacion.trim().length > 500)),
   );
+
+  useEffect(() => {
+    const hayErrores =
+      intentoGuardar &&
+      (hayErroresGenerales ||
+        (camposLogisticosModificados && hayErroresLogistica));
+
+    if (mensaje || hayErrores) {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  }, [
+    mensaje,
+    intentoGuardar,
+    hayErroresGenerales,
+    camposLogisticosModificados,
+    hayErroresLogistica,
+  ]);
 
   async function guardarCambios(confirmarMotivoLogistica = false) {
     setIntentoGuardar(true);
@@ -499,6 +556,7 @@ export function EditarEvento() {
 
     if (!informacionGeneralModificada && !logisticaModificada) {
       setMensaje("No hay cambios para guardar.");
+      window.scrollTo({ top: 0, behavior: "smooth" });
       return;
     }
 
@@ -552,6 +610,7 @@ export function EditarEvento() {
     try {
       if (informacionGeneralModificada) {
         const payload: ActualizarInfoGeneralPayload = {};
+
         if (idSubEventoSeleccionado === undefined) {
           if (nombre !== evento.nombre) payload.nombre = nombre.trim();
           if (descripcion !== evento.descripcion) payload.descripcion = descripcion.trim();
@@ -574,10 +633,36 @@ export function EditarEvento() {
           }
         }
 
+
+
+        if (ponentesModificados) {
+          payload.ponentes = ponentes.map((p) => {
+            const partes = p.nombre.trim().split(/\s+/);
+            const primerNombre = partes[0] || "";
+            const apellidoPaterno = partes[1] || primerNombre;
+            const apellidoMaterno = partes.slice(2).join(" ") || null;
+
+            return {
+              idPonente: p.id > 1_000_000_000 ? undefined : p.id,
+              nombre: primerNombre,
+              apellidoPa: apellidoPaterno,
+              apellidoMa: apellidoMaterno,
+              correo: p.correo.trim().toLowerCase(),
+              idSubEvento: subevento.idSubEvento,
+            };
+          });
+        }
+
         if (archivoPoster) {
           const datos = new FormData();
           for (const [campo, valor] of Object.entries(payload)) {
-            if (valor !== undefined) datos.append(campo, String(valor));
+            if (valor !== undefined) {
+              if (campo === "ponentes") {
+                datos.append(campo, JSON.stringify(valor));
+              } else {
+                datos.append(campo, String(valor));
+              }
+            }
           }
           datos.append("poster", archivoPoster);
           await apiRequest(`eventos/${idEvento}/info-general`, {
@@ -661,8 +746,8 @@ export function EditarEvento() {
       };
       const subeventoActualizado = idSubEventoSeleccionado
         ? detalleActualizado.subEventos.find(
-            (item) => item.idSubEvento === idSubEventoSeleccionado,
-          )
+          (item) => item.idSubEvento === idSubEventoSeleccionado,
+        )
         : undefined;
       const propuestaActualizada =
         subeventoActualizado &&
@@ -672,13 +757,13 @@ export function EditarEvento() {
       setEvento(detalleActualizado);
       setNombre(
         propuestaActualizada?.nombre ??
-          subeventoActualizado?.nombre ??
-          detalleActualizado.nombre,
+        subeventoActualizado?.nombre ??
+        detalleActualizado.nombre,
       );
       setDescripcion(
         propuestaActualizada?.descripcion ??
-          subeventoActualizado?.descripcion ??
-          detalleActualizado.descripcion,
+        subeventoActualizado?.descripcion ??
+        detalleActualizado.descripcion,
       );
       setJustificacion(detalleActualizado.justificacion ?? "");
       setAlcance(detalleActualizado.idAlcance ?? "");
@@ -686,6 +771,18 @@ export function EditarEvento() {
       setLogisticaInicial(valoresActualizadosConMotivo);
       setMotivoUrgente(motivosActualizados.motivoUrgente);
       setArchivoPoster(null);
+
+      const ponentesGuardados: TablaPonente[] =
+        subeventoActualizado?.ponentes.map((ponente) => ({
+          id: ponente.idPonente,
+          nombre: [ponente.nombre, ponente.apellidoPa, ponente.apellidoMa]
+            .filter(Boolean)
+            .join(" "),
+          correo: ponente.correo,
+        })) ?? [];
+      setPonentes(ponentesGuardados);
+      setPonentesIniciales(ponentesGuardados);
+
       setMensaje(
         logisticaModificada
           ? esSubdireccion
@@ -813,11 +910,9 @@ export function EditarEvento() {
           {evento.solicitudModificacionPendiente && (
             <div
               role="status"
-              className="space-y-2 rounded-lg border border-amber-300 bg-amber-50 p-5 text-amber-950 shadow-sm">
+              className="space-y-2 rounded-lg border border-amber-300 bg-amber-50 p-5 text-amber-950 shadow-md">
               <div className="flex flex-wrap items-center gap-2">
-                <span className="inline-flex items-center rounded-md bg-amber-200 px-2.5 py-0.5 text-xs font-semibold text-amber-900">
-                  Solicitud en Revisión
-                </span>
+                <Badge variant="warning">Solicitud en revisión</Badge>
                 <h2 className="text-base font-bold text-amber-950">
                   Modificación logística pendiente de evaluación por Subdirección
                 </h2>
@@ -925,8 +1020,58 @@ export function EditarEvento() {
                       text="Agregar ponente"
                       variant="primary"
                       type="button"
+                      onClick={() => setModalPonente(true)}
                     />
                   </div>
+
+                  {modalPontente && (
+                    <ModalPonentes
+                      mostrarModal={modalPontente}
+                      cerrarModal={() => setModalPonente(false)}
+                      guardar={(nuevosPonentes) => {
+                        setPonentes((prev) => [...prev, ...nuevosPonentes]);
+                      }}
+                    />
+                  )}
+
+                  {ponenteAEliminar && (
+                    <Modal
+                      mostrarModal={Boolean(ponenteAEliminar)}
+                      titulo="Confirmar eliminación"
+                      cerrarModal={() => setPonenteAEliminar(null)}
+                    >
+                      <div className="space-y-4">
+                        <p className="text-gray-700">
+                          ¿Estás seguro de que deseas eliminar al ponente{" "}
+                          <strong className="text-gray-900">
+                            {ponenteAEliminar.nombre}
+                          </strong>
+                          ?
+                        </p>
+                        <div className="flex justify-end gap-3 pt-2">
+                          <Button
+                            text="Cancelar"
+                            variant="secondary"
+                            type="button"
+                            onClick={() => setPonenteAEliminar(null)}
+                          />
+                          <Button
+                            text="Eliminar"
+                            variant="danger"
+                            type="button"
+                            onClick={() => {
+                              setPonentes((actuales) =>
+                                actuales.filter(
+                                  (p) => p.id !== ponenteAEliminar.id,
+                                ),
+                              );
+                              setPonenteAEliminar(null);
+                            }}
+                          />
+                        </div>
+                      </div>
+                    </Modal>
+                  )}
 
                   {idSubEventoSeleccionado === undefined && (
                     <div id="contenedorLogistica" className="space-y-5">

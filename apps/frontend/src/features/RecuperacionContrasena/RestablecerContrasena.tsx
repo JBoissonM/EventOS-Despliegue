@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router";
+import { API_BASE_URL } from "../../lib/apiClient";
 import { Button } from "../../components/atoms/Button/Button";
 import { PasswordField } from "../../components/molecules/PasswordField";
 import { AuthLayout } from "../../components/templates/AuthLayout";
@@ -39,7 +40,7 @@ export function RestablecerContrasena() {
       }
 
       try {
-        const response = await fetch(`http://localhost:3000/api/auth/restablecer-contrasena/validar?token=${encodeURIComponent(token)}`);
+        const response = await fetch(`${API_BASE_URL}/auth/restablecer-contrasena/validar?token=${encodeURIComponent(token)}`);
         const data = await response.json();
 
         if (!response.ok || !data.valido) {
@@ -110,7 +111,7 @@ export function RestablecerContrasena() {
     setLoading(true);
 
     try {
-      const response = await fetch("http://localhost:3000/api/auth/restablecer-contrasena", {
+      const response = await fetch(`${API_BASE_URL}/auth/restablecer-contrasena`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

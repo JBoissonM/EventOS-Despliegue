@@ -1,8 +1,10 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
+import { API_BASE_URL } from "../../lib/apiClient";
 import { Button } from "../../components/atoms/Button/Button";
 import { Table, type Columna } from "../../components/organisms/Table/Table";
 import Badge from "../../components/atoms/Badge/Badge";
+import { TriangleAlert } from "lucide-react";
 
 type SolicitudTabla = {
   idEvento: number;
@@ -11,6 +13,7 @@ type SolicitudTabla = {
   fechaInicio: string | null;
   fechaCierre: string | null;
   urgente: boolean;
+  esModificacion: boolean;
 };
 
 function esRegistro(valor: unknown): valor is Record<string, unknown> {
@@ -93,6 +96,14 @@ function convertirSolicitud(valor: unknown): SolicitudTabla {
     );
   }
 
+
+  const esModificacion = valor.esModificacion;
+  if (typeof esModificacion !== "boolean") {
+    throw new Error(
+      'La respuesta no contiene un booleano válido para "esModificacion".',
+    );
+  }
+
   return {
     idEvento: obtenerNumero(valor, "idEvento"),
     nombre: obtenerTexto(valor, "nombre"),
@@ -100,6 +111,7 @@ function convertirSolicitud(valor: unknown): SolicitudTabla {
     fechaInicio: fechas[0] ?? null,
     fechaCierre: fechas[fechas.length - 1] ?? null,
     urgente,
+    esModificacion
   };
 }
 
@@ -141,7 +153,7 @@ export function ListadoSolicitudes() {
 
       try {
         const response = await fetch(
-          "http://localhost:3000/api/solicitudes?estado=Pendiente",
+          `${API_BASE_URL}/solicitudes?estado=Pendiente`,
           {
             headers: {
               Authorization: `Bearer ${token}`,
@@ -180,27 +192,21 @@ export function ListadoSolicitudes() {
     {
       id: "prioridad",
       encabezado: "Prioridad",
+      className: "text-center",
       render: (solicitud) => (
-        <Badge variant={solicitud.urgente === true ? "error" : "success"}>
-          {solicitud.urgente == true && (
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="24"
-              height="24"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              className="lucide lucide-square-exclamation-point preview-icon">
-              <rect width="18" height="18" x="3" y="3" rx="2" />
-              <line x1="12" x2="12" y1="8" y2="12" />
-              <line x1="12" x2="12.01" y1="16" y2="16" />
-            </svg>
+        <div className="flex flex-col gap-3">
+          <Badge variant={solicitud.urgente === true ? "error" : "success"}>
+            <div className="flex gap-1">
+              {solicitud.urgente == true && (
+                <TriangleAlert size={16}></TriangleAlert>
+              )}
+              {solicitud.urgente === true ? "Urgente" : "Normal"}
+            </div>
+          </Badge>
+          {solicitud.esModificacion && (
+            <Badge variant="warning">Modificación</Badge>
           )}
-          {solicitud.urgente === true ? "Urgente" : "Normal"}
-        </Badge>
+        </div>
       ),
     },
 

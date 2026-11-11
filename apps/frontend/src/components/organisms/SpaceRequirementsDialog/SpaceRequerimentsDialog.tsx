@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { API_BASE_URL } from "../../../lib/apiClient";
 import Badge from "../../atoms/Badge/Badge";
 import Button from "../../atoms/Button/Button";
 import { Modal } from "../../molecules/Modal";
@@ -69,7 +70,7 @@ export function SpaceRequerimentsDialog({
 
       try {
         const response = await fetch(
-          `http://localhost:3000/api/espacios/${id}/equipos`,
+          `${API_BASE_URL}/espacios/${id}/equipos`,
           {
             headers: {
               Authorization: `Bearer ${token}`,

@@ -799,8 +799,9 @@ export class OrganizadorService {
       ? `${organizador.nombre} ${organizador.apellidoPa}`.trim()
       : 'Organizador';
 
-    const frontendBaseUrl =
-      process.env.FRONTEND_URL || 'http://localhost:5173';
+    const frontendBaseUrl = (
+      process.env.FRONTEND_URL ?? 'http://localhost:5173'
+    ).replace(/\/+$/, '');
     const enlaceEvento = `${frontendBaseUrl}/eventos/${idEvento}`;
 
     void this.mailService.enviarInvitacionEventoPrivado({
@@ -892,8 +893,9 @@ export class OrganizadorService {
         ? `${organizador.nombre} ${organizador.apellidoPa}`.trim()
         : 'Organizador';
 
-      const frontendBaseUrl =
-        process.env.FRONTEND_URL || 'http://localhost:5173';
+      const frontendBaseUrl = (
+        process.env.FRONTEND_URL ?? 'http://localhost:5173'
+      ).replace(/\/+$/, '');
       const enlaceEvento = `${frontendBaseUrl}/eventos/${idEvento}`;
 
       void this.mailService.enviarInvitacionEventoPrivado({
@@ -1047,8 +1049,9 @@ export class OrganizadorService {
       secret: process.env.JWT_PASS || 'clave_secreta',
     });
 
-    const frontendBaseUrl =
-      process.env.FRONTEND_URL || 'http://localhost:5173';
+    const frontendBaseUrl = (
+      process.env.FRONTEND_URL ?? 'http://localhost:5173'
+    ).replace(/\/+$/, '');
     const enlaceActivacion = `${frontendBaseUrl}/activar-logistica?token=${token}`;
 
     const organizador = await this.usuarioRepository.findOneBy({

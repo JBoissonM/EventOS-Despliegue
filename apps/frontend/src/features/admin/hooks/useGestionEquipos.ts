@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate, useParams } from "react-router";
+import { API_BASE_URL } from "../../../lib/apiClient";
 
 export interface Equipo {
   idEstadoEquipo: number;
@@ -28,7 +29,7 @@ export function useGestionEquipos() {
     if (!id) return;
     try {
       setLoading(true);
-      const response = await fetch(`http://localhost:3000/api/espacios/${id}/equipos`, {
+      const response = await fetch(`${API_BASE_URL}/espacios/${id}/equipos`, {
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${getToken()}`,
@@ -76,7 +77,7 @@ export function useGestionEquipos() {
     }
 
     try {
-      const response = await fetch(`http://localhost:3000/api/espacios/${id}/equipos/${equipoPendiente.idEstadoEquipo}/estado`, {
+      const response = await fetch(`${API_BASE_URL}/espacios/${id}/equipos/${equipoPendiente.idEstadoEquipo}/estado`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
@@ -103,7 +104,7 @@ export function useGestionEquipos() {
     if (!equipoPendiente || !id) return;
 
     try {
-      const responseEquipo = await fetch(`http://localhost:3000/api/espacios/${id}/equipos/${equipoPendiente.idEstadoEquipo}/estado`, {
+      const responseEquipo = await fetch(`${API_BASE_URL}/espacios/${id}/equipos/${equipoPendiente.idEstadoEquipo}/estado`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
@@ -117,7 +118,7 @@ export function useGestionEquipos() {
         throw new Error(dataEquipo.message || "Error al actualizar el estado del equipo.");
       }
 
-      const responseEspacio = await fetch(`http://localhost:3000/api/espacios/${id}/estado`, {
+      const responseEspacio = await fetch(`${API_BASE_URL}/espacios/${id}/estado`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",

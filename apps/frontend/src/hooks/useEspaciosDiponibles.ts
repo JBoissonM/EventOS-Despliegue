@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { API_BASE_URL } from "../lib/apiClient";
 
 export interface EspacioDisponible {
   id: number;
@@ -19,7 +20,7 @@ export function useEspaciosDisponibles() {
         setLoading(true);
         const token = localStorage.getItem("token");
 
-        const response = await fetch("http://localhost:3000/api/espacios/disponibles", {
+        const response = await fetch(`${API_BASE_URL}/espacios/disponibles`, {
           method: "GET",
           headers: {
             "Content-Type": "application/json",

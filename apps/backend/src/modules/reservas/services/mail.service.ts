@@ -656,4 +656,100 @@ export class MailService {
       );
     }
   }
+
+  async enviarCorreoVerificacionAprobada(datos: {
+    destinatario: string;
+    nombreUsuario: string;
+    perfilVerificado: string;
+  }): Promise<void> {
+    const html = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden;">
+        <div style="background-color: #6b1d2f; color: #ffffff; padding: 20px; text-align: center;">
+          <h2 style="margin: 0;">Verificación de Cuenta Aprobada - EventOS</h2>
+        </div>
+        
+        <div style="padding: 24px; color: #334155;">
+          <p>Hola <strong>${datos.nombreUsuario}</strong>,</p>
+          <p>Te informamos que Subdirección ha revisado tu documentación probatoria y tu solicitud de verificación de identidad ha sido <strong>aprobada</strong>.</p>
+          
+          <div style="margin: 20px 0; padding: 16px; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px;">
+            <p style="margin: 0 0 8px 0;"><strong>Estado de la cuenta:</strong> Verificado</p>
+            <p style="margin: 0 0 8px 0;"><strong>Perfil validado:</strong> ${datos.perfilVerificado}</p>
+            <p style="margin: 0;"><strong>Vigencia:</strong> 3 meses (90 días naturales)</p>
+          </div>
+
+          <p>Ya puedes ingresar a tu cuenta en EventOS y hacer uso de todas las funciones correspondientes a tu perfil verificado.</p>
+
+          <p style="font-size: 12px; color: #64748b; margin-top: 24px; border-top: 1px solid #e2e8f0; padding-top: 12px;">
+            EventOS — Escuela Superior de Cómputo (IPN).
+          </p>
+        </div>
+      </div>
+    `;
+
+    try {
+      await this.transporter.sendMail({
+        from: process.env.SMTP_FROM || process.env.SMTP_USER,
+        to: datos.destinatario,
+        subject: 'Tu solicitud de verificación de cuenta ha sido aprobada - EventOS',
+        html,
+      });
+      this.logger.log(
+        `Correo de verificación aprobada enviado a ${datos.destinatario}`,
+      );
+    } catch (error) {
+      this.logger.error(
+        `Fallo al enviar correo de verificación aprobada a ${datos.destinatario}`,
+        error,
+      );
+    }
+  }
+
+  async enviarCorreoVerificacionRechazada(datos: {
+    destinatario: string;
+    nombreUsuario: string;
+    perfilSolicitado: string;
+    motivoRechazo: string;
+  }): Promise<void> {
+    const html = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden;">
+        <div style="background-color: #6b1d2f; color: #ffffff; padding: 20px; text-align: center;">
+          <h2 style="margin: 0;">Resultado de Solicitud de Verificación - EventOS</h2>
+        </div>
+        
+        <div style="padding: 24px; color: #334155;">
+          <p>Hola <strong>${datos.nombreUsuario}</strong>,</p>
+          <p>Te informamos que Subdirección ha revisado tu solicitud de verificación para el perfil de <strong>${datos.perfilSolicitado}</strong> y en esta ocasión ha sido <strong>rechazada</strong>.</p>
+          
+          <div style="margin: 20px 0; padding: 16px; background-color: #fef2f2; border-left: 4px solid #dc2626; border-radius: 4px; color: #991b1b;">
+            <p style="margin: 0 0 6px 0; font-weight: bold;">Motivo del rechazo:</p>
+            <p style="margin: 0;">${datos.motivoRechazo}</p>
+          </div>
+
+          <p>Puedes ingresar nuevamente a la sección de <strong>Mi Perfil</strong> en EventOS para enviar una nueva solicitud adjuntando tu documento probatorio corregido en formato PDF.</p>
+
+          <p style="font-size: 12px; color: #64748b; margin-top: 24px; border-top: 1px solid #e2e8f0; padding-top: 12px;">
+            EventOS — Escuela Superior de Cómputo (IPN).
+          </p>
+        </div>
+      </div>
+    `;
+
+    try {
+      await this.transporter.sendMail({
+        from: process.env.SMTP_FROM || process.env.SMTP_USER,
+        to: datos.destinatario,
+        subject: 'Actualización sobre tu solicitud de verificación de cuenta - EventOS',
+        html,
+      });
+      this.logger.log(
+        `Correo de verificación rechazada enviado a ${datos.destinatario}`,
+      );
+    } catch (error) {
+      this.logger.error(
+        `Fallo al enviar correo de verificación rechazada a ${datos.destinatario}`,
+        error,
+      );
+    }
+  }
 }

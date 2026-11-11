@@ -17,6 +17,7 @@ import {
   OrganizerSubeventCard,
   type OrganizerSubeventCardData,
 } from "./components/OrganizerSubeventCard";
+import { Badge } from "../../components/atoms/Badge/Badge";
 
 interface EventoSubeventosVista {
   idEvento: number;
@@ -151,9 +152,9 @@ function convertirEvento(valor: unknown): EventoSubeventosVista {
   if (
     esRegistro(valor.solicitudModificacionPendiente) &&
     typeof valor.solicitudModificacionPendiente.idSolicitudModificacion ===
-      "number" &&
+    "number" &&
     typeof valor.solicitudModificacionPendiente.motivoModificacion ===
-      "string" &&
+    "string" &&
     typeof valor.solicitudModificacionPendiente.estado === "string"
   ) {
     solicitudModificacionPendiente = {
@@ -169,20 +170,20 @@ function convertirEvento(valor: unknown): EventoSubeventosVista {
     valor.personalLogistica,
   )
     ? valor.personalLogistica
-        .filter(
-          (item): item is Record<string, unknown> =>
-            esRegistro(item) &&
-            typeof item.idUsuario === "number" &&
-            typeof item.nombreCompleto === "string" &&
-            typeof item.correo === "string" &&
-            typeof item.tipoCuenta === "string",
-        )
-        .map((item) => ({
-          idUsuario: item.idUsuario as number,
-          nombreCompleto: item.nombreCompleto as string,
-          correo: item.correo as string,
-          tipoCuenta: item.tipoCuenta as string,
-        }))
+      .filter(
+        (item): item is Record<string, unknown> =>
+          esRegistro(item) &&
+          typeof item.idUsuario === "number" &&
+          typeof item.nombreCompleto === "string" &&
+          typeof item.correo === "string" &&
+          typeof item.tipoCuenta === "string",
+      )
+      .map((item) => ({
+        idUsuario: item.idUsuario as number,
+        nombreCompleto: item.nombreCompleto as string,
+        correo: item.correo as string,
+        tipoCuenta: item.tipoCuenta as string,
+      }))
     : [];
 
   return {
@@ -334,11 +335,9 @@ export function AdministracionEventoConSubeventos() {
           {datosEvento.idEstadoEvento === EstadoEvento.RECHAZADO && (
             <div
               role="alert"
-              className="space-y-2 border border-gray-200 bg-white p-5 shadow-md">
+              className="space-y-2 border border-red-200 bg-red-50 p-5 shadow-md">
               <div className="flex items-center gap-2">
-                <span className="inline-flex items-center rounded-md bg-red-100 px-2.5 py-0.5 text-xs font-semibold text-red-800">
-                  Solicitud Rechazada
-                </span>
+                <Badge variant="error">Solicitud rechazada</Badge>
                 <h2 className="font-bold text-gray-900">
                   Motivo de rechazo
                 </h2>

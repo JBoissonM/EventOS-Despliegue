@@ -1,6 +1,7 @@
 import { useState, useRef } from "react";
 import ReCAPTCHA from "react-google-recaptcha";
 import { useNavigate, useSearchParams } from "react-router";
+import { API_BASE_URL } from "../../../lib/apiClient";
 import { getEventReturnPath } from "../../event-details/utils/eventReturnUrl";
 
 export function useLoginForm() {
@@ -98,7 +99,7 @@ export function useLoginForm() {
     setLoading(true);
 
     try {
-      const response = await fetch("http://localhost:3000/api/auth/login", {
+      const response = await fetch(`${API_BASE_URL}/auth/login`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

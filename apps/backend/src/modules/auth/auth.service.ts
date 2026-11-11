@@ -149,7 +149,7 @@ export class AuthService {
       expiresIn: '15m',
     });
 
-    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+    const frontendUrl = (process.env.FRONTEND_URL ?? 'http://localhost:5173').replace(/\/+$/, '');
     // Ruta hacia la pantalla de confirmación de registro en el frontend
     const enlaceConfirmacion = `${frontendUrl}/confirmar-registro?token=${encodeURIComponent(token)}`;
 
@@ -286,8 +286,11 @@ export class AuthService {
       );
     }
 
+    // Si la cuenta está deshabilitada, se informa al usuario que puede contactar al administrador
     if (!usuario.estatus) {
-      throw new UnauthorizedException('La cuenta se encuentra inactiva.');
+      throw new UnauthorizedException(
+        'La cuenta se encuentra deshabilitada. Si consideras que se trata de un error, contacta al administrador para solicitar su habilitación.',
+      );
     }
 
     if (
@@ -392,7 +395,7 @@ export class AuthService {
 
     if (!usuario.estatus) {
       throw new BadRequestException(
-        'La cuenta asociada a este correo se encuentra inactiva.',
+        'La cuenta asociada a este correo se encuentra deshabilitada. Contacta al administrador para solicitar su habilitación.',
       );
     }
 
@@ -408,7 +411,7 @@ export class AuthService {
       expiresIn: '15m',
     });
 
-    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+    const frontendUrl = (process.env.FRONTEND_URL ?? 'http://localhost:5173').replace(/\/+$/, '');
     // Lo mande a restablecer-contrasena, si el frontend cambia la ruta, solo hay que cambiarla aquí
     const enlaceRecuperacion = `${frontendUrl}/restablecer-contrasena?token=${encodeURIComponent(token)}`;
 

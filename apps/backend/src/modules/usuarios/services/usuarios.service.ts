@@ -9,6 +9,7 @@ import { Repository, DataSource } from 'typeorm';
 import { UsuarioEntity } from '../../auth/entities/usuario.entity';
 import { VerificacionEntity } from '../../auth/entities/verificacion.entity';
 import { RolEntity } from '../entities/rol.entity';
+import { MailService } from '../../reservas/services/mail.service';
 import {
   EstadoVerificacion,
   TipoCuentaUsuario,
@@ -40,6 +41,7 @@ export class UsuariosService {
     @InjectRepository(RolEntity)
     private readonly rolRepository: Repository<RolEntity>,
     private readonly dataSource: DataSource,
+    private readonly mailService: MailService,
   ) {}
 
   // Consulta el Perfil y evalúa caducidad de 3 meses (90 días) o si está Pendiente de Subdirección
@@ -225,9 +227,10 @@ export class UsuariosService {
     });
   }
 
-  //Listar solicitudes de verificación
+  //Listar solicitudes de verificación y filtrar por rol o nombre del solicitante
   async listarSolicitudesVerificacion(
     soloPendientes = true,
+    buscar?: string,
   ): Promise<SolicitudVerificacionItem[]> {
     const verificaciones = await this.verificacionRepository.find({
       order: { fecha: 'DESC', idVerificacion: 'DESC' },
@@ -249,7 +252,7 @@ export class UsuariosService {
       }
     }
 
-    const resultado: SolicitudVerificacionItem[] = [];
+    let resultado: SolicitudVerificacionItem[] = [];
     const hoy = new Date();
     const milisegundosEnTresMeses = 1000 * 60 * 60 * 24 * 90;
 
@@ -277,6 +280,25 @@ export class UsuariosService {
         numeroBoleta: verif.informacionAdicional || null,
         informacionAdicional: verif.informacionAdicional || null,
         archivo: verif.archivo,
+      });
+    }
+
+    if (buscar && buscar.trim() !== '') {
+      const termino = buscar.trim().toLowerCase();
+      resultado = resultado.filter((item) => {
+        const rolMin = item.perfilSolicita.toLowerCase();
+        const coincideDocenteProfesor =
+          (termino === 'docente' || termino === 'profesor') &&
+          (rolMin === 'docente' || rolMin === 'profesor');
+
+        return (
+          coincideDocenteProfesor ||
+          item.nombre.toLowerCase().includes(termino) ||
+          rolMin.includes(termino) ||
+          item.correo.toLowerCase().includes(termino) ||
+          (item.numeroBoleta &&
+            item.numeroBoleta.toLowerCase().includes(termino))
+        );
       });
     }
 
@@ -359,6 +381,16 @@ export class UsuariosService {
     usuario.esVerificado = EstadoVerificacion.VERIFICADO;
     await this.usuarioRepository.save(usuario);
 
+    const nombreUsuario =
+      `${usuario.nombre} ${usuario.apellidoPa} ${usuario.apellidoMa || ''}`.trim();
+    const perfilVerificado = this.mapaRoles[verif.idRol] ?? 'Externo';
+
+    await this.mailService.enviarCorreoVerificacionAprobada({
+      destinatario: usuario.correo,
+      nombreUsuario,
+      perfilVerificado,
+    });
+
     return {
       mensaje: 'Usuario verificado con éxito por Subdirección.',
       idVerificacion: verif.idVerificacion,
@@ -368,8 +400,46 @@ export class UsuariosService {
     };
   }
 
-  // SUBDIRECCIÓN: Botón rojo [Rechazar] Rechaza la solicitud y permite al usuario enviar una nueva
-  async rechazarVerificacionUsuario(id: number) {
+  // SUBDIRECCIÓN: Botón [Rechazar] Rechaza la solicitud, envía correo con el motivo y permite al usuario enviar una nueva
+  async rechazarVerificacionUsuario(
+    id: number,
+    datosRechazo?: {
+      motivo?: string;
+      motivoRechazo?: string;
+      detalle?: string | null;
+      observaciones?: string | null;
+    },
+  ) {
+    const motivoBase = (
+      datosRechazo?.motivo ??
+      datosRechazo?.motivoRechazo ??
+      ''
+    ).trim();
+    const detalleExtra = (
+      datosRechazo?.detalle ??
+      datosRechazo?.observaciones ??
+      ''
+    ).trim();
+
+    if (!motivoBase) {
+      throw new BadRequestException(
+        'Debes seleccionar o indicar el motivo por el cual se rechaza la verificación de la cuenta.',
+      );
+    }
+
+    const esOtroMotivo = motivoBase.toLowerCase() === 'otro motivo';
+    if (esOtroMotivo && !detalleExtra) {
+      throw new BadRequestException(
+        'Debes escribir el detalle u observaciones adicionales cuando seleccionas Otro motivo.',
+      );
+    }
+
+    const motivoFinal = esOtroMotivo
+      ? `Otro motivo: ${detalleExtra}`
+      : detalleExtra
+        ? `${motivoBase}. ${detalleExtra}`
+        : motivoBase;
+
     let verif = await this.verificacionRepository.findOne({
       where: { idVerificacion: id },
     });
@@ -399,16 +469,30 @@ export class UsuariosService {
     // Eliminamos todas las solicitudes pendientes de ese usuario para que pueda volver a subir su documento corregido
     await this.verificacionRepository.delete({ idUsuario: verif.idUsuario });
 
+    if (usuario) {
+      const nombreUsuario =
+        `${usuario.nombre} ${usuario.apellidoPa} ${usuario.apellidoMa || ''}`.trim();
+      const perfilSolicitado = this.mapaRoles[verif.idRol] ?? 'Externo';
+
+      await this.mailService.enviarCorreoVerificacionRechazada({
+        destinatario: usuario.correo,
+        nombreUsuario,
+        perfilSolicitado,
+        motivoRechazo: motivoFinal,
+      });
+    }
+
     return {
       mensaje: 'Solicitud de verificación rechazada.',
       idVerificacion: verif.idVerificacion,
       idUsuario: verif.idUsuario,
       esVerificado: EstadoVerificacion.NO_VERIFICADO,
       estado: 'Rechazado',
+      motivoRechazo: motivoFinal,
     };
   }
 
-  // ADMINISTRADOR: Listar Cuentas del sistema y filtrar por criterio
+  // ADMINISTRADOR: Listar Cuentas del sistema (activas e inactivas) y filtrar por criterio
   async listarCuentasSistema(filtros?: {
     criterio?: string;
     buscar?: string;
@@ -418,7 +502,6 @@ export class UsuariosService {
     estado?: string;
   }): Promise<CuentaSistemaItem[]> {
     const usuarios = await this.usuarioRepository.find({
-      where: { estatus: true },
       order: { idUsuario: 'ASC' },
     });
 
@@ -474,6 +557,16 @@ export class UsuariosService {
         ) {
           return c.esVerificado === EstadoVerificacion.NO_VERIFICADO;
         }
+        if (criterioGeneral === 'activo' || criterioGeneral === 'habilitado') {
+          return c.estatus === true;
+        }
+        if (
+          criterioGeneral === 'inactivo' ||
+          criterioGeneral === 'deshabilitado' ||
+          criterioGeneral === 'inhabilitado'
+        ) {
+          return c.estatus === false;
+        }
         return (
           c.nombre.toLowerCase().includes(criterioGeneral) ||
           c.correo.toLowerCase().includes(criterioGeneral) ||
@@ -511,49 +604,82 @@ export class UsuariosService {
       });
     }
 
+    const terminoEstado = (filtros?.estado || '').trim().toLowerCase();
+    if (terminoEstado && terminoEstado !== 'todos') {
+      cuentas = cuentas.filter((c) => {
+        if (terminoEstado === 'activo' || terminoEstado === 'habilitado') {
+          return c.estatus === true;
+        }
+        if (
+          terminoEstado === 'inactivo' ||
+          terminoEstado === 'deshabilitado' ||
+          terminoEstado === 'inhabilitado'
+        ) {
+          return c.estatus === false;
+        }
+        return c.estado.toLowerCase() === terminoEstado;
+      });
+    }
+
     return cuentas;
   }
 
-  // ADMINISTRADOR Botón [Eliminar]
-  async eliminarCuentaLogica(idUsuarioObjetivo: number, idAdminActor: number) {
+  // ADMINISTRADOR: Habilitar o deshabilitar cuenta de usuario
+  async cambiarEstatusCuenta(
+    idUsuarioObjetivo: number,
+    idAdminActor: number,
+    nuevoEstatus?: boolean,
+  ) {
     const usuario = await this.usuarioRepository.findOne({
       where: { idUsuario: idUsuarioObjetivo },
     });
 
-    if (!usuario || !usuario.estatus) {
-      throw new NotFoundException(
-        'La cuenta de usuario no existe o ya fue eliminada.',
-      );
+    if (!usuario) {
+      throw new NotFoundException('La cuenta de usuario no existe.');
     }
 
-    if (usuario.idUsuario === idAdminActor) {
-      throw new ConflictException(
-        'No puedes eliminar tu propia cuenta de Administrador activa (RN-35).',
-      );
-    }
+    const estatusObjetivo =
+      typeof nuevoEstatus === 'boolean' ? nuevoEstatus : !usuario.estatus;
 
-    if (usuario.tipoCuenta === TipoCuentaUsuario.ADMINISTRADOR) {
-      const adminsActivos = await this.usuarioRepository.count({
-        where: {
-          tipoCuenta: TipoCuentaUsuario.ADMINISTRADOR,
-          estatus: true,
-        },
-      });
-
-      if (adminsActivos <= 1) {
+    if (!estatusObjetivo) {
+      if (usuario.idUsuario === idAdminActor) {
         throw new ConflictException(
-          'El sistema debe garantizar siempre la existencia de al menos una cuenta de Administrador activa (RN-35).',
+          'No puedes deshabilitar tu propia cuenta de Administrador activa.',
         );
+      }
+
+      if (usuario.tipoCuenta === TipoCuentaUsuario.ADMINISTRADOR) {
+        const adminsActivos = await this.usuarioRepository.count({
+          where: {
+            tipoCuenta: TipoCuentaUsuario.ADMINISTRADOR,
+            estatus: true,
+          },
+        });
+
+        if (adminsActivos <= 1 && usuario.estatus) {
+          throw new ConflictException(
+            'El sistema debe garantizar siempre la existencia de al menos una cuenta de Administrador activa.',
+          );
+        }
       }
     }
 
-    usuario.estatus = false;
+    usuario.estatus = estatusObjetivo;
+
+    // Si se vuelve a habilitar la cuenta, se limpian bloqueos temporales previos
+    if (estatusObjetivo) {
+      usuario.intentosFallidos = 0;
+      usuario.bloqueadoHasta = null;
+    }
+
     await this.usuarioRepository.save(usuario);
 
     return {
-      mensaje: 'Operación realizada con éxito (MSG-26).',
-      idUsuarioEliminado: usuario.idUsuario,
-      estado: 'Inactivo',
+      mensaje: usuario.estatus
+        ? 'La cuenta de usuario ha sido habilitada con éxito.'
+        : 'La cuenta de usuario ha sido deshabilitada con éxito.',
+      idUsuario: usuario.idUsuario,
+      estado: usuario.estatus ? 'Activo' : 'Inactivo',
       estatus: usuario.estatus,
     };
   }
@@ -573,10 +699,17 @@ export class UsuariosService {
     });
 
     const usuariosInstitucionales = usuarios.filter((u) => {
-      //Excluir cuentas de Subdirección y Administrador (y al propio Admin en sesión)
+      const tipoNormalizado = (u.tipoCuenta || '')
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '');
+
+      // Excluir cuentas de Subdirección y Administrador (y al propio Admin en sesión)
       if (
         u.tipoCuenta === TipoCuentaUsuario.SUBDIRECCION ||
         u.tipoCuenta === TipoCuentaUsuario.ADMINISTRADOR ||
+        tipoNormalizado === 'subdireccion' ||
+        tipoNormalizado === 'administrador' ||
         (idAdminActor && u.idUsuario === idAdminActor)
       ) {
         return false;
@@ -636,18 +769,27 @@ export class UsuariosService {
       );
     }
 
-    //La cuenta de Admin no puede asignarse como jefe desde la misma cuenta de Admin
+    const tipoNormalizado = (usuario.tipoCuenta || '')
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '');
+
+    // La cuenta de Admin no puede asignarse como jefe desde la misma cuenta de Admin
     if (
       (idAdminActor && usuario.idUsuario === idAdminActor) ||
-      usuario.tipoCuenta === TipoCuentaUsuario.ADMINISTRADOR
+      usuario.tipoCuenta === TipoCuentaUsuario.ADMINISTRADOR ||
+      tipoNormalizado === 'administrador'
     ) {
       throw new ConflictException(
         'La cuenta de Administrador no puede ser asignada como Jefe de Departamento.',
       );
     }
 
-    //La cuenta de Subdirección no puede ser asignada como jefe de departamento
-    if (usuario.tipoCuenta === TipoCuentaUsuario.SUBDIRECCION) {
+    // La cuenta de Subdirección no puede ser asignada como jefe de departamento
+    if (
+      usuario.tipoCuenta === TipoCuentaUsuario.SUBDIRECCION ||
+      tipoNormalizado === 'subdireccion'
+    ) {
       throw new ConflictException(
         'La cuenta de Subdirección no puede ser asignada como Jefe de Departamento.',
       );

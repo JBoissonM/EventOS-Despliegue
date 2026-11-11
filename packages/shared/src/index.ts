@@ -405,6 +405,11 @@ export interface SolicitudVerificacionItem {
   archivo: string;
 }
 
+export interface RechazarVerificacionPayload {
+  motivo: string;
+  detalle?: string | null;
+}
+
 export interface SolicitanteResumen {
   idUsuario: number;
   nombre: string;

@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router";
+import { API_BASE_URL } from "../../../lib/apiClient";
 
 export interface Espacio {
   idRecinto: number;
@@ -26,7 +27,7 @@ export function useGestionEspacios() {
   const fetchEspacios = useCallback(async () => {
     try {
       setLoading(true);
-      const response = await fetch("http://localhost:3000/api/espacios", {
+      const response = await fetch(`${API_BASE_URL}/espacios`, {
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${getToken()}`,
@@ -61,7 +62,7 @@ export function useGestionEspacios() {
     const nuevoEstadoRecinto = espacioSeleccionado.idEstadoRecinto === 1 ? 2 : 1;
 
     try {
-      const response = await fetch(`http://localhost:3000/api/espacios/${espacioSeleccionado.idRecinto}/estado`, {
+      const response = await fetch(`${API_BASE_URL}/espacios/${espacioSeleccionado.idRecinto}/estado`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
