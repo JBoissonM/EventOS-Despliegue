@@ -587,22 +587,7 @@ export function DetallesSolicitud() {
               setMostrarModalCancelar(true);
             }}
           />
-          <Button
-            id="botonModificar"
-            type="button"
-            text="Modificar evento"
-            variant="primary"
-            onClick={() => {
-              if (!datos?.idEvento) return;
-              if (datos.actividades && datos.actividades.length > 1) {
-                navigate(
-                  `/organizador/editar-evento-subeventos/${datos.idEvento}`,
-                );
-              } else {
-                navigate(`/organizador/editar-evento/${datos.idEvento}`);
-              }
-            }}
-          />
+
         </div>
       ) : (
         <div className="flex justify-start gap-4 pt-2 pb-10">
