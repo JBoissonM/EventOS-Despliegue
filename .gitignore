@@ -1,6 +1,7 @@
 node_modules/
 dist/
 .env
+.vscode/
 .vitepress/cache/
 .vitepress/dist/
 docs/.vitepress/cache/
