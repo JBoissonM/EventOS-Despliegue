@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router";
+import { API_BASE_URL } from "../../../lib/apiClient";
 
 export interface PerfilData {
   idUsuario: number;
@@ -27,7 +28,7 @@ export function usePerfil() {
     const fetchPerfil = async () => {
       try {
         setLoading(true);
-        const response = await fetch("http://localhost:3000/api/usuarios/perfil", {
+        const response = await fetch(`${API_BASE_URL}/usuarios/perfil`, {
           headers: {
             "Content-Type": "application/json",
             Authorization: `Bearer ${getToken()}`,

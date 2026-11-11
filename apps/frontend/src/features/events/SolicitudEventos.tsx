@@ -6,7 +6,7 @@ import { useNavigate } from "react-router";
 import { Modal } from "../../components/molecules/Modal";
 import { RecintoId, type SubeventoPayload } from "@eventos/shared";
 import { ModalMotivoUrgente } from "../../components/organisms/ModalMotivoUrgente/ModalMotivoUrgente";
-import { apiRequest } from "../../lib/apiClient";
+import { API_BASE_URL, apiRequest } from "../../lib/apiClient";
 
 import { ArrowLeft } from "lucide-react";
 
@@ -540,7 +540,7 @@ export function SolicitudEvento() {
 
     const token = localStorage.getItem("token");
 
-    const response = await fetch("http://localhost:3000/api/solicitudes", {
+    const response = await fetch(`${API_BASE_URL}/solicitudes`, {
       method: "POST",
       headers: token ? { Authorization: `Bearer ${token}` } : undefined,
       body: datos,

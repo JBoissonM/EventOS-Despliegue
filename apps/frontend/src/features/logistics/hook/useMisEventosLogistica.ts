@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { API_BASE_URL } from "../../../lib/apiClient";
 
 export function useMisEventosLogistica() {
   const [events, setEvents] = useState<any[]>([]);
@@ -14,7 +15,7 @@ export function useMisEventosLogistica() {
     setStatus("loading");
     setError(null);
     try {
-      const response = await fetch("http://localhost:3000/api/logistica/mis-eventos", {
+      const response = await fetch(`${API_BASE_URL}/logistica/mis-eventos`, {
         method: "GET",
         headers: {
           "Content-Type": "application/json",

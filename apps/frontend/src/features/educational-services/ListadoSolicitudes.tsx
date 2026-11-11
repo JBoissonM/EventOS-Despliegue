@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
+import { API_BASE_URL } from "../../lib/apiClient";
 import { Button } from "../../components/atoms/Button/Button";
 import { Table, type Columna } from "../../components/organisms/Table/Table";
 import Badge from "../../components/atoms/Badge/Badge";
@@ -141,7 +142,7 @@ export function ListadoSolicitudes() {
 
       try {
         const response = await fetch(
-          "http://localhost:3000/api/solicitudes?estado=Pendiente",
+          `${API_BASE_URL}/solicitudes?estado=Pendiente`,
           {
             headers: {
               Authorization: `Bearer ${token}`,

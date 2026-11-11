@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router";
+import { API_BASE_URL } from "../../../lib/apiClient";
 
 export interface UsuarioSistema {
   idUsuario: number;
@@ -37,7 +38,7 @@ export function useGestionUsuarios() {
       }
 
       const queryString = params.toString() ? `?${params.toString()}` : "";
-      const response = await fetch(`http://localhost:3000/api/usuarios/admin/cuentas${queryString}`, {
+      const response = await fetch(`${API_BASE_URL}/usuarios/admin/cuentas${queryString}`, {
         headers: {
           Authorization: `Bearer ${getToken()}`,
         },
@@ -82,7 +83,7 @@ export function useGestionUsuarios() {
     if (!usuarioSeleccionado) return;
 
     try {
-      const response = await fetch(`http://localhost:3000/api/usuarios/admin/cuentas/${usuarioSeleccionado.idUsuario}`, {
+      const response = await fetch(`${API_BASE_URL}/usuarios/admin/cuentas/${usuarioSeleccionado.idUsuario}`, {
         method: "DELETE",
         headers: {
           Authorization: `Bearer ${getToken()}`,

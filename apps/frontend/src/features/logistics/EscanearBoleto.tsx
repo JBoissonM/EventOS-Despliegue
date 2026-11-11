@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useParams, useNavigate } from "react-router";
 import { User } from "lucide-react";
+import { API_BASE_URL } from "../../lib/apiClient";
 import { Button } from "../../components/atoms/Button/Button";
 import { Html5Qrcode } from "html5-qrcode";
 
@@ -33,7 +34,7 @@ export function EscanearBoleto() {
 
   useEffect(() => {
     if (!idSubEvento) return;
-    fetch(`http://localhost:3000/api/logistica/subeventos/${idSubEvento}/control-acceso`, {
+    fetch(`${API_BASE_URL}/logistica/subeventos/${idSubEvento}/control-acceso`, {
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${getToken()}`,
@@ -61,7 +62,7 @@ export function EscanearBoleto() {
     setEscaneando(true);
 
     try {
-      const response = await fetch(`http://localhost:3000/api/logistica/subeventos/${idSubEvento}/escanear`, {
+      const response = await fetch(`${API_BASE_URL}/logistica/subeventos/${idSubEvento}/escanear`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
