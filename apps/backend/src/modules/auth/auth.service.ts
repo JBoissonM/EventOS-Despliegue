@@ -554,6 +554,17 @@ export class AuthService {
       );
     }
 
+    // Validar que la nueva contraseña no sea igual a la contraseña actual
+    const esMismaContrasena = await bcrypt.compare(
+      nuevaContrasena,
+      usuario.contrasena,
+    );
+    if (esMismaContrasena) {
+      throw new BadRequestException(
+        'La nueva contraseña debe ser diferente a la contraseña anterior.',
+      );
+    }
+
     // Hashear nueva contraseña, invalidar token y levantar bloqueo si existía
     const saltRounds = 10;
     usuario.contrasena = await bcrypt.hash(nuevaContrasena, saltRounds);

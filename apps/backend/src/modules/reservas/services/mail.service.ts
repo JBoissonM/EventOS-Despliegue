@@ -471,8 +471,14 @@ export class MailService {
     nombreUsuario: string;
     enlaceRecuperacion: string;
   }): Promise<void> {
+    const timestamp = new Date().getTime();
+    const randomSuffix = Math.floor(Math.random() * 10000)
+      .toString()
+      .padStart(4, '0');
+
     const html = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden;">
+        <span style="display:none; color:transparent; font-size:1px;">Ref: ${timestamp}</span>
         <div style="background-color: #6b1d2f; color: #ffffff; padding: 20px; text-align: center;">
           <h2 style="margin: 0;">Recuperación de Contraseña - EventOS</h2>
         </div>
@@ -493,6 +499,7 @@ export class MailService {
           </p>
 
           <p style="font-size: 12px; color: #64748b; margin-top: 24px; border-top: 1px solid #e2e8f0; padding-top: 12px;">
+            ID Solicitud: ${timestamp} <br>
             Si tú no solicitaste este cambio, puedes ignorar este correo con seguridad; tu contraseña actual no será modificada.
           </p>
         </div>
@@ -503,7 +510,7 @@ export class MailService {
       await this.transporter.sendMail({
         from: process.env.SMTP_FROM || process.env.SMTP_USER,
         to: datos.destinatario,
-        subject: 'Restablecer contraseña - EventOS',
+        subject: `Restablecer contraseña - EventOS [Ref #${randomSuffix}]`,
         html,
       });
       this.logger.log(
@@ -524,8 +531,14 @@ export class MailService {
     tipoCuenta: string;
     enlaceConfirmacion: string;
   }): Promise<void> {
+    const timestamp = new Date().getTime();
+    const randomSuffix = Math.floor(Math.random() * 10000)
+      .toString()
+      .padStart(4, '0');
+
     const html = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden;">
+        <span style="display:none; color:transparent; font-size:1px;">Ref: ${timestamp}</span>
         <div style="background-color: #6b1d2f; color: #ffffff; padding: 20px; text-align: center;">
           <h2 style="margin: 0;">Confirma tu correo electrónico - EventOS</h2>
         </div>
@@ -546,6 +559,7 @@ export class MailService {
           </p>
 
           <p style="font-size: 12px; color: #64748b; margin-top: 24px; border-top: 1px solid #e2e8f0; padding-top: 12px;">
+            ID Solicitud: ${timestamp} <br>
             Si tú no solicitaste este registro, puedes ignorar este mensaje y la cuenta no será creada.
           </p>
         </div>
@@ -556,7 +570,7 @@ export class MailService {
       await this.transporter.sendMail({
         from: process.env.SMTP_FROM || process.env.SMTP_USER,
         to: datos.destinatario,
-        subject: 'Verifica tu correo para completar tu registro - EventOS',
+        subject: `Verifica tu correo para completar tu registro - EventOS [Ref #${randomSuffix}]`,
         html,
       });
       this.logger.log(
@@ -576,8 +590,14 @@ export class MailService {
     nombreUsuario: string;
     perfilVerificado: string;
   }): Promise<void> {
+    const timestamp = new Date().getTime();
+    const randomSuffix = Math.floor(Math.random() * 10000)
+      .toString()
+      .padStart(4, '0');
+
     const html = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden;">
+        <span style="display:none; color:transparent; font-size:1px;">Ref: ${timestamp}</span>
         <div style="background-color: #6b1d2f; color: #ffffff; padding: 20px; text-align: center;">
           <h2 style="margin: 0;">Verificación de Cuenta Aprobada - EventOS</h2>
         </div>
@@ -595,6 +615,7 @@ export class MailService {
           <p>Ya puedes ingresar a tu cuenta en EventOS y hacer uso de todas las funciones correspondientes a tu perfil verificado.</p>
 
           <p style="font-size: 12px; color: #64748b; margin-top: 24px; border-top: 1px solid #e2e8f0; padding-top: 12px;">
+            ID Solicitud: ${timestamp} <br>
             EventOS — Escuela Superior de Cómputo (IPN).
           </p>
         </div>
@@ -605,7 +626,7 @@ export class MailService {
       await this.transporter.sendMail({
         from: process.env.SMTP_FROM || process.env.SMTP_USER,
         to: datos.destinatario,
-        subject: 'Tu solicitud de verificación de cuenta ha sido aprobada - EventOS',
+        subject: `Tu solicitud de verificación de cuenta ha sido aprobada - EventOS [Ref #${randomSuffix}]`,
         html,
       });
       this.logger.log(
@@ -625,8 +646,14 @@ export class MailService {
     perfilSolicitado: string;
     motivoRechazo: string;
   }): Promise<void> {
+    const timestamp = new Date().getTime();
+    const randomSuffix = Math.floor(Math.random() * 10000)
+      .toString()
+      .padStart(4, '0');
+
     const html = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden;">
+        <span style="display:none; color:transparent; font-size:1px;">Ref: ${timestamp}</span>
         <div style="background-color: #6b1d2f; color: #ffffff; padding: 20px; text-align: center;">
           <h2 style="margin: 0;">Resultado de Solicitud de Verificación - EventOS</h2>
         </div>
@@ -643,6 +670,7 @@ export class MailService {
           <p>Puedes ingresar nuevamente a la sección de <strong>Mi Perfil</strong> en EventOS para enviar una nueva solicitud adjuntando tu documento probatorio corregido en formato PDF.</p>
 
           <p style="font-size: 12px; color: #64748b; margin-top: 24px; border-top: 1px solid #e2e8f0; padding-top: 12px;">
+            ID Solicitud: ${timestamp} <br>
             EventOS — Escuela Superior de Cómputo (IPN).
           </p>
         </div>
@@ -653,7 +681,7 @@ export class MailService {
       await this.transporter.sendMail({
         from: process.env.SMTP_FROM || process.env.SMTP_USER,
         to: datos.destinatario,
-        subject: 'Actualización sobre tu solicitud de verificación de cuenta - EventOS',
+        subject: `Actualización sobre tu solicitud de verificación de cuenta - EventOS [Ref #${randomSuffix}]`,
         html,
       });
       this.logger.log(
