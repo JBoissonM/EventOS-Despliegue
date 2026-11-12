@@ -889,6 +889,11 @@ export class SolicitudesService {
       );
     }
 
+    if (motivo !== undefined && motivo.trim() === '') {
+      throw new BadRequestException(
+        'Dato requerido faltante. La justificación no puede estar vacía.',
+      );
+    }
     const motivoLimpio = motivo?.trim() || null;
     if (motivoLimpio && motivoLimpio.length > 500) {
       throw new BadRequestException(
