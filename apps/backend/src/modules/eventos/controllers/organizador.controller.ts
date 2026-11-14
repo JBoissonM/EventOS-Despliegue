@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -16,6 +17,7 @@ import {
   ValidationPipe,
 } from '@nestjs/common';
 import { FileFieldsInterceptor } from '@nestjs/platform-express';
+import { Throttle } from '@nestjs/throttler';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { RolesGuard } from '../../auth/roles.guard';
 import { OrganizadorService } from '../services/organizador.service';
@@ -45,6 +47,58 @@ export class OrganizadorController {
 
   private obtenerRolUsuarioAutenticado(req: any): string | undefined {
     return req.user?.tipoCuenta;
+  }
+
+  private validarFechasPosterioresAHoy(payload: any): void {
+    if (!payload || typeof payload !== 'object') return;
+
+    const fechaHoy = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'America/Mexico_City',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).format(new Date());
+
+    const fechasExtraidas: string[] = [];
+
+    const recolectarFechas = (nodo: any) => {
+      if (!nodo) return;
+      if (typeof nodo === 'string') {
+        try {
+          recolectarFechas(JSON.parse(nodo));
+        } catch {
+          return;
+        }
+        return;
+      }
+      if (Array.isArray(nodo)) {
+        for (const item of nodo) recolectarFechas(item);
+        return;
+      }
+      if (typeof nodo === 'object') {
+        for (const [clave, valor] of Object.entries(nodo)) {
+          if (
+            (clave === 'fecha' || clave === 'nuevaFecha' || clave === 'fechaEvento') &&
+            typeof valor === 'string' &&
+            /^\d{4}-\d{2}-\d{2}/.test(valor.trim())
+          ) {
+            fechasExtraidas.push(valor.trim().slice(0, 10));
+          } else if (typeof valor === 'object' || typeof valor === 'string') {
+            recolectarFechas(valor);
+          }
+        }
+      }
+    };
+
+    recolectarFechas(payload);
+
+    for (const fecha of fechasExtraidas) {
+      if (fecha <= fechaHoy) {
+        throw new BadRequestException(
+          `No se permiten modificaciones ni reprogramaciones para el mismo día (${fechaHoy}) o fechas pasadas.`,
+        );
+      }
+    }
   }
 
   @ApiOperation({
@@ -77,6 +131,7 @@ export class OrganizadorController {
     summary:
       'Solicitar o actualizar in-flight la modificación logística de un evento',
   })
+  @Throttle({ default: { limit: 10, ttl: 60000 } })
   @Patch(':idEvento/logistica')
   @UsePipes(new ValidationPipe({ transform: true, whitelist: true }))
   async solicitarModificacionLogistica(
@@ -84,6 +139,7 @@ export class OrganizadorController {
     @Body() dto: ModificarLogisticaDto,
     @Req() req: any,
   ) {
+    this.validarFechasPosterioresAHoy(dto);
     const idUsuario = this.obtenerIdUsuarioAutenticado(req);
     const rolActor = this.obtenerRolUsuarioAutenticado(req);
     return await this.organizadorService.solicitarModificacionLogistica(
@@ -98,6 +154,7 @@ export class OrganizadorController {
     summary:
       'Actualizar información general, alcance, póster y ponentes de un evento con aprobación automática',
   })
+  @Throttle({ default: { limit: 10, ttl: 60000 } })
   @Patch(':idEvento/info-general')
   @UseInterceptors(
     FileFieldsInterceptor(
@@ -118,6 +175,7 @@ export class OrganizadorController {
       | undefined,
     @Req() req: any,
   ) {
+    this.validarFechasPosterioresAHoy(dto);
     const idUsuario = this.obtenerIdUsuarioAutenticado(req);
     const rolActor = this.obtenerRolUsuarioAutenticado(req);
     const posterFile = files?.file?.[0] ?? files?.poster?.[0];
@@ -134,6 +192,7 @@ export class OrganizadorController {
     summary:
       'Agregar un invitado con cuenta activa al padrón de un evento privado',
   })
+  @Throttle({ default: { limit: 10, ttl: 60000 } })
   @Post(':idEvento/invitados')
   @UsePipes(new ValidationPipe({ transform: true, whitelist: true }))
   async agregarInvitadoPrivado(
@@ -153,6 +212,7 @@ export class OrganizadorController {
     summary:
       'Reenviar invitación de evento privado respetando cooldown de 8 horas',
   })
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
   @Post(':idEvento/invitados/:idInvitacion/reenviar')
   async reenviarInvitacionPrivada(
     @Param('idEvento', ParseIntPipe) idEvento: number,
@@ -188,6 +248,7 @@ export class OrganizadorController {
     summary:
       'Cancelar un evento propio con justificación obligatoria y anulación de boletos',
   })
+  @Throttle({ default: { limit: 3, ttl: 60000 } })
   @Patch(':idEvento/cancelar')
   @UsePipes(new ValidationPipe({ transform: true, whitelist: true }))
   async cancelarEventoPropio(
@@ -207,6 +268,7 @@ export class OrganizadorController {
     summary:
       'Asignar directamente o invitar por correo (token 48h) a un colaborador como Personal de Logística',
   })
+  @Throttle({ default: { limit: 10, ttl: 60000 } })
   @Post(':idEvento/personal-logistica')
   @UsePipes(new ValidationPipe({ transform: true, whitelist: true }))
   async agregarPersonalLogistica(
