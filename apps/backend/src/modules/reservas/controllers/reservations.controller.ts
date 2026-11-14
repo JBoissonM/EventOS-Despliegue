@@ -1,4 +1,5 @@
 import { Controller, Post, Body, Get, Param, ParseIntPipe, Patch, UseGuards, Req, Header, StreamableFile } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { ReservationsService } from '../services/reservations.service';
 import { TicketPdfService } from '../services/ticket-pdf.service';
 import { CreateReservationDto } from '../dto/createReservation.dto';
@@ -49,6 +50,7 @@ export class ReservationsController {
   @ApiOperation({ summary: 'Descargar boleto digital en PDF' })
   @ApiBearerAuth()
   @UseGuards(RolesGuard)
+  @Throttle({ default: { limit: 10, ttl: 60000 } })
   @Header('Cache-Control', 'private, no-store')
   @Get('mis-boletos/:idBoleto/pdf')
   async descargarBoletoPdf(
@@ -65,6 +67,7 @@ export class ReservationsController {
 
   // Consultar lugares y asientos libres (Público para UI05 / UI05.1)
   @ApiOperation({ summary: 'Consultar disponibilidad de lugares y asientos de un subevento' })
+  @Throttle({ default: { limit: 30, ttl: 60000 } })
   @Get('disponibilidad/:idSubEvento')
   async consultarDisponibilidad(
     @Param('idSubEvento', ParseIntPipe) idSubEvento: number,
@@ -76,6 +79,7 @@ export class ReservationsController {
   @ApiOperation({ summary: 'Crear reserva de lugar y generar boleto QR' })
   @ApiBearerAuth()
   @UseGuards(RolesGuard)
+  @Throttle({ default: { limit: 10, ttl: 60000 } })
   @Post()
   async crearReserva(@Req() req: any, @Body() dto: CreateReservationDto) {
     const idUsuario = this.obtenerIdUsuarioAutenticado(req);
@@ -86,6 +90,7 @@ export class ReservationsController {
   @ApiOperation({ summary: 'Cancelar reserva y liberar lugar' })
   @ApiBearerAuth()
   @UseGuards(RolesGuard)
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
   @Patch(':idBoleto/cancelar')
   async cancelarReserva(
     @Req() req: any,

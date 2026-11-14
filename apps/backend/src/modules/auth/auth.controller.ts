@@ -16,6 +16,7 @@ import {
   ApiQuery,
   ApiTags,
 } from '@nestjs/swagger';
+import { Throttle } from '@nestjs/throttler';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 import { RegistroDto } from './dto/registro.dto';
@@ -35,6 +36,7 @@ export class AuthController {
       'Solicitar registro de usuario y enviar enlace de verificación por correo',
   })
   @ApiBody({ type: RegistroDto })
+  @Throttle({ default: { limit: 8, ttl: 60000 } })
   @Post('registro')
   @HttpCode(HttpStatus.OK)
   async registrarUsuario(@Body() body: RegistroDto) {
@@ -49,6 +51,7 @@ export class AuthController {
     required: true,
     description: 'Token JWT de invitación de logística o evento privado',
   })
+  @Throttle({ default: { limit: 15, ttl: 60000 } })
   @Get('invitacion/validar')
   @HttpCode(HttpStatus.OK)
   async validarTokenInvitacion(@Query('token') token: string) {
@@ -60,6 +63,7 @@ export class AuthController {
       'Confirmar correo electrónico mediante token y crear la cuenta en la base de datos',
   })
   @ApiBody({ type: ConfirmarRegistroDto })
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
   @Post('confirmar-registro')
   @HttpCode(HttpStatus.CREATED)
   async confirmarRegistroPost(@Body() body: ConfirmarRegistroDto) {
@@ -75,6 +79,7 @@ export class AuthController {
     required: true,
     description: 'Token JWT recibido en el correo de confirmación de registro',
   })
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
   @Get('confirmar-registro')
   @HttpCode(HttpStatus.OK)
   async confirmarRegistroGet(@Query('token') token: string) {
@@ -82,6 +87,7 @@ export class AuthController {
   }
 
   @ApiOperation({ summary: 'Iniciar sesión y obtener token JWT' })
+  @Throttle({ default: { limit: 10, ttl: 60000 } })
   @Post('login')
   @HttpCode(HttpStatus.OK)
   async iniciarSesion(@Body() body: LoginDto) {
@@ -93,6 +99,7 @@ export class AuthController {
       'Solicitar correo con enlace de recuperación de contraseña (15 min)',
   })
   @ApiBody({ type: SolicitarRecuperacionDto })
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
   @Post('recuperar-contrasena')
   @HttpCode(HttpStatus.OK)
   async solicitarRecuperacion(@Body() body: SolicitarRecuperacionDto) {
@@ -107,6 +114,7 @@ export class AuthController {
     required: true,
     description: 'Token JWT recibido en el correo',
   })
+  @Throttle({ default: { limit: 15, ttl: 60000 } })
   @Get('restablecer-contrasena/validar')
   @HttpCode(HttpStatus.OK)
   async validarTokenRecuperacion(@Query('token') token: string) {
@@ -117,6 +125,7 @@ export class AuthController {
     summary: 'Restablecer contraseña con token de un solo uso',
   })
   @ApiBody({ type: RestablecerContrasenaDto })
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
   @Post('restablecer-contrasena')
   @HttpCode(HttpStatus.OK)
   async restablecerContrasena(@Body() body: RestablecerContrasenaDto) {
@@ -127,6 +136,7 @@ export class AuthController {
     summary:
       'Activar cuenta mediante token JWT de invitación para Personal de Logística',
   })
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
   @Post('activar-logistica')
   @HttpCode(HttpStatus.CREATED)
   async activarCuentaLogistica(@Body() body: ActivarCuentaLogisticaDto) {
@@ -135,6 +145,7 @@ export class AuthController {
 
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Cerrar sesión activa e invalidar token JWT' })
+  @Throttle({ default: { limit: 20, ttl: 60000 } })
   @Post('logout')
   @UseGuards(RolesGuard)
   @HttpCode(HttpStatus.OK)
