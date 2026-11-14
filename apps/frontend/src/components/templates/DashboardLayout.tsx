@@ -42,7 +42,7 @@ export function DashboardLayout({ perfilValidado }: DashboardLayoutProps) {
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col font-merriweather">
       <Navbar userRole={rolNavbar} />
-      <main className="flex flex-1 flex-col px-7 py-8">
+      <main className="flex flex-1 flex-col px-4 py-6 sm:px-7 sm:py-8">
         <Outlet />
       </main>
     </div>
