@@ -36,12 +36,6 @@ export function ModalInvitados({
   >([]);
   const handleAgregarInvitadoTemporal = () => {
     let hayError = false;
-    /*    if (!nombrePonente.trim()) {
-      setErrorPonente("El nombre del ponente no puede estar vacío");
-      hayError = true;
-    } else {
-      setErrorPonente(null);
-    } */
     const correoLimpio = correoInvitado.trim();
     if (!correoLimpio) {
       setErrorCorreo("El correo no puede estar vacío");
@@ -135,80 +129,54 @@ export function ModalInvitados({
               />
             </div>
           ) : (
-            <p className="rounded-md border border py-3 text-center text-sm  text-gray-500">
+            <p className="rounded-md border border py-3 text-center text-xs sm:text-sm md:text-base text-gray-500">
               Aún no has añadido invitados a la lista.
             </p>
           )}
         </div>
 
-        <div className="space-y-4">
-          <div>
-            {/*             <FormField
-              htmlFor="campoNombre"
-              label="Nombre del ponente"
-              errorMessage={errorPonente ?? undefined}
-            >
-              <Input
-                id="campoNombre"
-                value={nombrePonente}
-                onChange={(e) => {
-                  setNombrePonente(e.target.value);
-                  if (errorPonente) {
-                    setErrorPonente(null);
-                  }
-                }}
-                maxLength={150}
-                placeholder="Ej. Dr. Juan Pérez"
-              />
-            </FormField> */}
-            <FormField
-              htmlFor="campoCorreo"
-              label="Correo electrónico"
-              errorMessage={errorCorreo ?? undefined}
-            >
-              <Input
-                id="campoCorreo"
-                type="email"
-                value={correoInvitado}
-                onChange={(e) => {
-                  setCorreoInvitado(e.target.value);
-                  if (errorCorreo) {
-                    setErrorCorreo(null);
-                  }
-                }}
-                maxLength={150}
-                placeholder="ejemplo@ipn.mx"
-              />
-            </FormField>
-          </div>
-
-          <div className="flex justify-between gap-2 border-t border-gray-100 pt-4">
-            <div className="flex justify-end">
-              <Button
-                text="Agregar invitado"
-                variant="primary"
-                type="button"
-                className="cursor-pointer"
-                onClick={handleAgregarInvitadoTemporal}
-              />
-            </div>
-            <div className="flex gap-3">
-              <Button
-                text="Volver"
-                variant="secondary"
-                type="button"
-                className="cursor-pointer"
-                onClick={handleSolicitarCerrar}
-              />
-              <Button
-                text="Guardar"
-                variant="success"
-                type="button"
-                className="cursor-pointer"
-                onClick={handleGuardar}
-                disabled={invitadosTemporales.length === 0}
-              />
-            </div>
+        <div className="space-y-3">
+          <FormField
+            htmlFor="campoCorreo"
+            label="Correo electrónico"
+            errorMessage={errorCorreo ?? undefined}
+          >
+            <Input
+              id="campoCorreo"
+              type="email"
+              value={correoInvitado}
+              onChange={(e) => {
+                setCorreoInvitado(e.target.value);
+                if (errorCorreo) setErrorCorreo(null);
+              }}
+              placeholder="ejemplo@ipn.mx"
+            />
+          </FormField>
+          <Button
+            text="Agregar invitado"
+            variant="primary"
+            type="button"
+            className="w-full sm:w-auto"
+            onClick={handleAgregarInvitadoTemporal}
+          />
+        </div>
+        <div className="border-t border-gray-200 pt-4 mt-4">
+          <div className="grid grid-cols-2 gap-3 sm:flex sm:justify-end">
+            <Button
+              text="Volver"
+              variant="secondary"
+              type="button"
+              className="w-full sm:w-auto"
+              onClick={handleSolicitarCerrar}
+            />
+            <Button
+              text="Guardar"
+              variant="success"
+              type="button"
+              className="w-full sm:w-auto"
+              onClick={handleGuardar}
+              disabled={invitadosTemporales.length === 0}
+            />
           </div>
         </div>
       </Modal>
@@ -220,7 +188,7 @@ export function ModalInvitados({
           contenido="¿Estás seguro que deseas salir? Los invitados que agregaste a la lista se perderán."
           cerrarModal={() => setModalConfirmar(false)}
         >
-          <div className="flex justify-end gap-3 pt-2">
+          <div className="justify-center flex md:justify-end gap-3 pt-2">
             <Button
               text="Cancelar"
               variant="secondary"

@@ -351,7 +351,10 @@ export function AdministracionEventoConSubeventos() {
         <>
           {datosEvento.idEstadoEvento === EstadoEvento.RECHAZADO && (
             <div className="flex flex-col space-y-2 border border-red-500 rounded-md bg-red-50 p-5 shadow-md">
-              <div role="alert" className="flex flex-row justify-between">
+              <div
+                role="alert"
+                className="flex flex-col-reverse sm:flex-row gap-3 justify-between"
+              >
                 <div className="flex items-center gap-2">
                   <h2 className="font-bold text-gray-900">Motivo de rechazo</h2>
                 </div>
@@ -371,21 +374,23 @@ export function AdministracionEventoConSubeventos() {
           {datosEvento.solicitudModificacionPendiente && (
             <div
               role="status"
-              className="space-y-2 rounded-lg border border-amber-300 bg-amber-50 p-5 text-amber-950 shadow-sm"
+              className="space-y-2 rounded-md border border-amber-300 bg-amber-50 p-5 text-amber-950 shadow-md"
             >
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="inline-flex items-center rounded-md bg-amber-200 px-2.5 py-0.5 text-xs font-semibold text-amber-900">
-                  Solicitud en Revisión
-                </span>
-                <h2 className="text-base font-bold text-amber-950">
-                  Modificación logística pendiente de evaluación por
-                  Subdirección
-                </h2>
+              <div className="flex justify-between gap-2">
+                <div>
+                  <h2 className="text-1xl font-bold text-amber-950">
+                    Modificación logística pendiente de evaluación por
+                    Subdirección
+                  </h2>
+                </div>
+                <div>
+                  <Badge variant="warning">Solicitud en revisión</Badge>
+                </div>
               </div>
-              <p className="text-sm text-amber-900">
-                <span className="font-semibold">Motivo registrado:</span>{" "}
+              <div className="text-[16px] text-amber-900 break-words">
+                <span className="font-semibold">Motivo registrado:</span>
                 {datosEvento.solicitudModificacionPendiente.motivoModificacion}
-              </p>
+              </div>
               <p className="text-xs text-amber-800">
                 Mientras Subdirección dictamina esta solicitud, el evento
                 conserva vigentes sus fechas y espacios originales. Si realizas
@@ -434,7 +439,7 @@ export function AdministracionEventoConSubeventos() {
                 />
               </div>
             ) : (
-              <p className="rounded-lg bg-gray-50 px-4 py-6 text-gray-600">
+              <p className="rounded-lg bg-gray-50 py-6 text-gray-600">
                 No hay personal de logística registrado para este evento.
               </p>
             )}

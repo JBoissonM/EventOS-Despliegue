@@ -39,7 +39,7 @@ const columnasPonente: Columna<TablaPonente>[] = [
     id: "nombre",
     encabezado: "Nombre",
     render: (ponente) => ponente.nombre,
-    className: "min-w-[8rem] max-w-[8rem] break-all px-3",
+    className: "min-w-[12rem] sm:min-w-[13rem] break-all px-3",
   },
   {
     id: "correo",
@@ -463,7 +463,7 @@ export function AdministracionEvento() {
         <span>Volver</span>
       </div>
       <div id="contenedorTituloBanner" className="space-y-4 sm:space-y-5">
-        <h1 className="font-merriweather text-2xl font-semibold leading-tight sm:text-3xl lg:text-4xl">
+        <h1 className="font-merriweather text-2xl font-semibold leading-tight ">
           Administración y detalles de mi evento
         </h1>
         {datosEvento && (
@@ -492,7 +492,10 @@ export function AdministracionEvento() {
         <>
           {datosEvento.idEstadoEvento === EstadoEvento.RECHAZADO && (
             <div className="flex flex-col space-y-2 border border-red-500 rounded-md bg-red-50 p-5 shadow-md">
-              <div role="alert" className="flex flex-row justify-between">
+              <div
+                role="alert"
+                className="flex flex-col-reverse sm:flex-row gap-3 justify-between"
+              >
                 <div className="flex items-center gap-2">
                   <h2 className="font-bold text-gray-900">Motivo de rechazo</h2>
                 </div>
@@ -512,9 +515,9 @@ export function AdministracionEvento() {
           {datosEvento.solicitudModificacionPendiente && (
             <div
               role="status"
-              className="space-y-2 rounded-lg border border-amber-300 bg-amber-50 p-5 text-amber-950 shadow-sm"
+              className="space-y-2 rounded-lg border border-amber-300 bg-amber-50 p-5 text-amber-950 shadow-md"
             >
-              <div className="flex justify-between gap-2">
+              <div className="flex flex-col-reverse gap-2 md:flex-row md:justify-between">
                 <div>
                   <h2 className="text-base font-bold text-amber-950">
                     Modificación logística pendiente de evaluación por
@@ -767,21 +770,24 @@ export function AdministracionEvento() {
 
           {mostrarModalCancelar && (
             <Modal
-              titulo="Motivo de cancelación"
+              titulo="Cancelación del evento"
               contenido="Por favor, ingresa el motivo por el cual cancelas este evento. Esta justificación será notificada a los asistentes."
               mostrarModal={mostrarModalCancelar}
               cerrarModal={() => setMostrarModalCancelar(false)}
             >
-              <span className="text-xs text-gray-500">
-                Máximo 500 caracteres
-              </span>
-              <FormField errorMessage={errorMotivoCancelacion}>
+              <FormField
+                label="Motivo de cancelación"
+                required
+                errorMessage={errorMotivoCancelacion}
+              >
+                <span className="text-xs text-gray-500">
+                  Máximo 500 caracteres y mínimo 10 caracteres
+                </span>
                 <TextArea
                   id="contenedorMotivoCancelacion"
                   className="h-32 resize-none"
                   value={motivoCancelacion}
                   maxLength={500}
-                  hasError={Boolean(errorMotivoCancelacion)}
                   onChange={(e) => {
                     setMotivoCancelacion(e.currentTarget.value);
                     if (errorMotivoCancelacion) setErrorMotivoCancelacion("");
@@ -799,20 +805,8 @@ export function AdministracionEvento() {
                   text="Continuar"
                   variant="primary"
                   type="button"
+                  disabled={motivoCancelacion.trim().length < 10}
                   onClick={() => {
-                    const limpio = motivoCancelacion.trim();
-                    if (!limpio) {
-                      setErrorMotivoCancelacion(
-                        "Dato requerido faltante. La justificación no puede estar vacía.",
-                      );
-                      return;
-                    }
-                    if (limpio.length > 500) {
-                      setErrorMotivoCancelacion(
-                        "La descripción excede el límite máximo de caracteres permitidos.",
-                      );
-                      return;
-                    }
                     setMostrarModalCancelar(false);
                     setMostrarConfirmacionCancelar(true);
                   }}
@@ -834,7 +828,10 @@ export function AdministracionEvento() {
                   variant="secondary"
                   type="button"
                   disabled={cancelando}
-                  onClick={() => setMostrarConfirmacionCancelar(false)}
+                  onClick={() => {
+                    setMostrarConfirmacionCancelar(false);
+                    setMostrarModalCancelar(true);
+                  }}
                 />
                 <Button
                   text={cancelando ? "Cancelando..." : "Confirmar Cancelación"}

@@ -225,25 +225,25 @@ export function EditLogisticsSection({
     cargandoAgenda || errorAgenda || !valores.idRecinto || !valores.fecha
       ? []
       : opcionesHora(HORASINICIO, valores.horaInicio).filter(
-        ({ value }) =>
-          !agendaOcupada.some(
-            (ocupado) =>
-              horaEnMinutos(value) >= horaEnMinutos(ocupado.horaInicio) &&
-              horaEnMinutos(value) < horaEnMinutos(ocupado.horaFin),
-          ) &&
-          horasFinCandidatas.some((horaFin) =>
-            puedeTerminarEn(value, horaFin),
-          ),
-      );
+          ({ value }) =>
+            !agendaOcupada.some(
+              (ocupado) =>
+                horaEnMinutos(value) >= horaEnMinutos(ocupado.horaInicio) &&
+                horaEnMinutos(value) < horaEnMinutos(ocupado.horaFin),
+            ) &&
+            horasFinCandidatas.some((horaFin) =>
+              puedeTerminarEn(value, horaFin),
+            ),
+        );
   const horasFinDisponibles =
     !cargandoAgenda &&
-      !errorAgenda &&
-      valores.idRecinto &&
-      valores.fecha &&
-      valores.horaInicio
+    !errorAgenda &&
+    valores.idRecinto &&
+    valores.fecha &&
+    valores.horaInicio
       ? opcionesHora(HORASFIN, valores.horaFin).filter(({ value }) =>
-        puedeTerminarEn(valores.horaInicio, value),
-      )
+          puedeTerminarEn(valores.horaInicio, value),
+        )
       : [];
   const horaFinInvalida = Boolean(
     valores.horaInicio &&
@@ -259,7 +259,8 @@ export function EditLogisticsSection({
             <FormField
               className="!font-bold !text-black"
               label="Banner del evento"
-              mensajeAyuda="Resolución: 2048 x 1152">
+              mensajeAyuda="Resolución: 2048 x 1152"
+            >
               <InputFile
                 key={archivoPoster?.name ?? posterUrl ?? "poster"}
                 id="campoPoster"
@@ -276,7 +277,8 @@ export function EditLogisticsSection({
           <FormField
             className="!font-bold !text-black"
             label="Espacio"
-            errorMessage={intentoGuardar ? errores?.idRecinto : undefined}>
+            errorMessage={intentoGuardar ? errores?.idRecinto : undefined}
+          >
             <Select
               id="campoEspacio"
               placeholder="Selecciona una opción"
@@ -315,7 +317,8 @@ export function EditLogisticsSection({
           <FormField
             className="!font-bold !text-black"
             label="Fecha"
-            errorMessage={intentoGuardar ? errores?.fecha : undefined}>
+            errorMessage={intentoGuardar ? errores?.fecha : undefined}
+          >
             <DateInput
               id="campoFecha"
               value={valores.fecha}
@@ -337,7 +340,8 @@ export function EditLogisticsSection({
           <FormField
             className="!font-bold !text-black"
             label="Hora inicio"
-            errorMessage={intentoGuardar ? errores?.horaInicio : undefined}>
+            errorMessage={intentoGuardar ? errores?.horaInicio : undefined}
+          >
             <Select
               id="campoHoraInicio"
               options={horasInicioDisponibles}
@@ -388,7 +392,8 @@ export function EditLogisticsSection({
                 : horaFinInvalida
                   ? "La hora de finalización debe ser posterior a la de inicio."
                   : undefined
-            }>
+            }
+          >
             <Select
               id="campoHoraFin"
               options={horasFinDisponibles}
@@ -433,10 +438,11 @@ export function EditLogisticsSection({
               recintoSeleccionado?.idRecinto === RecintoId.SALA_14
                 ? "Al elegir la sala 14 el acceso es libre"
                 : recintoSeleccionado?.idRecinto !== RecintoId.AUDITORIO &&
-                  Boolean(recintoSeleccionado?.idRecinto)
+                    Boolean(recintoSeleccionado?.idRecinto)
                   ? "Al elegir un laboratorio el acceso es con boleto"
                   : ""
-            }>
+            }
+          >
             <Select
               id="campoAcceso"
               placeholder="Selecciona una opción"
@@ -509,19 +515,18 @@ export function EditLogisticsSection({
                         ? "La justificación no puede exceder los 500 caracteres"
                         : undefined
                     : undefined
-                }>
+                }
+              >
                 <TextArea
                   id="campoJustificacion"
                   value={justificacion}
                   maxLength={500}
                   disabled={deshabilitado}
-                  hasError={
-                    Boolean(
-                      intentoGuardar &&
-                      (!justificacion.trim() ||
-                        justificacion.trim().length >= 500),
-                    )
-                  }
+                  hasError={Boolean(
+                    intentoGuardar &&
+                    (!justificacion.trim() ||
+                      justificacion.trim().length >= 500),
+                  )}
                   onChange={(event) =>
                     onCambioJustificacion(event.currentTarget.value)
                   }

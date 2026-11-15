@@ -91,7 +91,8 @@ function crearColumnasLogistica(
           />
         );
       },
-      className: "text-center min-w-[8rem] max-w-[8rem] break-all px-3",
+      className:
+        "text-center w-[8rem] min-w-[8rem] max-w-[8rem] break-all px-3",
     },
   ];
 }
@@ -575,13 +576,15 @@ export function EditarEvento() {
       id: "nombre",
       encabezado: "Nombre",
       render: (ponente) => ponente.nombre,
-      className: "min-w-[5rem] break-all px-3",
+      className:
+        "min-w-[12rem] sm:min-w-[10rem] md:min-w-[7.5rem] md:max-w-[9.5rem] lg:min-w-[11rem] break-all px-3",
     },
     {
       id: "correo",
       encabezado: "Correo",
       render: (ponente) => ponente.correo,
-      className: "min-w-[5rem] break-all px-3",
+      className:
+        "min-w-[10rem] sm:min-w-[10rem] md:min-w-[7.5rem] md:max-w-[9.5rem] lg:min-w-[11rem] break-all px-3",
     },
     {
       id: "acciones",
@@ -596,7 +599,8 @@ export function EditarEvento() {
           />
         );
       },
-      className: "min-w-[8rem] max-w-[8rem] break-all px-3",
+      className:
+        "w-[8rem] min-w-[8rem] max-w-[8rem] break-all px-3 text-center",
     },
   ];
 
@@ -735,10 +739,6 @@ export function EditarEvento() {
       intentoGuardar &&
       (hayErroresGenerales ||
         (camposLogisticosModificados && hayErroresLogistica));
-
-    if (mensaje || hayErrores) {
-      window.scrollTo({ top: 0, behavior: "smooth" });
-    }
   }, [
     mensaje,
     intentoGuardar,
@@ -783,6 +783,8 @@ export function EditarEvento() {
       }
       if (!confirmarMotivoLogistica && !esSubdireccion) {
         setIntentoMotivo(false);
+        cambiarLogistica("motivoModificacion", "");
+        setMotivoUrgente("");
         setMostrarModal(true);
         return;
       }
@@ -990,34 +992,44 @@ export function EditarEvento() {
         ...valoresLogisticaActualizados,
         motivoModificacion: motivosActualizados.motivoModificacion,
       };
-      const subeventoActualizado = idSubEventoSeleccionado
-        ? detalleActualizado.subEventos.find(
-            (item) => item.idSubEvento === idSubEventoSeleccionado,
-          )
-        : undefined;
+      const subeventoActualizado =
+        idSubEventoSeleccionado !== undefined
+          ? detalleActualizado.subEventos.find(
+              (item) => item.idSubEvento === idSubEventoSeleccionado,
+            )
+          : detalleActualizado.subEventos[0];
       const propuestaActualizada =
-        subeventoActualizado &&
-        detalleActualizado.solicitudModificacionPendiente?.subeventosPropuestos.find(
-          (item) => item.idSubEvento === subeventoActualizado.idSubEvento,
-        );
+        idSubEventoSeleccionado !== undefined && subeventoActualizado
+          ? detalleActualizado.solicitudModificacionPendiente?.subeventosPropuestos.find(
+              (item) => item.idSubEvento === subeventoActualizado.idSubEvento,
+            )
+          : undefined;
       setEvento(detalleActualizado);
       setInvitados(detalleActualizado.invitados ?? []);
       setInvitadosIniciales(detalleActualizado.invitados ?? []);
       setNombre(
-        propuestaActualizada?.nombre ??
-          subeventoActualizado?.nombre ??
-          detalleActualizado.nombre,
+        idSubEventoSeleccionado !== undefined
+          ? propuestaActualizada?.nombre ??
+              subeventoActualizado?.nombre ??
+              detalleActualizado.nombre
+          : detalleActualizado.nombre,
       );
       setDescripcion(
-        propuestaActualizada?.descripcion ??
-          subeventoActualizado?.descripcion ??
-          detalleActualizado.descripcion,
+        idSubEventoSeleccionado !== undefined
+          ? propuestaActualizada?.descripcion ??
+              subeventoActualizado?.descripcion ??
+              detalleActualizado.descripcion
+          : detalleActualizado.descripcion,
       );
       setJustificacion(detalleActualizado.justificacion ?? "");
       setAlcance(detalleActualizado.idAlcance ?? "");
-      setLogistica(valoresActualizadosConMotivo);
-      setLogisticaInicial(valoresActualizadosConMotivo);
-      setMotivoUrgente(motivosActualizados.motivoUrgente);
+      const valoresLogisticaSincronizados = {
+        ...valoresActualizadosConMotivo,
+        motivoModificacion: "",
+      };
+      setLogistica(valoresLogisticaSincronizados);
+      setLogisticaInicial(valoresLogisticaSincronizados);
+      setMotivoUrgente("");
       setArchivoPoster(null);
 
       const ponentesGuardados: TablaPonente[] =
@@ -1040,6 +1052,7 @@ export function EditarEvento() {
               : "La modificación logística fue enviada a revisión."
           : "Los cambios se guardaron correctamente.",
       );
+      window.scrollTo({ top: 0, behavior: "smooth" });
     } catch (errorOperacion) {
       const detalleError = obtenerMensajeError(errorOperacion);
       if (logisticaEnviada) {
@@ -1093,7 +1106,7 @@ export function EditarEvento() {
           mostrarModal={mostrarModalRegreso}
           titulo="Advertencia"
           contenido="¿Estás seguro que deseas regresar? Los cambios realizados se perderán"
-          cerrarModal={() => setMostrarModal(false)}
+          cerrarModal={() => setMostrarModalRegreso(false)}
         >
           <div className="flex justify-end gap-3">
             <Button
@@ -1164,13 +1177,15 @@ export function EditarEvento() {
               role="status"
               className="space-y-2 rounded-lg border border-amber-300 bg-amber-50 p-5 text-amber-950 shadow-md"
             >
-              <div className="flex flex-row justify-between">
-                <div className="flex flex-wrap items-center gap-2">
-                  <Badge variant="warning">Solicitud en revisión</Badge>
+              <div className="flex flex-col-reverse gap-2 md:flex-row md:justify-between">
+                <div>
                   <h2 className="text-base font-bold text-amber-950">
                     Modificación logística pendiente de evaluación por
                     Subdirección
                   </h2>
+                </div>
+                <div>
+                  <Badge variant="warning">Solicitud en revisión</Badge>
                 </div>
               </div>
               <p className="text-base text-amber-900">
@@ -1423,7 +1438,7 @@ export function EditarEvento() {
                           />
                         </div>
                       ) : (
-                        <p className="mt-3 text-gray-600">
+                        <p className="text-sm sm:text-base text-gray-600">
                           No hay invitados registrados para este evento.
                         </p>
                       )}
