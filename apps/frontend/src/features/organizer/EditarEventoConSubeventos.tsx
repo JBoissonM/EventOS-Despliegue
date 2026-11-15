@@ -149,7 +149,7 @@ function crearColumnasLogistica(
       id: "correo",
       encabezado: "Correo",
       render: (personal) => personal.correo,
-      className: "min-w-[16rem] max-w-[16rem] break-all px-3",
+      className: "min-w-[12rem] md:w-[19rem] break-all px-4 py-3",
     },
     {
       id: "acciones",
@@ -160,11 +160,12 @@ function crearColumnasLogistica(
             text="Eliminar"
             variant="danger"
             type="button"
+            className="w-full sm:w-auto text-xs sm:text-sm"
             onClick={() => onEliminar(personal)}
           />
         );
       },
-      className: "text-center min-w-[16rem] max-w-[16rem] break-all px-3",
+      className: "text-center min-w-[7rem] sm:min-w-[8rem] px-3 py-3",
     },
   ];
 }
@@ -504,13 +505,13 @@ export function EditarEventoConSubeventos() {
         render: (invitado) => (
           <span className="font-medium text-gray-800">{invitado.correo}</span>
         ),
-        className: "min-w-[16rem] max-w-[16rem] break-all px-3",
+        className: "min-w-[12rem] break-all px-4 py-3",
       },
       {
         id: "acciones",
         encabezado: "Acciones",
         render: (invitado) => (
-          <div className="flex items-center justify-center gap-2">
+          <div className="flex flex-row items-center justify-center gap-2 sm:flex-nowrap">
             <Button
               text={
                 invitado.puedeReenviar
@@ -520,18 +521,19 @@ export function EditarEventoConSubeventos() {
               variant={invitado.puedeReenviar ? "primary" : "secondary"}
               disabled={!invitado.puedeReenviar}
               type="button"
+              className="text-xs sm:text-sm"
               onClick={() => handleReenviarInvitado(invitado)}
             />
             <Button
               text="Eliminar"
               variant="danger"
               type="button"
+              className="text-xs sm:text-sm"
               onClick={() => setInvitadoAEliminar(invitado)}
             />
           </div>
         ),
-        className:
-          "min-w-[16rem] max-w-[16rem] break-all px-3 text-center whitespace-nowrap",
+        className: "text-center min-w-[13rem] sm:min-w-[15rem] px-3 py-3",
       },
     ],
     [idEvento],
@@ -945,6 +947,7 @@ export function EditarEventoConSubeventos() {
 
     if (!cambiosGenerales && !cambiosActividades) {
       setMensaje("No hay cambios para guardar.");
+      window.scrollTo({ top: 0, behavior: "smooth" });
       return;
     }
 
@@ -980,7 +983,7 @@ export function EditarEventoConSubeventos() {
   );
 
   return (
-    <section className="mx-auto w-full max-w-7xl space-y-8 px-4 sm:px-6 lg:space-y-10 lg:px-8">
+    <section className="mx-auto w-full min-w-0 max-w-7xl space-y-8 px-4 sm:px-6 lg:space-y-10 lg:px-8">
       <button
         type="button"
         className="flex cursor-pointer items-center gap-2"
@@ -1037,22 +1040,22 @@ export function EditarEventoConSubeventos() {
       {evento?.solicitudModificacionPendiente && (
         <div
           role="status"
-          className="space-y-2 rounded-lg border border-amber-300 bg-amber-50 p-5 text-amber-950 shadow-sm"
+          className="space-y-2 rounded-md border border-amber-300 bg-amber-50 p-5 text-amber-950 shadow-md"
         >
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="inline-flex items-center rounded-md bg-amber-200 px-2.5 py-0.5 text-xs font-semibold text-amber-900">
-              Solicitud en Revisión
-            </span>
-            <h2 className="text-base font-bold text-amber-950">
-              Modificación logística pendiente de evaluación por Subdirección
-            </h2>
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h2 className="text-base font-bold text-amber-950 sm:text-lg">
+                Modificación logística pendiente de evaluación por Subdirección
+              </h2>
+            </div>
+            <div>
+              <Badge variant="warning">Solicitud en revisión</Badge>
+            </div>
           </div>
-          <p className="text-sm text-amber-900">
-            <span className="font-semibold">Motivo registrado:</span>{" "}
-            {separarMotivoUrgencia(
-              evento.solicitudModificacionPendiente.motivoModificacion,
-            ).motivoModificacion || "Sin motivo especificado"}
-          </p>
+          <div className="text-[16px] text-amber-900 break-words">
+            <span className="font-semibold">Motivo registrado: </span>
+            {evento.solicitudModificacionPendiente.motivoModificacion}
+          </div>
           <p className="text-xs text-amber-800">
             Mientras Subdirección dictamina esta solicitud, el evento conserva
             vigentes sus fechas y espacios originales. Si realizas otro cambio
@@ -1066,12 +1069,18 @@ export function EditarEventoConSubeventos() {
         <form
           data-editar-evento-subeventos
           onSubmit={manejarEnvio}
-          className="space-y-8"
+          className="w-full min-w-0 space-y-8"
         >
-          <fieldset disabled={guardando} className="space-y-8 border-0 p-0">
-            <section className="space-y-4 border border-gray-200 bg-white p-5 shadow-md">
+          <fieldset
+            disabled={guardando}
+            className="w-full min-w-0 space-y-8 border-0 p-0"
+          >
+            <section
+              id="sectionEventos"
+              className="space-y-5 rounded-lg border border-gray-200 bg-white p-4 shadow-sm sm:p-6 sm:shadow-md"
+            >
               <div className="grid grid-cols-1 items-start gap-4 sm:grid-cols-2">
-                <div className="w-fit">
+                <div className="w-full min-w-0">
                   <FormField
                     className="!font-bold !text-black"
                     label="Banner del evento"
@@ -1081,13 +1090,17 @@ export function EditarEventoConSubeventos() {
                       id="campoPoster"
                       accept=".jpg"
                       disabled={guardando}
+                      className=""
                       onChange={(event) =>
                         setArchivoPoster(event.currentTarget.files?.[0] ?? null)
                       }
                     />
                   </FormField>
                 </div>
-                <div id="contenedorAlcance" className="max-w-xs">
+                <div
+                  id="contenedorAlcance"
+                  className="w-full min-w-0 sm:max-w-xs"
+                >
                   <FormField
                     label="Alcance"
                     htmlFor="campoAlcance"
@@ -1266,17 +1279,17 @@ export function EditarEventoConSubeventos() {
               </Modal>
             )}
 
-            <div id="contenedorLogistica" className="space-y-5 pt-2">
-              <h3 className="text-xl font-bold sm:text-2xl">
+            <div id="contenedorLogistica" className="space-y-4 pt-2">
+              <h3 className="text-lg font-bold sm:text-xl md:text-2xl">
                 Personal de logística del evento
               </h3>
               {(evento?.personalLogistica ?? []).length > 0 ? (
-                <div className="shadow-md w-fit overflow-x-auto rounded-md">
+                <div className="w-full max-w-full overflow-x-auto rounded-lg border border-gray-200 shadow-sm lg:w-150">
                   <Table
                     columnas={columnasLogistica}
                     filas={evento?.personalLogistica ?? []}
                     obtenerClave={(personal) => personal.idUsuario}
-                    className="bg-white text-left text-sm [&_tbody_tr]:h-12 [&_thead_tr]:h-10 [&_th]:py-2 [&_td]:py-2"
+                    className="w-full min-w-full bg-white text-left text-sm [&_tbody_tr]:h-12 [&_thead_tr]:h-10 [&_th]:py-2 [&_td]:py-2"
                   />
                 </div>
               ) : (
@@ -1288,6 +1301,7 @@ export function EditarEventoConSubeventos() {
                 text="Agregar personal de logística"
                 variant="primary"
                 type="button"
+                className="w-full sm:w-auto"
                 onClick={() => {
                   navigate(
                     `/organizador/administrar-evento/${idEvento}/agregar-logistica`,
@@ -1298,10 +1312,12 @@ export function EditarEventoConSubeventos() {
 
             {(datosGenerales?.idAlcance === AlcanceEvento.PRIVADO ||
               evento?.idAlcance === AlcanceEvento.PRIVADO) && (
-              <div id="contenedorInvitados" className="space-y-5 pt-2">
-                <h3 className="text-xl font-bold sm:text-2xl">Tus invitados</h3>
+              <div id="contenedorInvitados" className="space-y-4 pt-2">
+                <h3 className="text-lg font-bold sm:text-xl md:text-2xl">
+                  Tus invitados
+                </h3>
                 {invitados.length > 0 ? (
-                  <div className="shadow-md w-fit overflow-x-auto rounded-md border border-gray-200">
+                  <div className="w-full max-w-full overflow-x-auto rounded-lg border border-gray-200 shadow-sm lg:w-150">
                     <Table
                       columnas={columnasInvitados}
                       filas={invitados}
@@ -1310,7 +1326,7 @@ export function EditarEventoConSubeventos() {
                         invitado.idInvitacionEvento ??
                         invitado.correo
                       }
-                      className="bg-white text-left text-sm [&_tbody_tr]:h-12 [&_thead_tr]:h-10 [&_th]:py-2 [&_td]:py-2"
+                      className="w-full min-w-full bg-white text-left text-sm [&_tbody_tr]:h-12 [&_thead_tr]:h-10 [&_th]:py-2 [&_td]:py-2"
                     />
                   </div>
                 ) : (
@@ -1322,6 +1338,7 @@ export function EditarEventoConSubeventos() {
                   text="Agregar invitados"
                   variant="primary"
                   type="button"
+                  className="w-full sm:w-auto"
                   onClick={() => setModalInvitados(true)}
                 />
               </div>
@@ -1620,7 +1637,10 @@ export function EditarEventoConSubeventos() {
                     </FormField>
 
                     <div className="col-span-full flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                      <div id="contenedorBotonesCard">
+                      <div
+                        id="contenedorBotonesCard"
+                        className="w-full sm:w-auto"
+                      >
                         <Button
                           text="Nombre y descripción del subevento"
                           id={`botonVerInformacion-${actividad.llave}`}
@@ -1665,17 +1685,22 @@ export function EditarEventoConSubeventos() {
             </section>
           </fieldset>
 
-          <div id="contenedorBotones" className="flex justify-end gap-3">
+          <div
+            id="contenedorBotones"
+            className="flex flex-col-reverse gap-3 pt-4 sm:flex-row sm:justify-end"
+          >
             <Button
               text="Agregar actividad"
               variant="primary"
               type="button"
+              className="w-full sm:w-auto"
               onClick={agregarActividad}
             />
             <Button
               text="Guardar cambios"
               variant="primary"
               type="submit"
+              className="w-full sm:w-auto"
               loading={guardando}
               loadingText="Guardando..."
             />

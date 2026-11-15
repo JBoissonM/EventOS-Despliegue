@@ -69,15 +69,12 @@ export function SpaceRequerimentsDialog({
       }
 
       try {
-        const response = await fetch(
-          `${API_BASE_URL}/espacios/${id}/equipos`,
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-            signal: controller.signal,
+        const response = await fetch(`${API_BASE_URL}/espacios/${id}/equipos`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
           },
-        );
+          signal: controller.signal,
+        });
         if (!response.ok) {
           throw new Error(
             `No se pudieron cargar las solicitudes (HTTP ${response.status}).`,
@@ -132,7 +129,8 @@ export function SpaceRequerimentsDialog({
       contenido={laboratorio}
       mostrarModal={mostrar}
       cerrarModal={cerrar}
-      ancho="amplio">
+      ancho="amplio"
+    >
       {cargando && <p role="status">Cargando equipos...</p>}
       {error && <p role="alert">{error}</p>}
       {!cargando && !error && equipos.length === 0 && (
@@ -142,15 +140,23 @@ export function SpaceRequerimentsDialog({
         <div>
           <div
             id="contenedorModal"
-            className="grid grid-cols-[2fr_3fr] gap-5 items-start">
+            className="grid sm:grid-cols-[2fr_3fr] gap-5 items-start"
+          >
             <div id="contendorInformacion" className="">
-              <p>Total de equipos: {equipos.length}</p>
-              <p>Equipos activos: {equiposHabilitados} </p>
-              <p>Equipos inactivos: {equiposDeshabilitados}</p>
+              <p className="text-sm sm:text-base">
+                Total de equipos: {equipos.length}
+              </p>
+              <p className="text-sm sm:text-base">
+                Equipos activos: {equiposHabilitados}{" "}
+              </p>
+              <p className="text-sm sm:text-base">
+                Equipos inactivos: {equiposDeshabilitados}
+              </p>
             </div>
             <div
               id="contenedorTabla"
-              className="min-w-0 max-h-[42vh] overflow-auto">
+              className="min-w-0 max-h-[42vh] overflow-auto"
+            >
               <Table
                 columnas={columnas}
                 filas={equipos}

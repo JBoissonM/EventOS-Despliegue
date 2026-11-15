@@ -6,9 +6,18 @@ import { Modal } from "../../components/molecules/Modal";
 import { TextArea } from "../../components/atoms/TextArea/TextArea";
 import { FormField } from "../../components/molecules/FormField";
 import { useNavigate } from "react-router";
-import { SearchBar } from "../../components/molecules/SearchBar";
 import { apiRequest } from "../../lib/apiClient";
 import { formatearFechaDdMmAaaa } from "../../utils/fechaHorario";
+
+import { PageHeader } from "../../components/organisms/PageHeader/PageHeader";
+import { SearchField } from "../../components/molecules/SearchField";
+import {
+  FilterDropdown,
+  type FilterOption,
+} from "../../components/molecules/FilterDropdown";
+import { DateRangeFields } from "../../components/molecules/DateRangeFields";
+
+import { obtenerAhoraCdmx } from "../../utils/fechaHorario";
 
 type SolicitudesAprobadas = {
   idEvento: number;
@@ -17,6 +26,20 @@ type SolicitudesAprobadas = {
   fechaInicio: string | null;
   fechaFin: string | null;
 };
+
+const dateOptions: FilterOption[] = [
+  { value: "proximos", label: "Próximos 7 días" },
+  { value: "mes_actual", label: "Este mes" },
+  { value: "mes_siguiente", label: "Próximo mes" },
+  { value: "personalizado", label: "Rango personalizado" },
+];
+
+export type DateFilter =
+  | "todas"
+  | "proximos"
+  | "mes_actual"
+  | "mes_siguiente"
+  | "personalizado";
 
 const MAX_MOTIVO = 500;
 
@@ -122,6 +145,66 @@ function normalizarTexto(texto: string): string {
     .toLocaleLowerCase("es-MX");
 }
 
+function coincideFiltroFecha(
+  fecha: string | null | undefined,
+  filtro: DateFilter,
+  inicioPersonalizado: string,
+  finPersonalizado: string,
+): boolean {
+  if (filtro === "todas" || !filtro) {
+    return true;
+  }
+  if (!fecha) {
+    return false;
+  }
+
+  const fechaStr = fecha.slice(0, 10);
+  const [anio, mes, dia] = fechaStr.split("-").map(Number);
+  const fechaEvento = new Date(anio, mes - 1, dia);
+  if (
+    Number.isNaN(fechaEvento.getTime()) ||
+    fechaEvento.getFullYear() !== anio ||
+    fechaEvento.getMonth() !== mes - 1 ||
+    fechaEvento.getDate() !== dia
+  ) {
+    return false;
+  }
+
+  const hoy = new Date();
+  const inicioHoy = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate());
+
+  if (filtro === "proximos") {
+    const finProximos = new Date(inicioHoy);
+    finProximos.setDate(finProximos.getDate() + 7);
+    return fechaEvento >= inicioHoy && fechaEvento <= finProximos;
+  }
+
+  if (filtro === "mes_actual") {
+    return (
+      fechaEvento.getFullYear() === hoy.getFullYear() &&
+      fechaEvento.getMonth() === hoy.getMonth()
+    );
+  }
+
+  if (filtro === "mes_siguiente") {
+    const siguienteMes = (hoy.getMonth() + 1) % 12;
+    const anioSiguiente =
+      hoy.getMonth() === 11 ? hoy.getFullYear() + 1 : hoy.getFullYear();
+    return (
+      fechaEvento.getFullYear() === anioSiguiente &&
+      fechaEvento.getMonth() === siguienteMes
+    );
+  }
+
+  if (filtro === "personalizado") {
+    if (inicioPersonalizado && fechaStr < inicioPersonalizado) return false;
+    if (finPersonalizado && fechaStr > finPersonalizado) return false;
+    return true;
+  }
+
+  return true;
+}
+
 export function SolicitudesAprobadas() {
   const [solicitudes, setSolicitudes] = useState<SolicitudesAprobadas[]>([]);
   const [cargando, setCargando] = useState(true);
@@ -137,15 +220,32 @@ export function SolicitudesAprobadas() {
   const [mostrarModalExito, setModalExito] = useState(false);
   const [busqueda, setBusqueda] = useState("");
   const navigate = useNavigate();
+  const [filtroFecha, setFiltroFecha] = useState<DateFilter>("todas");
+  const [rangeStart, setRangeStart] = useState("");
+  const [rangeEnd, setRangeEnd] = useState("");
   const busquedaNormalizada = normalizarTexto(busqueda.trim());
+  const ahoraCdmx = obtenerAhoraCdmx();
+
   const solicitudesFiltradas = solicitudes.filter((solicitud) => {
-    if (!busquedaNormalizada) {
-      return true;
+    if (busquedaNormalizada) {
+      const coincideBusqueda = [
+        solicitud.nombre,
+        solicitud.nombreSolicitante,
+      ].some((texto) => normalizarTexto(texto).includes(busquedaNormalizada));
+      if (!coincideBusqueda) return false;
+    }
+    if (
+      !coincideFiltroFecha(
+        solicitud.fechaInicio ?? solicitud.fechaFin,
+        filtroFecha,
+        rangeStart,
+        rangeEnd,
+      )
+    ) {
+      return false;
     }
 
-    return [solicitud.nombre, solicitud.nombreSolicitante].some((texto) =>
-      normalizarTexto(texto).includes(busquedaNormalizada),
-    );
+    return true;
   });
 
   useEffect(() => {
@@ -289,7 +389,8 @@ export function SolicitudesAprobadas() {
         return (
           <div
             id="contenedorCeldaBotones"
-            className="flex gap-2 justify-center">
+            className="flex gap-2 justify-center"
+          >
             <Button
               text="Detalles"
               variant="primary"
@@ -320,27 +421,55 @@ export function SolicitudesAprobadas() {
   return (
     <>
       <section className="space-y-5">
-        <div id="contenedorSuperior" className="mx-auto flex justify-between">
-          <div id="contenedorTitulo">
-            <h1 className="font-merriweather text-[36px] font-bold">
-              Solicitudes aprobadas
-            </h1>
-          </div>
-          <div id="contenedor Filtrado">
-            <SearchBar
-              value={busqueda}
-              texto="Buscar por nombre o solicitante"
-              onChangeEvent={(e) => setBusqueda(e.target.value)}
-              handle={(event) => event.preventDefault()}
+        <div
+          className={
+            filtroFecha === "personalizado"
+              ? "mb-4 flex flex-col gap-6 xl:flex-row xl:items-start xl:justify-between"
+              : "mb-6 flex flex-col gap-6 lg:mb-8 xl:flex-row xl:items-start xl:justify-between"
+          }
+        >
+          <div className="min-w-0 xl:max-w-sm xl:shrink-0">
+            <PageHeader
+              title="Solicitudes aprobadas"
+              description="Consulta y administra las solicitudes aprobadas"
             />
           </div>
+          <div className="w-full min-w-0 space-y-3 xl:max-w-5xl">
+            <SearchField
+              value={busqueda}
+              onChange={setBusqueda}
+              placeholder="Buscar por nombre del evento"
+            />
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+              <div className="min-w-0">
+                <FilterDropdown
+                  label="Fecha"
+                  allLabel="Todas las fechas"
+                  allValue="todas"
+                  value={filtroFecha}
+                  options={dateOptions}
+                  onChange={(value) => setFiltroFecha(value as DateFilter)}
+                />
+              </div>
+            </div>
+          </div>
         </div>
+        {filtroFecha === "personalizado" && (
+          <DateRangeFields
+            startDate={rangeStart}
+            endDate={rangeEnd}
+            onStartDateChange={setRangeStart}
+            onEndDateChange={setRangeEnd}
+            className="mb-3"
+          />
+        )}
         {cargando && <p role="status">Cargando solicitudes...</p>}
         {error && <p role="alert">{error}</p>}
         {!cargando && !error && solicitudes.length === 0 && (
           <div
             id="contenederIcono"
-            className="flex min-h-[50vh] flex-col items-center justify-center text-center space-y-2">
+            className="flex min-h-[50vh] flex-col items-center justify-center text-center space-y-2"
+          >
             <svg
               xmlns="http://www.w3.org/2000/svg"
               width="60"
@@ -351,7 +480,8 @@ export function SolicitudesAprobadas() {
               stroke-width="2"
               stroke-linecap="round"
               stroke-linejoin="round"
-              className="lucide lucide-calendar preview-icon">
+              className="lucide lucide-calendar preview-icon"
+            >
               <path d="M8 2v3" />
               <path d="M16 2v3" />
               <rect x="3" y="3" width="18" height="18" rx="2" />
@@ -369,7 +499,8 @@ export function SolicitudesAprobadas() {
           solicitudesFiltradas.length === 0 && (
             <div
               id="contenederIcono"
-              className="flex min-h-[50vh] flex-col items-center justify-center text-center space-y-2">
+              className="flex min-h-[50vh] flex-col items-center justify-center text-center space-y-2"
+            >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
                 width="60"
@@ -380,7 +511,8 @@ export function SolicitudesAprobadas() {
                 stroke-width="2"
                 stroke-linecap="round"
                 stroke-linejoin="round"
-                className="lucide lucide-x preview-icon">
+                className="lucide lucide-x preview-icon"
+              >
                 <path d="M18 6 6 18" />
                 <path d="m6 6 12 12" />
               </svg>
@@ -393,7 +525,8 @@ export function SolicitudesAprobadas() {
         {!cargando && !error && solicitudesFiltradas.length > 0 && (
           <div
             id="contenedorTabla"
-            className="rounded-md mx-auto w-full max-w-7xl overflow-x-auto shadow-md p-5 border border-gray-200 bg-white">
+            className="rounded-md mx-auto w-full max-w-7xl overflow-x-auto shadow-md p-5 border border-gray-200 bg-white"
+          >
             <Table
               columnas={columnas}
               filas={solicitudesFiltradas}
@@ -406,7 +539,8 @@ export function SolicitudesAprobadas() {
           titulo="Cancelación de evento"
           contenido={`Evento: ${solicitudSeleccionada?.nombre ?? ""}.`}
           mostrarModal={mostrarModalCancelacion}
-          cerrarModal={cerrarModalCancelacion}>
+          cerrarModal={cerrarModalCancelacion}
+        >
           <div id="conetenedorMotivo" className="flex flex-col gap-5">
             <FormField
               htmlFor="campoMotivo"
@@ -416,7 +550,8 @@ export function SolicitudesAprobadas() {
                   : longitudMotivo < 10 && longitudMotivo > 0
                     ? "El motivo de cancelación es muy corto"
                     : ""
-              }>
+              }
+            >
               <TextArea
                 id="campoMotivo"
                 placeholder="Ingresa el motivo de cancelación"
@@ -451,10 +586,12 @@ export function SolicitudesAprobadas() {
             titulo="Confirmacion"
             contenido="¿Desea cancelar el evento?"
             mostrarModal={mostrarModalConfirmacion}
-            cerrarModal={cerrarModalConfirmacion}>
+            cerrarModal={cerrarModalConfirmacion}
+          >
             <div
               id="contendorBotonesConfirmacion"
-              className="flex gap-2 justify-end">
+              className="flex gap-2 justify-end"
+            >
               <Button
                 text="Cancelar"
                 variant="danger"
@@ -479,7 +616,8 @@ export function SolicitudesAprobadas() {
             titulo="Operación exitosa"
             contenido="Se ha cancelado exitosamente el evento"
             mostrarModal={mostrarModalExito}
-            cerrarModal={() => setModalExito(false)}>
+            cerrarModal={() => setModalExito(false)}
+          >
             <div className="flex justify-end">
               <Button
                 text="Aceptar"

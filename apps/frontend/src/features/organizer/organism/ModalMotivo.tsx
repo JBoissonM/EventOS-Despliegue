@@ -37,31 +37,22 @@ export function ModalMotivo({
         mostrarModal={mostrarModal}
         titulo="Motivo de modificación logística"
         contenido="Ingresa el motivo de la modificación"
-        cerrarModal={onCerrar}>
-        <FormField
-          label="Motivo de modificación"
-          className="!font-bold !text-black"
-          errorMessage={
-            intentoMotivo && !logistica.motivoModificacion.trim()
-              ? "El motivo de modificación es obligatorio."
-              : logistica.motivoModificacion.trim().length >= 500
-                ? "El motivo de modificación no puede exceder los 500 caracteres."
-                : ""
-          }>
+        cerrarModal={onCerrar}
+      >
+        <FormField label="Motivo de modificación" required>
+          <span className="text-xs text-gray-500">
+            Máximo 500 caracteres y mínimo 10
+          </span>
           <TextArea
             id="contenedorMotivo"
             className="h-50 resize-none"
             value={logistica.motivoModificacion}
             maxLength={
-              esUrgente
-                ? 500 - MARCADOR_MOTIVO_URGENCIA.length - 1
-                : 500
+              esUrgente ? 500 - MARCADOR_MOTIVO_URGENCIA.length - 1 : 500
             }
-            hasError={
-              (intentoMotivo && !logistica.motivoModificacion.trim()) ||
-              logistica.motivoModificacion.trim().length >= 500
-            }
-            onChange={(event) => onCambioMotivo(event.currentTarget.value)}
+            onChange={(event) => {
+              onCambioMotivo(event.currentTarget.value);
+            }}
           />
         </FormField>
         {esUrgente && (
@@ -81,6 +72,7 @@ export function ModalMotivo({
             text="Continuar"
             variant="primary"
             type="button"
+            disabled={logistica.motivoModificacion.trim().length < 10}
             onClick={onSolicitarConfirmacion}
           />
         </div>
@@ -89,9 +81,9 @@ export function ModalMotivo({
       <Modal
         mostrarModal={mostrarModalAviso}
         titulo="Confirmar modificación logística"
-        contenido="Los cambios que desea realizar requieren una nueva revisión, su evento pasara a pendiente, hasta que subdirección lo vuelta autorizar. 
-¿Estás seguro de que quieres realizar los cambios?"
-        cerrarModal={onCerrarAviso}>
+        contenido="Los cambios que desea realizar requieren una nueva revisión, su evento pasara a pendiente, hasta que subdirección lo vuelva a autorizar"
+        cerrarModal={onCerrarAviso}
+      >
         <div className="flex justify-end gap-3">
           <Button
             text="Volver"
