@@ -90,25 +90,16 @@ export function Registro() {
                   hasError={!!errors.correo}
                   aria-describedby="email-error"
                 />
-                <div className="min-h-10.5 mt-1">
-                  {errors.correo ? (
-                    <p className="text-eventos-error text-xs font-merriweather">{errors.correo}</p>
-                  ) : (
+                {!errors.correo && (
+                  <div className="mt-1 -mb-7">
                     <FieldMessage variant="helper">
                       {correoBloqueadoPorInvitacion
                         ? "Este correo corresponde a tu invitación y quedará vinculado automáticamente."
                         : "Usa tu correo institucional (@ipn.mx, @alumno.ipn.mx) o tu cuenta personal."}
                     </FieldMessage>
-                  )}
-                </div>
+                  </div>
+                )}
               </FormField>
-              {!errors.correo && (
-                <div className="-mt-4">
-                  <FieldMessage variant="helper">
-                    Usa tu correo institucional (@ipn.mx, @alumno.ipn.mx) o tu cuenta personal.
-                  </FieldMessage>
-                </div>
-              )}
             </div>
 
             <div className="md:col-start-1 md:row-start-3">
