@@ -87,7 +87,7 @@ export function ConfirmarRegistro() {
             </div>
 
             <div className="space-y-2">
-              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">
+              <h1 className="text-[16px] sm:text-[24px] font-bold text-gray-900">
                 ¡Correo verificado con éxito!
               </h1>
               {nombreUsuario && (
@@ -175,13 +175,6 @@ export function ConfirmarRegistro() {
             </div>
           </div>
         )}
-
-        <div className="pt-4 border-t border-gray-100 text-xs text-gray-500">
-          <Link to="/login" className="hover:text-gray-800 transition-colors inline-flex items-center gap-1 font-semibold">
-            Volver a la página principal <ArrowRight className="w-3.5 h-3.5" />
-          </Link>
-        </div>
-
       </div>
     </div>
   );
