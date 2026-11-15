@@ -11,8 +11,10 @@ import { DataSource, EntityManager, In, Repository } from 'typeorm';
 import {
   EstadoBoleto,
   EstadoEvento,
+  EstadoRecinto,
   EstadoSubEvento,
   EstadoVerificacion,
+  RecintoId,
   TipoCuentaUsuario,
   type SolicitanteResumen,
   type SubeventoPayload,
@@ -141,8 +143,10 @@ export class SolicitudesService {
   async consultarColisionBD(
     subevento: SubeventoPayload,
     excluirIdEvento?: number,
+    manager: EntityManager = this.dataSource.manager,
   ): Promise<boolean> {
-    const qb = this.subEventoRepository
+    const qb = manager
+      .getRepository(SubEventoEntity)
       .createQueryBuilder('subevento')
       .innerJoin('subevento.fecha', 'fecha')
       .innerJoin('subevento.evento', 'evento')
@@ -176,10 +180,7 @@ export class SolicitudesService {
     return true;
   }
 
-  async validarSubeventos(
-    subeventos: SubeventoPayload[],
-    excluirIdEvento?: number,
-  ): Promise<boolean> {
+  validarSubeventosEnMemoria(subeventos: SubeventoPayload[]): boolean {
     if (!subeventos || subeventos.length === 0) {
       throw new BadRequestException(
         'La solicitud debe contener al menos un subevento.',
@@ -212,6 +213,101 @@ export class SolicitudesService {
       }
     }
 
+    return true;
+  }
+
+  private async validarReglasRecintoConManager(
+    recinto: RecintoEntity,
+    accesoQR: boolean,
+    manager: EntityManager,
+  ): Promise<void> {
+    if (recinto.idEstadoRecinto !== EstadoRecinto.HABILITADO) {
+      throw new ConflictException(
+        `El recinto "${recinto.nombre}" no está disponible por encontrarse inhabilitado o en mantenimiento (RN-34).`,
+      );
+    }
+
+    if (recinto.idRecinto === RecintoId.SALA_14 && accesoQR === true) {
+      throw new BadRequestException(
+        'En Sala 14 no se permite acceso con boleto o código QR individual.',
+      );
+    }
+
+    if (
+      recinto.idRecinto !== RecintoId.AUDITORIO &&
+      recinto.idRecinto !== RecintoId.SALA_14
+    ) {
+      if (accesoQR === false) {
+        throw new BadRequestException(
+          'En los laboratorios de cómputo es obligatorio el acceso con boleto/código QR.',
+        );
+      }
+
+      const [{ total }] = await manager.query(
+        `SELECT COUNT(*)::int AS total FROM "estadoEquipo" WHERE "idRecinto" = $1 AND estado = true`,
+        [recinto.idRecinto],
+      );
+
+      if (recinto.aforo !== total) {
+        recinto.aforo = total;
+        await manager
+          .getRepository(RecintoEntity)
+          .update(recinto.idRecinto, { aforo: total });
+      }
+
+      if (total <= 0) {
+        throw new ConflictException(
+          `El laboratorio "${recinto.nombre}" no cuenta con equipos de cómputo habilitados disponibles.`,
+        );
+      }
+    }
+  }
+
+  async validarSubeventos(
+    subeventos: SubeventoPayload[],
+    excluirIdEvento?: number,
+    manager?: EntityManager,
+  ): Promise<boolean> {
+    this.validarSubeventosEnMemoria(subeventos);
+
+    if (manager) {
+      const idsRecintoOrdenados = [
+        ...new Set(subeventos.map((s) => s.idRecinto)),
+      ].sort((a, b) => a - b);
+
+      const recintoRepo = manager.getRepository(RecintoEntity);
+      const recintosBloqueados = new Map<number, RecintoEntity>();
+
+      for (const idRecinto of idsRecintoOrdenados) {
+        const recinto = await recintoRepo.findOne({
+          where: { idRecinto },
+          lock: { mode: 'pessimistic_write' },
+        });
+        if (!recinto) {
+          throw new NotFoundException(
+            `El recinto con ID ${idRecinto} no fue encontrado.`,
+          );
+        }
+        recintosBloqueados.set(idRecinto, recinto);
+      }
+
+      for (const subeventoActual of subeventos) {
+        const recinto = recintosBloqueados.get(subeventoActual.idRecinto)!;
+        await this.validarReglasRecintoConManager(
+          recinto,
+          subeventoActual.accesoQR ?? false,
+          manager,
+        );
+        await this.consultarColisionBD(
+          subeventoActual,
+          excluirIdEvento,
+          manager,
+        );
+      }
+
+      return true;
+    }
+
     for (const subeventoActual of subeventos) {
       await this.recintoService.validarRecinto(
         subeventoActual.idRecinto,
@@ -233,7 +329,7 @@ export class SolicitudesService {
     }
 
     if (subeventos.length > 0) {
-      await this.validarSubeventos(subeventos);
+      this.validarSubeventosEnMemoria(subeventos);
       evento.esUrgente = this.calcularEsUrgente(subeventos);
     } else {
       evento.esUrgente = false;
@@ -264,6 +360,38 @@ export class SolicitudesService {
     }
 
     return await this.dataSource.transaction(async (manager) => {
+      if (subeventos.length > 0) {
+        const idsRecintoOrdenados = [
+          ...new Set(subeventos.map((s) => s.idRecinto)),
+        ].sort((a, b) => a - b);
+
+        const recintoRepo = manager.getRepository(RecintoEntity);
+        const recintosBloqueados = new Map<number, RecintoEntity>();
+
+        for (const idRecinto of idsRecintoOrdenados) {
+          const recinto = await recintoRepo.findOne({
+            where: { idRecinto },
+            lock: { mode: 'pessimistic_write' },
+          });
+          if (!recinto) {
+            throw new NotFoundException(
+              `El recinto con ID ${idRecinto} no fue encontrado.`,
+            );
+          }
+          recintosBloqueados.set(idRecinto, recinto);
+        }
+
+        for (const subeventoActual of subeventos) {
+          const recinto = recintosBloqueados.get(subeventoActual.idRecinto)!;
+          await this.validarReglasRecintoConManager(
+            recinto,
+            subeventoActual.accesoQR ?? false,
+            manager,
+          );
+          await this.consultarColisionBD(subeventoActual, undefined, manager);
+        }
+      }
+
       const eventoGuardado = await manager.save(EventoEntity, evento);
       const subeventosGuardados: SubEventoEntity[] = [];
 
@@ -624,7 +752,7 @@ export class SolicitudesService {
     idUsuarioActor?: number,
     motivoModificacion?: string,
   ) {
-    await this.validarSubeventos(subeventosPropuestos, idEvento);
+    this.validarSubeventosEnMemoria(subeventosPropuestos);
     const nuevoEsUrgente = this.calcularEsUrgente(subeventosPropuestos);
 
     const subeventosConCambioRecinto: {
@@ -653,6 +781,36 @@ export class SolicitudesService {
     }
 
     await this.dataSource.transaction(async (manager) => {
+      const idsRecintoOrdenados = [
+        ...new Set(subeventosPropuestos.map((s) => s.idRecinto)),
+      ].sort((a, b) => a - b);
+
+      const recintoRepo = manager.getRepository(RecintoEntity);
+      const recintosBloqueados = new Map<number, RecintoEntity>();
+
+      for (const idRecinto of idsRecintoOrdenados) {
+        const recinto = await recintoRepo.findOne({
+          where: { idRecinto },
+          lock: { mode: 'pessimistic_write' },
+        });
+        if (!recinto) {
+          throw new NotFoundException(
+            `El recinto con ID ${idRecinto} no fue encontrado.`,
+          );
+        }
+        recintosBloqueados.set(idRecinto, recinto);
+      }
+
+      for (const subeventoActual of subeventosPropuestos) {
+        const recinto = recintosBloqueados.get(subeventoActual.idRecinto)!;
+        await this.validarReglasRecintoConManager(
+          recinto,
+          subeventoActual.accesoQR ?? false,
+          manager,
+        );
+        await this.consultarColisionBD(subeventoActual, idEvento, manager);
+      }
+
       const subeventosExistentes = await manager.find(SubEventoEntity, {
         where: { idEvento },
       });

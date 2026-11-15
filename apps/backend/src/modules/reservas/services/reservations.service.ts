@@ -169,6 +169,11 @@ export class ReservationsService {
                 throw new ConflictException('El evento principal no se encuentra autorizado o activo para reservaciones.');
             }
 
+            // Auto-reserva: Validar idOrganizador !== idUsuario al solicitar boletos (HTTP 400)
+            if (Number(eventoPrincipal.idOrganizador) === Number(idUsuario)) {
+                throw new BadRequestException('El organizador no puede solicitar boletos para su propio evento.');
+            }
+
             if (eventoPrincipal.idAlcance === AlcanceEvento.PRIVADO) {
                 const invitacionRaw = await manager.query(
                     `SELECT 1 FROM "invitacionEvento" WHERE "idEvento" = $1 AND "idUsuario" = $2 LIMIT 1`,

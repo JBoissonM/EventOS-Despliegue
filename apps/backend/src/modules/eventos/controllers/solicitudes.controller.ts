@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Get,
@@ -17,6 +18,7 @@ import {
   ValidationPipe,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
+import { Throttle } from '@nestjs/throttler';
 import { TipoCuentaUsuario } from '@eventos/shared';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { SolicitudesService } from '../services/solicitudes.service';
@@ -36,6 +38,58 @@ export class SolicitudesController {
     private readonly eventosService: SolicitudesService,
     private readonly storageService: StorageService,
   ) {}
+
+  private validarFechasPosterioresAHoy(payload: any): void {
+    if (!payload || typeof payload !== 'object') return;
+
+    const fechaHoy = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'America/Mexico_City',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).format(new Date());
+
+    const fechasExtraidas: string[] = [];
+
+    const recolectarFechas = (nodo: any) => {
+      if (!nodo) return;
+      if (typeof nodo === 'string') {
+        try {
+          recolectarFechas(JSON.parse(nodo));
+        } catch {
+          return;
+        }
+        return;
+      }
+      if (Array.isArray(nodo)) {
+        for (const item of nodo) recolectarFechas(item);
+        return;
+      }
+      if (typeof nodo === 'object') {
+        for (const [clave, valor] of Object.entries(nodo)) {
+          if (
+            (clave === 'fecha' || clave === 'nuevaFecha' || clave === 'fechaEvento') &&
+            typeof valor === 'string' &&
+            /^\d{4}-\d{2}-\d{2}/.test(valor.trim())
+          ) {
+            fechasExtraidas.push(valor.trim().slice(0, 10));
+          } else if (typeof valor === 'object' || typeof valor === 'string') {
+            recolectarFechas(valor);
+          }
+        }
+      }
+    };
+
+    recolectarFechas(payload);
+
+    for (const fecha of fechasExtraidas) {
+      if (fecha <= fechaHoy) {
+        throw new BadRequestException(
+          `No se permiten solicitudes para el mismo día (${fechaHoy}) o fechas pasadas, aunque sean urgentes.`,
+        );
+      }
+    }
+  }
 
   // Lista solicitudes filtradas por estado (ej. ?estado=Pendiente o ?estado=Aprobado). Solo Subdirección.
   @ApiOperation({
@@ -62,6 +116,7 @@ export class SolicitudesController {
   @ApiOperation({
     summary: 'Aprobar solicitud de evento o modificación logística pendiente',
   })
+  @Throttle({ default: { limit: 15, ttl: 60000 } })
   @Patch(':id/aprobar')
   @UseGuards(RolesGuard)
   @Roles(TipoCuentaUsuario.SUBDIRECCION)
@@ -79,6 +134,7 @@ export class SolicitudesController {
   @ApiOperation({
     summary: 'Rechazar solicitud de evento o modificación logística pendiente',
   })
+  @Throttle({ default: { limit: 15, ttl: 60000 } })
   @Patch(':id/rechazar')
   @UseGuards(RolesGuard)
   @Roles(TipoCuentaUsuario.SUBDIRECCION)
@@ -104,6 +160,7 @@ export class SolicitudesController {
   @ApiOperation({
     summary: 'Cancelar evento aprobado con motivo obligatorio',
   })
+  @Throttle({ default: { limit: 10, ttl: 60000 } })
   @Patch(':id/cancelar')
   @UseGuards(RolesGuard)
   @Roles(TipoCuentaUsuario.SUBDIRECCION)
@@ -125,6 +182,7 @@ export class SolicitudesController {
   @ApiOperation({
     summary: 'Crear nueva solicitud de evento',
   })
+  @Throttle({ default: { limit: 10, ttl: 60000 } })
   @Post()
   @HttpCode(HttpStatus.CREATED)
   @UseGuards(RolesGuard)
@@ -139,6 +197,8 @@ export class SolicitudesController {
     @Req() req: any,
     @UploadedFile() posterFile?: Express.Multer.File,
   ) {
+    this.validarFechasPosterioresAHoy(dto);
+
     // Si viene un archivo físico para el póster, lo sube a MinIO / S3 y obtiene la key
     const posterKey = posterFile
       ? await this.storageService.upload(posterFile, 'posters', 'public')
