@@ -492,6 +492,137 @@ export function modalidadPorDefectoRecinto(
     : ModalidadAcceso.QR_GENERAL;
 }
 
+export type TipoTransicionModalidad =
+  | 'CONSERVADO'
+  | 'CANCELADO_REAUTH'
+  | 'CANCELADO_LIBERADO';
+
+export interface ImpactoCambioSubevento {
+  idSubEvento: number;
+  nombreSubEvento: string;
+  inscritosActivos: number;
+  aforoDestino: number;
+  idRecintoOrigen: number;
+  idRecintoDestino: number;
+  modalidadOrigen: ModalidadAcceso;
+  modalidadDestino: ModalidadAcceso;
+  cambioRecinto: boolean;
+  cambioModalidad: boolean;
+  conservadosFifo: number;
+  canceladosSobrecupoFifo: number;
+  canceladosPorTransicion: number;
+  tipoTransicion: TipoTransicionModalidad | null;
+  resumenTexto: string;
+}
+
+/** Clasifica el tratamiento de registros activos ante cambios de recinto o modalidad. */
+export function clasificarTransicionModalidad(
+  origen: ModalidadAcceso,
+  destino: ModalidadAcceso,
+): TipoTransicionModalidad {
+  if (destino === ModalidadAcceso.ACCESO_LIBRE) {
+    return 'CANCELADO_LIBERADO';
+  }
+  if (origen === ModalidadAcceso.ACCESO_LIBRE) {
+    return 'CANCELADO_REAUTH';
+  }
+  if (
+    origen === ModalidadAcceso.REGISTRO_SIMPLE &&
+    destino !== ModalidadAcceso.REGISTRO_SIMPLE
+  ) {
+    return 'CANCELADO_REAUTH';
+  }
+  if (
+    origen === ModalidadAcceso.QR_GENERAL &&
+    destino === ModalidadAcceso.QR_MAPA
+  ) {
+    return 'CANCELADO_REAUTH';
+  }
+  return 'CONSERVADO';
+}
+
+/** Calcula el impacto estimado de corte FIFO y transición sobre reservas activas. */
+export function calcularImpactoCambioSubevento(params: {
+  idSubEvento: number;
+  nombreSubEvento: string;
+  inscritosActivos: number;
+  aforoDestino: number;
+  idRecintoOrigen: number;
+  idRecintoDestino: number;
+  modalidadOrigen: ModalidadAcceso;
+  modalidadDestino: ModalidadAcceso;
+}): ImpactoCambioSubevento | null {
+  const cambioRecinto = params.idRecintoOrigen !== params.idRecintoDestino;
+  const cambioModalidad = params.modalidadOrigen !== params.modalidadDestino;
+
+  if (!cambioRecinto && !cambioModalidad) {
+    return null;
+  }
+
+  const { inscritosActivos, aforoDestino, modalidadOrigen, modalidadDestino } = params;
+  const transicion = clasificarTransicionModalidad(modalidadOrigen, modalidadDestino);
+
+  if (inscritosActivos <= 0) {
+    return {
+      ...params,
+      cambioRecinto,
+      cambioModalidad,
+      conservadosFifo: 0,
+      canceladosSobrecupoFifo: 0,
+      canceladosPorTransicion: 0,
+      tipoTransicion: transicion,
+      resumenTexto: '',
+    };
+  }
+
+  if (modalidadDestino === ModalidadAcceso.ACCESO_LIBRE) {
+    return {
+      ...params,
+      cambioRecinto,
+      cambioModalidad,
+      conservadosFifo: 0,
+      canceladosSobrecupoFifo: 0,
+      canceladosPorTransicion: inscritosActivos,
+      tipoTransicion: 'CANCELADO_LIBERADO',
+      resumenTexto: `Al cambiar a Acceso libre, los ${inscritosActivos} registros activos se cancelarán y liberarán con aviso por correo.`,
+    };
+  }
+
+  const aforoSeguro = Math.max(0, aforoDestino);
+  const canceladosSobrecupoFifo =
+    inscritosActivos > aforoSeguro ? inscritosActivos - aforoSeguro : 0;
+  const enAforo = inscritosActivos - canceladosSobrecupoFifo;
+  const conservadosFifo = transicion === 'CONSERVADO' ? enAforo : 0;
+  const canceladosPorTransicion = transicion === 'CANCELADO_REAUTH' ? enAforo : 0;
+
+  let resumenTexto = '';
+  if (canceladosSobrecupoFifo > 0 && transicion === 'CONSERVADO') {
+    resumenTexto = `El espacio destino tiene capacidad para ${aforoSeguro} personas y actualmente hay ${inscritosActivos} inscritos. Se conservarán los primeros ${enAforo} registros por orden cronológico de inscripción y los ${canceladosSobrecupoFifo} restantes serán cancelados por sobrecupo.`;
+  } else if (canceladosSobrecupoFifo > 0 && transicion === 'CANCELADO_REAUTH') {
+    resumenTexto = `El espacio destino tiene capacidad para ${aforoSeguro} personas y actualmente hay ${inscritosActivos} inscritos. Los ${canceladosSobrecupoFifo} registros más recientes serán cancelados por sobrecupo y los primeros ${enAforo} deberán realizar un nuevo registro por cambio de modalidad.`;
+  } else if (transicion === 'CANCELADO_REAUTH') {
+    resumenTexto = `Por cambio de modalidad, los ${inscritosActivos} registros actuales serán cancelados para que los asistentes realicen un nuevo registro acorde al espacio destino.`;
+  } else {
+    const notaSinAsiento =
+      modalidadOrigen === ModalidadAcceso.QR_MAPA &&
+      modalidadDestino !== ModalidadAcceso.QR_MAPA
+        ? ' (pasarán a admisión general sin asiento numerado asignado)'
+        : '';
+    resumenTexto = `Los ${inscritosActivos} registros actuales conservarán su lugar${notaSinAsiento} y recibirán notificación de actualización.`;
+  }
+
+  return {
+    ...params,
+    cambioRecinto,
+    cambioModalidad,
+    conservadosFifo,
+    canceladosSobrecupoFifo,
+    canceladosPorTransicion,
+    tipoTransicion: transicion,
+    resumenTexto,
+  };
+}
+
 export enum TipoPerfilVerificacion {
   ESTUDIANTE = 'Estudiante',
   PROFESOR = 'Profesor',

@@ -4,6 +4,7 @@ import { useNavigate, useParams } from "react-router";
 import {
   AlcanceEvento,
   EstadoEvento,
+  calcularImpactoCambioSubevento,
   type ModalidadAcceso,
   type ActualizarInfoGeneralPayload,
   type EventoOrganizadorDetalle,
@@ -640,20 +641,32 @@ export function EditarEvento() {
       logistica.horaFin !== logisticaInicial.horaFin ||
       logistica.idModalidadAcceso !== logisticaInicial.idModalidadAcceso),
   );
-  const cambioLogisticoOperativo = Boolean(
-    subevento &&
-    logisticaInicial &&
-    (logistica.idRecinto !== logisticaInicial.idRecinto ||
-      logistica.fecha !== logisticaInicial.fecha ||
-      logistica.horaInicio !== logisticaInicial.horaInicio ||
-      logistica.horaFin !== logisticaInicial.horaFin),
-  );
+  const cambioLogisticoOperativo = camposLogisticosModificados;
   const diasParaFechaPropuesta = diasHastaFecha(logistica.fecha);
   const esModificacionUrgente =
     cambioLogisticoOperativo &&
     diasParaFechaPropuesta !== null &&
     diasParaFechaPropuesta >= 0 &&
     diasParaFechaPropuesta <= 7;
+  const impactoCambio =
+    subevento && logistica.idRecinto && logistica.idModalidadAcceso
+      ? calcularImpactoCambioSubevento({
+          idSubEvento: subevento.idSubEvento,
+          nombreSubEvento: nombre.trim() || subevento.nombre,
+          inscritosActivos: subevento.boletosEmitidos ?? 0,
+          aforoDestino: recintoActual?.aforo ?? 0,
+          idRecintoOrigen: subevento.recinto?.idRecinto ?? 0,
+          idRecintoDestino: Number(logistica.idRecinto) || 0,
+          modalidadOrigen: subevento.idModalidadAcceso,
+          modalidadDestino: Number(
+            logistica.idModalidadAcceso,
+          ) as ModalidadAcceso,
+        })
+      : null;
+  const avisoImpacto =
+    impactoCambio && impactoCambio.inscritosActivos > 0
+      ? impactoCambio.resumenTexto || null
+      : null;
   const logisticaModificada =
     camposLogisticosModificados ||
     Boolean(
@@ -1477,6 +1490,7 @@ export function EditarEvento() {
                   errorAgenda={errorAgenda}
                   deshabilitado={guardando}
                   mostrarBanner={idSubEventoSeleccionado === undefined}
+                  avisoImpacto={avisoImpacto}
                   errores={erroresLogistica}
                   intentoGuardar={intentoGuardar}
                   onCambioLogistica={cambiarLogistica}
@@ -1499,6 +1513,7 @@ export function EditarEvento() {
                 mostrarModalAviso={mostrarModalAviso}
                 intentoMotivo={intentoMotivo}
                 esUrgente={esModificacionUrgente}
+                avisoImpacto={avisoImpacto}
                 logistica={logistica}
                 onCerrar={() => setMostrarModal(false)}
                 onCerrarAviso={() => {

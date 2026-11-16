@@ -247,6 +247,190 @@ export class MailService {
       .replace(/'/g, '&#39;');
   }
 
+  private resolverEnlaceEvento(idEvento: number): string {
+    const base = (process.env.FRONTEND_URL || 'http://localhost:5173').replace(
+      /\/+$/,
+      '',
+    );
+    return `${base}/eventos/${idEvento}`;
+  }
+
+  private construirHtmlCorreoInstitucional(
+    encabezado: string,
+    cuerpoHtml: string,
+    pieHtml = 'EventOS — Escuela Superior de Cómputo (IPN).',
+  ): string {
+    return `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden;">
+        <div style="background-color: #6b1d2f; color: #ffffff; padding: 20px; text-align: center;">
+          <h2 style="margin: 0;">${this.escaparHtml(encabezado)}</h2>
+        </div>
+        <div style="padding: 24px; color: #334155; line-height: 1.6;">
+          ${cuerpoHtml}
+          <p style="font-size: 12px; color: #64748b; margin-top: 24px; border-top: 1px solid #e2e8f0; padding-top: 12px;">
+            ${pieHtml}
+          </p>
+        </div>
+      </div>
+    `;
+  }
+
+  private async enviarCorreoSeguro(
+    destinatario: string,
+    asunto: string,
+    html: string,
+    contextoLog: string,
+  ): Promise<void> {
+    try {
+      await this.transporter.sendMail({
+        from: process.env.SMTP_FROM || process.env.SMTP_USER,
+        to: destinatario,
+        subject: asunto,
+        html,
+      });
+      this.logger.log(`${contextoLog} enviado a ${destinatario}`);
+    } catch (error) {
+      this.logger.error(
+        `Fallo al enviar ${contextoLog} a ${destinatario}`,
+        error,
+      );
+    }
+  }
+
+  async enviarCorreoACambioRecintoConservado(datos: {
+    destinatario: string;
+    nombreAsistente: string;
+    nombreEvento: string;
+    nombreSubEvento?: string;
+    nuevoRecinto: string;
+    fecha: string;
+    horaInicio: string;
+    idModalidadDestino?: ModalidadAcceso;
+    removioAsiento?: boolean;
+  }): Promise<void> {
+    const esRegistroSimple =
+      datos.idModalidadDestino === ModalidadAcceso.REGISTRO_SIMPLE;
+    const mensajeValidez = esRegistroSimple
+      ? 'Tu inscripción nominal actual sigue siendo totalmente válida. No es necesario realizar ningún proceso de re-registro; tu asistencia se validará en la lista de inscritos al momento de ingresar sin código QR.'
+      : 'Tu boleto actual sigue siendo totalmente válido. No es necesario realizar ningún proceso de re-registro ni generar un nuevo comprobante; puedes presentar el mismo código QR que recibiste previamente al momento de ingresar.';
+
+    const cuerpo = `
+      <p>Hola, <strong>${this.escaparHtml(datos.nombreAsistente)}</strong>:</p>
+      <p>Te informamos que el evento <strong>${this.escaparHtml(datos.nombreEvento)}</strong>, programado para el día <strong>${this.escaparHtml(datos.fecha)}</strong>, ha cambiado de ubicación.</p>
+      <table style="width: 100%; border-collapse: collapse; margin: 16px 0; background-color: #f8fafc; border-radius: 8px;">
+        ${datos.nombreSubEvento ? `<tr><td style="padding: 8px 12px; font-weight: bold;">Actividad:</td><td style="padding: 8px 12px;">${this.escaparHtml(datos.nombreSubEvento)}</td></tr>` : ''}
+        <tr><td style="padding: 8px 12px; font-weight: bold;">Nuevo Recinto:</td><td style="padding: 8px 12px;">${this.escaparHtml(datos.nuevoRecinto)}</td></tr>
+        <tr><td style="padding: 8px 12px; font-weight: bold;">Horario:</td><td style="padding: 8px 12px;">${this.escaparHtml(datos.horaInicio)}</td></tr>
+      </table>
+      <p>${mensajeValidez}</p>
+      ${
+        datos.removioAsiento
+          ? '<p style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px; font-size: 14px;">Debido a la nueva configuración del espacio, tu acceso pasa a admisión general sin butaca numerada asignada.</p>'
+          : ''
+      }
+      <p>Si tienes dudas adicionales, puedes contactar al equipo organizador a través de este medio.</p>
+      <p>Saludos cordiales,<br>Equipo de EventOS</p>
+    `;
+
+    const html = this.construirHtmlCorreoInstitucional(
+      'Actualización de ubicación - EventOS',
+      cuerpo,
+    );
+    await this.enviarCorreoSeguro(
+      datos.destinatario,
+      `Actualización de ubicación para ${datos.nombreEvento}`,
+      html,
+      'Correo A (cambio de recinto conservado)',
+    );
+  }
+
+  async enviarCorreoBCambioModalidadNuevoRegistro(datos: {
+    destinatario: string;
+    nombreAsistente: string;
+    nombreEvento: string;
+    idEvento: number;
+    nuevoRecinto: string;
+  }): Promise<void> {
+    const enlace = this.resolverEnlaceEvento(datos.idEvento);
+    const cuerpo = `
+      <p>Hola, <strong>${this.escaparHtml(datos.nombreAsistente)}</strong>:</p>
+      <p>Te contactamos para informarte que el evento <strong>${this.escaparHtml(datos.nombreEvento)}</strong> ha tenido un cambio en el recinto de confirmación, lo cual modifica la distribución de asientos y la capacidad del lugar.</p>
+      <p>Debido a los requerimientos del nuevo espacio (<strong>${this.escaparHtml(datos.nuevoRecinto)}</strong>), tu boleto anterior ha sido invalidado automáticamente en nuestro sistema.</p>
+      <p>Para asegurar tu asistencia, es necesario que realices un nuevo registro para seleccionar tu espacio en la nueva configuración:</p>
+      <p style="margin: 18px 0;">
+        <strong>Enlace para nuevo registro:</strong><br>
+        <a href="${this.escaparHtml(enlace)}" style="color: #6b1d2f; word-break: break-all;">${this.escaparHtml(enlace)}</a>
+      </p>
+      <p>Lamentamos los inconvenientes que este cambio pueda ocasionarle a tu logística y agradecemos tu comprensión.</p>
+      <p>Atentamente,<br>Equipo de EventOS</p>
+    `;
+
+    const html = this.construirHtmlCorreoInstitucional(
+      'Reasignación de accesos - EventOS',
+      cuerpo,
+    );
+    await this.enviarCorreoSeguro(
+      datos.destinatario,
+      `IMPORTANTE: Cambio de sede y reasignación de accesos - ${datos.nombreEvento}`,
+      html,
+      'Correo B (cambio de modalidad requiere nuevo registro)',
+    );
+  }
+
+  async enviarCorreoCCambioAccesoLibre(datos: {
+    destinatario: string;
+    nombreAsistente: string;
+    nombreEvento: string;
+    fecha: string;
+    nuevoRecinto: string;
+  }): Promise<void> {
+    const cuerpo = `
+      <p>Hola, <strong>${this.escaparHtml(datos.nombreAsistente)}</strong>:</p>
+      <p>Queremos informarte que la modalidad de entrada para <strong>${this.escaparHtml(datos.nombreEvento)}</strong>, a celebrarse el próximo <strong>${this.escaparHtml(datos.fecha)}</strong>, ha sido modificada a Acceso Libre.</p>
+      <p>El evento se llevará a cabo en <strong>${this.escaparHtml(datos.nuevoRecinto)}</strong>.</p>
+      <p><strong>¿Qué significa esto para ti?</strong></p>
+      <p>Tu boleto o registro previo ha sido cancelado por el sistema, ya que no se requerirá presentar código QR ni boleto impreso para ingresar. El acceso se registrará directamente en la entrada por orden de llegada hasta completar el aforo del recinto.</p>
+      <p>Te recomendamos llegar con anticipación para asegurar tu lugar.</p>
+      <p>Saludos cordiales,<br>Equipo de EventOS</p>
+    `;
+
+    const html = this.construirHtmlCorreoInstitucional(
+      'Actualización a Acceso Libre - EventOS',
+      cuerpo,
+    );
+    await this.enviarCorreoSeguro(
+      datos.destinatario,
+      `Actualización de acceso: Entrada libre para ${datos.nombreEvento}`,
+      html,
+      'Correo C (cambio a acceso libre)',
+    );
+  }
+
+  async enviarCorreoDCancelacionSobrecupoFifo(datos: {
+    destinatario: string;
+    nombreAsistente: string;
+    nombreEvento: string;
+  }): Promise<void> {
+    const cuerpo = `
+      <p>Hola, <strong>${this.escaparHtml(datos.nombreAsistente)}</strong>:</p>
+      <p>Queremos informarte que el evento <strong>${this.escaparHtml(datos.nombreEvento)}</strong> ha tenido que cambiar de sede a un recinto de menor capacidad. Para gestionar el acceso con justicia y transparencia, los lugares se han conservado respetando de manera estricta el orden cronológico de registro.</p>
+      <p>Lamentamos profundamente comunicarte que, debido a esta reducción del aforo máximo, tu boleto ha tenido que ser cancelado ya que se superó el límite de lugares disponibles en la nueva ubicación.</p>
+      <p>Ofrecemos una sincera disculpa en nombre de la organización por los inconvenientes y molestias que esta situación imprevista pueda ocasionar en tus planes.</p>
+      <p>Atentamente,<br>Equipo de EventOS</p>
+    `;
+
+    const html = this.construirHtmlCorreoInstitucional(
+      'Cancelación por reducción de aforo - EventOS',
+      cuerpo,
+    );
+    await this.enviarCorreoSeguro(
+      datos.destinatario,
+      `Cancelación de boleto por reducción de aforo - ${datos.nombreEvento}`,
+      html,
+      'Correo D (cancelación sobrecupo FIFO)',
+    );
+  }
+
   async enviarNotificacionCambioRecinto(datos: {
     destinatario: string;
     nombreAsistente: string;
@@ -257,45 +441,16 @@ export class MailService {
     horaInicio: string;
     horaFin: string;
   }): Promise<void> {
-    const html = `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden;">
-        <div style="background-color: #6b1d2f; color: #ffffff; padding: 20px; text-align: center;">
-          <h2 style="margin: 0;">Actualización de Recinto - EventOS</h2>
-        </div>
-        
-        <div style="padding: 24px; color: #334155;">
-          <p>Hola <strong>${this.escaparHtml(datos.nombreAsistente)}</strong>,</p>
-          <p>Te informamos que la logística del evento <strong>${this.escaparHtml(datos.nombreEvento)}</strong> ha sido actualizada. La actividad en la que estás inscrito ha sido reubicada de espacio físico:</p>
-          
-          <table style="width: 100%; border-collapse: collapse; margin-top: 16px; background-color: #f8fafc; border-radius: 8px; padding: 12px;">
-            <tr><td style="padding: 8px 12px; font-weight: bold;">Actividad:</td><td style="padding: 8px 12px;">${this.escaparHtml(datos.nombreSubEvento)}</td></tr>
-            <tr><td style="padding: 8px 12px; font-weight: bold;">Nuevo Recinto:</td><td style="padding: 8px 12px;"><strong>${this.escaparHtml(datos.nuevoRecinto)}</strong></td></tr>
-            <tr><td style="padding: 8px 12px; font-weight: bold;">Horario:</td><td style="padding: 8px 12px;">${this.escaparHtml(datos.fecha)} (${this.escaparHtml(datos.horaInicio)} - ${this.escaparHtml(datos.horaFin)})</td></tr>
-            <tr><td style="padding: 8px 12px; font-weight: bold;">Modalidad:</td><td style="padding: 8px 12px;">Entrada General (Asiento libre al ingresar)</td></tr>
-          </table>
-
-          <div style="margin-top: 20px; padding: 12px 14px; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 14px; color: #334155; line-height: 1.5;">
-            <strong>Nota importante:</strong> Tu boleto digital continúa <strong>100% activo y válido</strong> con el mismo código QR. Debido a la reubicación, tu acceso será bajo la modalidad de <strong>admisión general</strong> sin butaca numerada específica.
-          </div>
-
-          <p style="font-size: 12px; color: #64748b; margin-top: 24px; border-top: 1px solid #e2e8f0; padding-top: 12px;">
-            Puedes consultar tus boletos vigentes en la sección "Mis Boletos" dentro de EventOS.
-          </p>
-        </div>
-      </div>
-    `;
-
-    try {
-      await this.transporter.sendMail({
-        from: process.env.SMTP_FROM || process.env.SMTP_USER,
-        to: datos.destinatario,
-        subject: `Reubicación de espacio: ${datos.nombreSubEvento} - EventOS`,
-        html,
-      });
-      this.logger.log(`Aviso de cambio de recinto enviado a ${datos.destinatario}`);
-    } catch (error) {
-      this.logger.error(`Fallo al enviar notificación de cambio de recinto a ${datos.destinatario}`, error);
-    }
+    await this.enviarCorreoACambioRecintoConservado({
+      destinatario: datos.destinatario,
+      nombreAsistente: datos.nombreAsistente,
+      nombreEvento: datos.nombreEvento,
+      nombreSubEvento: datos.nombreSubEvento,
+      nuevoRecinto: datos.nuevoRecinto,
+      fecha: datos.fecha,
+      horaInicio: datos.horaInicio,
+      removioAsiento: true,
+    });
   }
 
   async enviarInvitacionLogistica(datos: {

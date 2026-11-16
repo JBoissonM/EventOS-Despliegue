@@ -3,11 +3,15 @@ import type { FormEvent } from "react";
 import { useNavigate, useParams } from "react-router";
 import {
   AlcanceEvento,
+  ETIQUETAS_MODALIDAD,
   EstadoSubEvento,
   InvitadoEventoItem,
   ModalidadAcceso,
+  esLaboratorioRecinto,
   modalidadPorDefectoRecinto,
+  obtenerModalidadesPermitidasPorRecinto,
   RecintoId,
+  validarModalidadEnRecinto,
   type ActualizarInfoGeneralPayload,
   type EventoOrganizadorDetalle,
   type ModificarLogisticaPayload,
@@ -23,8 +27,10 @@ import { InputFile } from "../../components/atoms/InputFile/InputFile";
 import { Select } from "../../components/atoms/Select/Select";
 import { TextArea } from "../../components/atoms/TextArea/TextArea";
 import Button from "../../components/atoms/Button/Button";
+import { FeedbackNotice } from "../../components/molecules/FeedbackNotice";
 import { FormField } from "../../components/molecules/FormField";
 import { Modal } from "../../components/molecules/Modal";
+import { ModalidadAccesoHelp } from "../../components/molecules/ModalidadAccesoHelp";
 import { apiRequest } from "../../lib/apiClient";
 import { ModalSubevento } from "../../components/organisms/ModalSubevento/ModalSubevento";
 import { SpaceRequerimentsDialog } from "../../components/organisms/SpaceRequirementsDialog/SpaceRequerimentsDialog";
@@ -67,16 +73,6 @@ interface ErroresActividad {
   horaInicio?: string;
   horaFin?: string;
 }
-
-const ACCESOS_POR_DEFECTO = (idRecinto?: number) => [
-  {
-    value: String(
-      modalidadPorDefectoRecinto(idRecinto ?? RecintoId.AUDITORIO, true),
-    ),
-    label: "Acceso con QR",
-  },
-  { value: String(ModalidadAcceso.ACCESO_LIBRE), label: "Entrada libre" },
-];
 
 const ALCANCES = [
   { value: String(AlcanceEvento.PUBLICO), label: "Público" },
@@ -654,6 +650,19 @@ export function EditarEventoConSubeventos() {
     const dias = diasHastaFecha(act.fecha);
     return dias !== null && dias >= 0 && dias <= 7;
   });
+
+  const actividadesEliminadasConReservas = (evento?.subEventos ?? []).filter(
+    (s) =>
+      s.estado !== EstadoSubEvento.CANCELADO &&
+      (s.boletosEmitidos ?? 0) > 0 &&
+      !actividades.some((a) => a.idSubEvento === s.idSubEvento),
+  );
+  const avisoImpactoEliminacion =
+    actividadesEliminadasConReservas.length > 0
+      ? `Se eliminarán actividades con registros activos (${actividadesEliminadasConReservas
+          .map((s) => `${s.nombre}: ${s.boletosEmitidos}`)
+          .join(", ")}). Si Subdirección aprueba el cambio, esos boletos se cancelarán y se notificará a los asistentes.`
+      : null;
 
   function calcularErroresActividades(listaActividades: ActividadEditable[]): {
     errores: Record<string, ErroresActividad>;
@@ -1507,23 +1516,21 @@ export function EditarEventoConSubeventos() {
                             "idRecinto",
                             e.target.value,
                           );
-                          if (idRecintoNum === RecintoId.SALA_14) {
+                          const permitidas =
+                            obtenerModalidadesPermitidasPorRecinto(idRecintoNum);
+                          if (
+                            !permitidas.includes(actividad.idModalidadAcceso) ||
+                            validarModalidadEnRecinto(
+                              idRecintoNum,
+                              actividad.idModalidadAcceso,
+                            ) !== null
+                          ) {
                             actualizarActividad(
                               actividad.llave,
                               "idModalidadAcceso",
-                              ModalidadAcceso.ACCESO_LIBRE,
-                            );
-                          } else if (idRecintoNum !== RecintoId.AUDITORIO) {
-                            actualizarActividad(
-                              actividad.llave,
-                              "idModalidadAcceso",
-                              ModalidadAcceso.QR_GENERAL,
-                            );
-                          } else {
-                            actualizarActividad(
-                              actividad.llave,
-                              "idModalidadAcceso",
-                              ModalidadAcceso.QR_MAPA,
+                              esLaboratorioRecinto(idRecintoNum)
+                                ? ModalidadAcceso.QR_GENERAL
+                                : modalidadPorDefectoRecinto(idRecintoNum, true),
                             );
                           }
                         }}
@@ -1586,44 +1593,44 @@ export function EditarEventoConSubeventos() {
                       />
                     </FormField>
 
-                    <FormField
-                      label="Acceso con boleto"
-                      htmlFor={`selectBoleto-${indice}`}
-                      required={
-                        Number(actividad.idRecinto) !== RecintoId.SALA_14
-                      }
-                      mensajeAyuda={
-                        Number(actividad.idRecinto) === RecintoId.SALA_14
-                          ? "Al elegir la sala 14 el acceso es libre"
-                          : Number(actividad.idRecinto) !==
-                                RecintoId.AUDITORIO &&
-                              Boolean(actividad.idRecinto)
-                            ? "Al elegir un laboratorio el cupo pasa a ser limitado"
-                            : ""
-                      }
-                    >
-                      <Select
-                        id={`selectBoleto-${indice}`}
-                        placeholder="Selecciona una opción"
-                        options={ACCESOS_POR_DEFECTO(Number(actividad.idRecinto))}
-                        className="disabled:cursor-not-allowed disabled:text-gray-500"
-                        value={
-                          actividad.idModalidadAcceso !== undefined
-                            ? String(actividad.idModalidadAcceso)
-                            : ""
-                        }
-                        disabled={
-                          Number(actividad.idRecinto) !== RecintoId.AUDITORIO
-                        }
-                        onChange={(e) =>
-                          actualizarActividad(
-                            actividad.llave,
-                            "idModalidadAcceso",
-                            Number(e.target.value) as ModalidadAcceso,
-                          )
-                        }
+                    <div className="space-y-2">
+                      <FormField
+                        label="Modalidad de acceso"
+                        htmlFor={`selectBoleto-${indice}`}
+                        required={!esLaboratorioRecinto(Number(actividad.idRecinto))}
+                      >
+                        <Select
+                          id={`selectBoleto-${indice}`}
+                          placeholder="Selecciona una opción"
+                          options={obtenerModalidadesPermitidasPorRecinto(
+                            Number(actividad.idRecinto) || RecintoId.AUDITORIO,
+                          ).map((modalidad) => ({
+                            value: String(modalidad),
+                            label: ETIQUETAS_MODALIDAD[modalidad],
+                          }))}
+                          className="disabled:cursor-not-allowed disabled:text-gray-500"
+                          value={
+                            actividad.idModalidadAcceso !== undefined
+                              ? String(actividad.idModalidadAcceso)
+                              : ""
+                          }
+                          disabled={esLaboratorioRecinto(
+                            Number(actividad.idRecinto),
+                          )}
+                          onChange={(e) =>
+                            actualizarActividad(
+                              actividad.llave,
+                              "idModalidadAcceso",
+                              Number(e.target.value) as ModalidadAcceso,
+                            )
+                          }
+                        />
+                      </FormField>
+                      <ModalidadAccesoHelp
+                        idRecinto={Number(actividad.idRecinto) || undefined}
+                        idModalidadAcceso={actividad.idModalidadAcceso}
                       />
-                    </FormField>
+                    </div>
 
                     <FormField
                       label={undefined}
@@ -1701,6 +1708,15 @@ export function EditarEventoConSubeventos() {
             </section>
           </fieldset>
 
+          {avisoImpactoEliminacion && (
+            <FeedbackNotice
+              variant="warning"
+              title="Aviso de impacto en registros actuales"
+            >
+              {avisoImpactoEliminacion}
+            </FeedbackNotice>
+          )}
+
           <div
             id="contenedorBotones"
             className="flex flex-col-reverse gap-3 pt-4 sm:flex-row sm:justify-end"
@@ -1730,6 +1746,7 @@ export function EditarEventoConSubeventos() {
           mostrarModalAviso={mostrarModalAviso}
           intentoMotivo={intentoMotivo}
           esUrgente={esModificacionUrgente}
+          avisoImpacto={avisoImpactoEliminacion}
           logistica={{ motivoModificacion: motivo } as any}
           onCerrar={() => setMostrarModalMotivo(false)}
           onCerrarAviso={() => {

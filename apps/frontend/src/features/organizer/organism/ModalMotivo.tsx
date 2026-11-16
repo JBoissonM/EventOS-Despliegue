@@ -1,3 +1,4 @@
+import { FeedbackNotice } from "../../../components/molecules/FeedbackNotice";
 import { FormField } from "../../../components/molecules/FormField";
 import { Modal } from "../../../components/molecules/Modal";
 import { TextArea } from "../../../components/atoms/TextArea/TextArea";
@@ -12,6 +13,7 @@ export interface ModalMotivoProps {
   mostrarModalAviso: boolean;
   intentoMotivo: boolean;
   esUrgente: boolean;
+  avisoImpacto?: string | null;
   logistica: EditLogisticsValues;
   onCerrar: () => void;
   onCerrarAviso: () => void;
@@ -24,6 +26,7 @@ export function ModalMotivo({
   mostrarModalAviso,
   intentoMotivo,
   esUrgente,
+  avisoImpacto = null,
   logistica,
   onCerrar,
   onCerrarAviso,
@@ -84,6 +87,14 @@ export function ModalMotivo({
         contenido="Los cambios que desea realizar requieren una nueva revisión, su evento pasara a pendiente, hasta que subdirección lo vuelva a autorizar"
         cerrarModal={onCerrarAviso}
       >
+        {avisoImpacto && (
+          <FeedbackNotice
+            variant="warning"
+            title="Impacto en boletos o registros actuales"
+          >
+            {avisoImpacto}
+          </FeedbackNotice>
+        )}
         <div className="flex justify-end gap-3">
           <Button
             text="Volver"
