@@ -2,8 +2,10 @@ import { useEffect, useState } from "react";
 import { useParams } from "react-router";
 import {
   AlcanceEvento,
+  esModalidadConQr,
   EstadoEvento,
   EstadoSubEvento,
+  ModalidadAcceso,
   type EventoOrganizadorDetalle,
   type EventoOrganizadorDetalleSubevento,
   type PersonalLogisticaItem,
@@ -227,7 +229,7 @@ function convertirSubevento(valor: unknown): EventoOrganizadorDetalleSubevento {
     idSubEvento: obtenerNumero(valor, "idSubEvento"),
     nombre: obtenerTexto(valor, "nombre"),
     descripcion: obtenerTexto(valor, "descripcion"),
-    accesoQR: obtenerBooleano(valor, "accesoQR"),
+    idModalidadAcceso: obtenerNumero(valor, "idModalidadAcceso") as ModalidadAcceso,
     estado: convertirEstadoSubevento(valor.estado),
     fecha: convertirFecha(valor.fecha),
     recinto: convertirRecinto(valor.recinto),
@@ -666,7 +668,7 @@ export function AdministracionEvento() {
                   <div className="flex min-w-0 flex-col gap-2">
                     <span className="font-bold">Acceso</span>
                     <span>
-                      {subevento.accesoQR
+                      {esModalidadConQr(subevento.idModalidadAcceso)
                         ? "Acceso con boleto"
                         : "Acceso libre"}
                     </span>

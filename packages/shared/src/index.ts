@@ -22,7 +22,7 @@ export interface SubEvento {
   idFecha: number;
   nombre: string;
   descripcion: string;
-  accesoQR: boolean;
+  idModalidadAcceso: ModalidadAcceso;
   estado: EstadoSubEvento;
 }
 
@@ -90,7 +90,7 @@ export interface DetalleBoletoUsuario {
   idSubEvento: number;
   nombreEvento: string;
   poster?: string | null;
-  accesoQR: boolean;
+  idModalidadAcceso: ModalidadAcceso;
   fecha: string;
   horaInicio: string;
   horaFin: string;
@@ -167,7 +167,7 @@ export interface SubeventoPayload {
   nombre: string;
   descripcion: string;
   idRecinto: number;
-  accesoQR?: boolean;
+  idModalidadAcceso?: ModalidadAcceso;
   fecha: string;
   horaInicio: string;
   horaFin: string;
@@ -200,7 +200,7 @@ export interface EventoOrganizadorDetalleSubevento {
   idSubEvento: number;
   nombre: string;
   descripcion: string;
-  accesoQR: boolean;
+  idModalidadAcceso: ModalidadAcceso;
   estado: EstadoSubEvento;
   fecha: Fecha | null;
   recinto: Recinto | null;
@@ -367,6 +367,83 @@ export enum RecintoId {
   LABORATORIO_2105 = 3,
   LABORATORIO_2106 = 5,
   LABORATORIO_2107 = 6,
+}
+
+export enum ModalidadAcceso {
+  ACCESO_LIBRE = 1,
+  REGISTRO_SIMPLE = 2,
+  QR_GENERAL = 3,
+  QR_MAPA = 4,
+}
+
+export const ETIQUETAS_MODALIDAD: Record<ModalidadAcceso, string> = {
+  [ModalidadAcceso.ACCESO_LIBRE]: 'Acceso libre',
+  [ModalidadAcceso.REGISTRO_SIMPLE]: 'Registro simple sin QR',
+  [ModalidadAcceso.QR_GENERAL]: 'QR Admisión general',
+  [ModalidadAcceso.QR_MAPA]: 'QR con mapa de asientos',
+};
+
+export const DESCRIPCIONES_MODALIDAD: Record<ModalidadAcceso, string> = {
+  [ModalidadAcceso.ACCESO_LIBRE]:
+    'Entrada abierta hasta completar el aforo del recinto. No requiere registro previo ni código QR.',
+  [ModalidadAcceso.REGISTRO_SIMPLE]:
+    'El asistente aparta su lugar en línea contra el aforo del recinto, sin generar código QR ni requerir escáner en puerta.',
+  [ModalidadAcceso.QR_GENERAL]:
+    'El asistente realiza registro previo y recibe un boleto digital con código QR sin asiento numerado.',
+  [ModalidadAcceso.QR_MAPA]:
+    'El asistente elige una butaca específica en el mapa del Auditorio y recibe su boleto digital con código QR.',
+};
+
+export function esModalidadConQr(
+  idModalidadAcceso?: ModalidadAcceso | number | null,
+): boolean {
+  return (
+    idModalidadAcceso === ModalidadAcceso.QR_GENERAL ||
+    idModalidadAcceso === ModalidadAcceso.QR_MAPA
+  );
+}
+
+export function esModalidadConRegistro(
+  idModalidadAcceso?: ModalidadAcceso | number | null,
+): boolean {
+  return (
+    idModalidadAcceso === ModalidadAcceso.REGISTRO_SIMPLE ||
+    idModalidadAcceso === ModalidadAcceso.QR_GENERAL ||
+    idModalidadAcceso === ModalidadAcceso.QR_MAPA
+  );
+}
+
+export function obtenerModalidadesPermitidasPorRecinto(
+  idRecinto: number,
+): ModalidadAcceso[] {
+  if (idRecinto === RecintoId.AUDITORIO) {
+    return [
+      ModalidadAcceso.ACCESO_LIBRE,
+      ModalidadAcceso.REGISTRO_SIMPLE,
+      ModalidadAcceso.QR_GENERAL,
+      ModalidadAcceso.QR_MAPA,
+    ];
+  }
+  if (idRecinto === RecintoId.SALA_14) {
+    return [
+      ModalidadAcceso.ACCESO_LIBRE,
+      ModalidadAcceso.REGISTRO_SIMPLE,
+      ModalidadAcceso.QR_GENERAL,
+    ];
+  }
+  return [ModalidadAcceso.QR_GENERAL];
+}
+
+export function modalidadPorDefectoRecinto(
+  idRecinto: number,
+  conQr: boolean,
+): ModalidadAcceso {
+  if (!conQr) {
+    return ModalidadAcceso.ACCESO_LIBRE;
+  }
+  return idRecinto === RecintoId.AUDITORIO
+    ? ModalidadAcceso.QR_MAPA
+    : ModalidadAcceso.QR_GENERAL;
 }
 
 export enum TipoPerfilVerificacion {

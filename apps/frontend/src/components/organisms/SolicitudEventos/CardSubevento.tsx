@@ -1,4 +1,8 @@
-import { RecintoId } from "@eventos/shared";
+import {
+  ModalidadAcceso,
+  modalidadPorDefectoRecinto,
+  RecintoId,
+} from "@eventos/shared";
 import { FormField } from "../../molecules/FormField";
 import { Select } from "../../atoms/Select/Select";
 import type {
@@ -43,9 +47,14 @@ type CardSubeventoProps = CardSubeventoBaseProps &
     }
   );
 
-const ACCESOS = [
-  { value: "true", label: "Acceso con QR" },
-  { value: "false", label: "Entrada libre" },
+const ACCESOS_POR_DEFECTO = (idRecinto?: number) => [
+  {
+    value: String(
+      modalidadPorDefectoRecinto(idRecinto ?? RecintoId.AUDITORIO, true),
+    ),
+    label: "Acceso con QR",
+  },
+  { value: String(ModalidadAcceso.ACCESO_LIBRE), label: "Entrada libre" },
 ];
 
 interface EspacioInfo {
@@ -515,7 +524,9 @@ export function CardSubevento(props: CardSubeventoProps) {
         htmlFor={`selectBoleto-${index}`}
         readOnly={readOnly}
         required={subevento.idRecinto !== RecintoId.SALA_14}
-        errorMessage={touched.accesoQR ? errors.accesoQR : undefined}
+        errorMessage={
+          touched.idModalidadAcceso ? errors.idModalidadAcceso : undefined
+        }
         mensajeAyuda={
           subevento.idRecinto === RecintoId.SALA_14
             ? "Al elegir la sala 14 el acceso es libre"
@@ -527,22 +538,31 @@ export function CardSubevento(props: CardSubeventoProps) {
         <Select
           id={`selectBoleto-${index}`}
           placeholder={"Selecciona una opción"}
-          options={ACCESOS}
+          options={ACCESOS_POR_DEFECTO(subevento.idRecinto)}
           className="disabled:text-gray-500 disabled:cursor-not-allowed"
           value={
-            subevento.accesoQR !== undefined ? String(subevento.accesoQR) : ""
+            subevento.idModalidadAcceso !== undefined
+              ? String(subevento.idModalidadAcceso)
+              : ""
           }
           disabled={subevento.idRecinto !== RecintoId.AUDITORIO || readOnly}
-          hasError={Boolean(touched.accesoQR && errors.accesoQR)}
+          hasError={Boolean(
+            touched.idModalidadAcceso && errors.idModalidadAcceso,
+          )}
           onChange={
             readOnly
               ? undefined
-              : (e) => props.updateSubevento(index, "accesoQR", e.target.value)
+              : (e) =>
+                  props.updateSubevento(
+                    index,
+                    "idModalidadAcceso",
+                    e.target.value,
+                  )
           }
           onBlur={
             readOnly
               ? undefined
-              : () => props.markSubeventoTouched(index, "accesoQR")
+              : () => props.markSubeventoTouched(index, "idModalidadAcceso")
           }
         />
       </FormField>

@@ -1,4 +1,5 @@
 import { CalendarDays, Clock3, MapPin, UsersRound } from "lucide-react";
+import { esModalidadConQr } from "@eventos/shared";
 import { Link } from "react-router";
 import { useReservationAvailability } from "../../../reservations/hooks/useReservationAvailability";
 import type { EventActivityViewModel } from "../../types/eventDetails.types";
@@ -37,7 +38,7 @@ export function ActivityInformationCard({ activity, returnPath }: ActivityInform
   return (
     <section aria-label="Información de la actividad" className="flex min-h-80 w-full flex-col rounded-md border border-eventos-panel-border bg-eventos-panel-surface p-5 sm:p-7">
       <p className="mb-6 self-start rounded-full bg-eventos-secondary-light px-3 py-1 text-sm font-semibold text-eventos-secondary">
-        {activity.accesoQR ? "Acceso con boleto QR" : "Entrada libre"}
+        {esModalidadConQr(activity.idModalidadAcceso) ? "Acceso con boleto QR" : "Entrada libre"}
       </p>
       <dl className="space-y-5 text-eventos-body-text">
         {data.map(({ label, value, Icon }) => (
@@ -56,7 +57,7 @@ export function ActivityInformationCard({ activity, returnPath }: ActivityInform
             <button type="button" onClick={refresh} className="rounded-md border border-eventos-primary px-4 py-2 font-semibold text-eventos-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-eventos-primary">Reintentar</button>
           </div>
         )}
-        {!activity.accesoQR ? (
+        {!esModalidadConQr(activity.idModalidadAcceso) ? (
           <p className="rounded-md bg-eventos-secondary-light p-4 text-sm text-eventos-secondary">Acceso libre hasta completar el aforo del recinto.</p>
         ) : (
           <div className="rounded-md border border-eventos-warning bg-eventos-warning/20 p-4">

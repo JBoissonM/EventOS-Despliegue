@@ -5,6 +5,7 @@ import {
   EstadoEvento,
   EstadoSubEvento,
   EstadoVerificacion,
+  ModalidadAcceso,
   RecintoId,
   TipoCuentaUsuario,
 } from '@eventos/shared';
@@ -234,7 +235,7 @@ export async function runSeed() {
     interface SubeventoSeed {
       nombre: string;
       descripcion: string;
-      accesoQR: boolean;
+      idModalidadAcceso: ModalidadAcceso;
       estado: EstadoSubEvento;
       idRecinto: number;
       fecha: string;
@@ -285,7 +286,7 @@ export async function runSeed() {
             nombre: 'Conferencia Magistral: Arquitecturas Distribuidas y Cómputo Serverless en Azure',
             descripcion:
               'Diseño de sistemas tolerantes a fallos y patrones de arquitectura en la nube con ingenieros de Microsoft México.',
-            accesoQR: true,
+            idModalidadAcceso: ModalidadAcceso.QR_MAPA,
             estado: EstadoSubEvento.EN_PROCESO,
             idRecinto: RecintoId.AUDITORIO,
             fecha: '2026-11-25',
@@ -310,7 +311,7 @@ export async function runSeed() {
             nombre: 'Taller Práctico: Automatización de Pipelines y Despliegues con GitHub Actions',
             descripcion:
               'Configuración de flujos CI/CD, pruebas automatizadas y contenedores en laboratorio de cómputo.',
-            accesoQR: true,
+            idModalidadAcceso: ModalidadAcceso.QR_GENERAL,
             estado: EstadoSubEvento.EN_PROCESO,
             idRecinto: RecintoId.LABORATORIO_2104,
             fecha: '2026-11-26',
@@ -329,7 +330,7 @@ export async function runSeed() {
             nombre: 'Mesa de Diálogo: Empleabilidad y Trayectorias Profesionales en la Industria Tech',
             descripcion:
               'Sesión de orientación profesional, preguntas y reclutamiento temprano para alumnos de los últimos semestres de ESCOM.',
-            accesoQR: false,
+            idModalidadAcceso: ModalidadAcceso.REGISTRO_SIMPLE,
             estado: EstadoSubEvento.EN_PROCESO,
             idRecinto: RecintoId.SALA_14,
             fecha: '2026-11-27',
@@ -366,7 +367,7 @@ export async function runSeed() {
             nombre: 'Conferencia Magistral: Novedades de Java 21+ y GraalVM para Alto Desempeño',
             descripcion:
               'Análisis de hilos virtuales (Virtual Threads), concurrencia estructurada y compilación nativa en Java.',
-            accesoQR: true,
+            idModalidadAcceso: ModalidadAcceso.QR_MAPA,
             estado: EstadoSubEvento.EN_PROCESO,
             idRecinto: RecintoId.AUDITORIO,
             fecha: '2026-11-12',
@@ -385,7 +386,7 @@ export async function runSeed() {
             nombre: 'Taller de Laboratorio: Optimización y Transacciones en Oracle Autonomous DB',
             descripcion:
               'Prácticas de diseño relacional, planes de ejecución e índices avanzados en base de datos en laboratorio.',
-            accesoQR: true,
+            idModalidadAcceso: ModalidadAcceso.QR_GENERAL,
             estado: EstadoSubEvento.EN_PROCESO,
             idRecinto: RecintoId.LABORATORIO_2105,
             fecha: '2026-11-13',
@@ -421,7 +422,7 @@ export async function runSeed() {
             nombre: 'Contest Oficial ICPC ESCOM: Sesión de Competencia en Tiempo Real',
             descripcion:
               'Resolución simultánea de 10 a 12 problemas algorítmicos en C++, Java y Python con juez en línea automatizado.',
-            accesoQR: true,
+            idModalidadAcceso: ModalidadAcceso.QR_GENERAL,
             estado: EstadoSubEvento.ACEPTADO,
             idRecinto: RecintoId.LABORATORIO_2104,
             fecha: '2026-11-16',
@@ -457,7 +458,7 @@ export async function runSeed() {
             nombre: 'Ceremonia Inaugural y Conferencia Magistral: Retos del Software en México',
             descripcion:
               'Apertura institucional del ciclo con autoridades del Instituto Politécnico Nacional y ponencia sobre el futuro del desarrollo de software.',
-            accesoQR: true,
+            idModalidadAcceso: ModalidadAcceso.QR_MAPA,
             estado: EstadoSubEvento.ACEPTADO,
             idRecinto: RecintoId.AUDITORIO,
             fecha: '2026-12-02',
@@ -476,7 +477,7 @@ export async function runSeed() {
             nombre: 'Taller Práctico: Desarrollo de Sistemas Embebidos y Conectividad IoT',
             descripcion:
               'Laboratorio práctico de programación en microcontroladores y protocolos de red MQTT para domótica e industria.',
-            accesoQR: true,
+            idModalidadAcceso: ModalidadAcceso.QR_GENERAL,
             estado: EstadoSubEvento.ACEPTADO,
             idRecinto: RecintoId.LABORATORIO_2105,
             fecha: '2026-12-03',
@@ -495,7 +496,7 @@ export async function runSeed() {
             nombre: 'Muestra Anual de Proyectos de Trabajo Terminal y Software Libre',
             descripcion:
               'Exhibición de prototipos funcionales desarrollados por egresantes de Ingeniería en Sistemas y Ciencia de Datos.',
-            accesoQR: false,
+            idModalidadAcceso: ModalidadAcceso.ACCESO_LIBRE,
             estado: EstadoSubEvento.ACEPTADO,
             idRecinto: RecintoId.SALA_14,
             fecha: '2026-12-04',
@@ -540,7 +541,7 @@ export async function runSeed() {
             nombre: 'Conferencia: Arquitectura del Kernel Linux y Seguridad en Servidores',
             descripcion:
               'Funcionamiento interno de módulos del núcleo, namespaces, cgroups y hardening de servidores.',
-            accesoQR: true,
+            idModalidadAcceso: ModalidadAcceso.QR_GENERAL,
             estado: EstadoSubEvento.ACEPTADO,
             idRecinto: RecintoId.SALA_14,
             fecha: '2026-12-08',
@@ -559,7 +560,7 @@ export async function runSeed() {
             nombre: 'Taller Práctico: Despliegue de Servicios y Redes con Docker y Kubernetes',
             descripcion:
               'Configuración paso a paso de contenedores, volúmenes persistentes y balanceo de carga en clúster.',
-            accesoQR: true,
+            idModalidadAcceso: ModalidadAcceso.QR_GENERAL,
             estado: EstadoSubEvento.ACEPTADO,
             idRecinto: RecintoId.LABORATORIO_2104,
             fecha: '2026-12-09',
@@ -595,7 +596,7 @@ export async function runSeed() {
             nombre: 'Sesión Plenaria: Presentación del Reto de Programación y Reglas del Hackathon',
             descripcion:
               'Ceremonia de inicio con autoridades y asignación de problemáticas a los equipos participantes.',
-            accesoQR: true,
+            idModalidadAcceso: ModalidadAcceso.QR_MAPA,
             estado: EstadoSubEvento.RECHAZADO,
             idRecinto: RecintoId.AUDITORIO,
             fecha: '2026-11-20',
@@ -614,7 +615,7 @@ export async function runSeed() {
             nombre: 'Mesa de Mentoría y Evaluación Técnica de Prototipos de Software',
             descripcion:
               'Sesión continua de asesoría con ingenieros mentores para la entrega y dictamen de proyectos.',
-            accesoQR: false,
+            idModalidadAcceso: ModalidadAcceso.ACCESO_LIBRE,
             estado: EstadoSubEvento.RECHAZADO,
             idRecinto: RecintoId.SALA_14,
             fecha: '2026-11-20',
@@ -670,7 +671,7 @@ export async function runSeed() {
         nombre: string;
         descripcion: string;
         idRecinto: number;
-        accesoQR: boolean;
+        idModalidadAcceso: ModalidadAcceso;
         fecha: string;
         horaInicio: string;
         horaFin: string;
@@ -686,11 +687,11 @@ export async function runSeed() {
         const idFecha = resFecha.rows[0].idFecha;
 
         const resSub = await client.query(
-          `INSERT INTO "subEvento" ("accesoQR", estado, nombre, descripcion, "idEvento", "idRecinto", "idFecha")
+          `INSERT INTO "subEvento" ("idModalidadAcceso", estado, nombre, descripcion, "idEvento", "idRecinto", "idFecha")
            VALUES ($1, $2, $3, $4, $5, $6, $7)
            RETURNING "idSubEvento";`,
           [
-            sub.accesoQR,
+            sub.idModalidadAcceso,
             sub.estado,
             sub.nombre,
             sub.descripcion,
@@ -709,7 +710,7 @@ export async function runSeed() {
           nombre: sub.nombre,
           descripcion: sub.descripcion,
           idRecinto: sub.idRecinto,
-          accesoQR: sub.accesoQR,
+          idModalidadAcceso: sub.idModalidadAcceso,
           fecha: sub.fecha,
           horaInicio: sub.horaInicio,
           horaFin: sub.horaFin,

@@ -19,7 +19,7 @@ function mapActivity(activity: SubEventDetailsApi, idEvento: number): EventActiv
     idEvento,
     nombre: activity.nombre,
     descripcion: activity.descripcion ?? "",
-    accesoQR: activity.accesoQR,
+    idModalidadAcceso: activity.idModalidadAcceso,
     requiereSeleccionAsiento: activity.requiereSeleccionAsiento,
     fecha: activity.fecha ? {
       fecha: activity.fecha.fecha,

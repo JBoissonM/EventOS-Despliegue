@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate, useLocation } from "react-router";
-import { AlcanceEvento, EstadoEvento } from "@eventos/shared";
+import { AlcanceEvento, EstadoEvento, esModalidadConQr, ModalidadAcceso } from "@eventos/shared";
 import {
   ArrowLeft,
   AlertTriangle,
@@ -21,7 +21,7 @@ export interface SubeventoDetalleItem {
   id: number;
   nombre: string;
   descripcion: string;
-  accesoQR: boolean;
+  idModalidadAcceso: ModalidadAcceso;
   nombreRecinto: string;
   aforo: number | string;
   fecha: string;
@@ -87,7 +87,10 @@ function convertirSubevento(valor: unknown): SubeventoDetalleItem {
   const nombre = typeof valor.nombre === "string" ? valor.nombre : "";
   const descripcion =
     typeof valor.descripcion === "string" ? valor.descripcion : "";
-  const accesoQR = Boolean(valor.accesoQR);
+  const idModalidadAcceso =
+    typeof valor.idModalidadAcceso === "number"
+      ? (valor.idModalidadAcceso as ModalidadAcceso)
+      : ModalidadAcceso.ACCESO_LIBRE;
 
   let fecha = "";
   let horaInicio = "";
@@ -128,7 +131,7 @@ function convertirSubevento(valor: unknown): SubeventoDetalleItem {
     id,
     nombre,
     descripcion,
-    accesoQR,
+    idModalidadAcceso,
     nombreRecinto,
     aforo,
     fecha,
@@ -534,7 +537,7 @@ export function DetallesSolicitud() {
                     Modalidad de cupo
                   </div>
                   <p className="mt-1 font-merriweather text-xs sm:text-sm text-gray-700">
-                    {subevento.accesoQR ? "Boleto con QR" : "Acceso libre"}
+                    {esModalidadConQr(subevento.idModalidadAcceso) ? "Boleto con QR" : "Acceso libre"}
                   </p>
                 </div>
 

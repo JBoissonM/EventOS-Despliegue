@@ -4,6 +4,7 @@ import { useNavigate, useParams } from "react-router";
 import {
   AlcanceEvento,
   EstadoEvento,
+  type ModalidadAcceso,
   type ActualizarInfoGeneralPayload,
   type EventoOrganizadorDetalle,
   type ModificarLogisticaPayload,
@@ -133,7 +134,9 @@ function obtenerValoresLogistica(
       propuesta?.horaFin.slice(0, 5) ??
       subevento.fecha?.horaFin.slice(0, 5) ??
       "",
-    accesoQR: String(propuesta?.accesoQR ?? subevento.accesoQR),
+    idModalidadAcceso: String(
+      propuesta?.idModalidadAcceso ?? subevento.idModalidadAcceso,
+    ),
     motivoModificacion:
       evento.solicitudModificacionPendiente?.motivoModificacion ?? "",
   };
@@ -174,7 +177,7 @@ export function EditarEvento() {
     fecha: "",
     horaInicio: "",
     horaFin: "",
-    accesoQR: "",
+    idModalidadAcceso: "",
     motivoModificacion: "",
   });
   const [logisticaInicial, setLogisticaInicial] =
@@ -635,7 +638,7 @@ export function EditarEvento() {
       logistica.fecha !== logisticaInicial.fecha ||
       logistica.horaInicio !== logisticaInicial.horaInicio ||
       logistica.horaFin !== logisticaInicial.horaFin ||
-      logistica.accesoQR !== logisticaInicial.accesoQR),
+      logistica.idModalidadAcceso !== logisticaInicial.idModalidadAcceso),
   );
   const cambioLogisticoOperativo = Boolean(
     subevento &&
@@ -939,7 +942,7 @@ export function EditarEvento() {
                   ? descripcion.trim()
                   : subevento.descripcion,
               idRecinto: Number(logistica.idRecinto),
-              accesoQR: logistica.accesoQR === "true",
+              idModalidadAcceso: Number(logistica.idModalidadAcceso) as ModalidadAcceso,
               fecha: logistica.fecha,
               horaInicio: logistica.horaInicio,
               horaFin: logistica.horaFin,
@@ -956,7 +959,8 @@ export function EditarEvento() {
             nombre: propuesta?.nombre ?? otroSub.nombre,
             descripcion: propuesta?.descripcion ?? otroSub.descripcion,
             idRecinto: propuesta?.idRecinto ?? otroSub.recinto?.idRecinto ?? 0,
-            accesoQR: propuesta?.accesoQR ?? otroSub.accesoQR,
+            idModalidadAcceso:
+              propuesta?.idModalidadAcceso ?? otroSub.idModalidadAcceso,
             fecha: propuesta?.fecha ?? otroSub.fecha?.fecha.slice(0, 10) ?? "",
             horaInicio:
               propuesta?.horaInicio.slice(0, 5) ??

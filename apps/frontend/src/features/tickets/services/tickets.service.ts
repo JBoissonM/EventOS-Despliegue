@@ -1,5 +1,5 @@
 import { apiRequest, apiRequestPdf } from "../../../lib/apiClient";
-import type { EstadoBoleto } from "@eventos/shared";
+import type { EstadoBoleto, ModalidadAcceso } from "@eventos/shared";
 
 export interface TicketSpeakerResponse {
   idPonente: number;
@@ -23,7 +23,7 @@ export interface TicketSummaryResponse {
   etiquetaEstado?: string;
   poster: string | null;
   alcance: string;
-  accesoQR: boolean;
+  idModalidadAcceso: ModalidadAcceso;
   filaAsiento: string | null;
   numeroAsiento: number | null;
   ponentes: TicketSpeakerResponse[];
@@ -47,7 +47,7 @@ export interface TicketDetailResponse {
     idEvento: number;
     nombre: string;
     descripcion: string;
-    accesoQR: boolean;
+    idModalidadAcceso: ModalidadAcceso;
     fecha: string;
     horaInicio: string;
     horaFin: string;

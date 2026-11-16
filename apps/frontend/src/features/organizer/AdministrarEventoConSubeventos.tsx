@@ -5,6 +5,7 @@ import {
   AlcanceEvento,
   EstadoEvento,
   InvitadoEventoItem,
+  ModalidadAcceso,
   type PersonalLogisticaItem,
 } from "@eventos/shared";
 import { EventBanner } from "../event-details/components/molecules/EventBanner";
@@ -84,7 +85,7 @@ function convertirSubevento(valor: unknown): OrganizerSubeventCardData {
     typeof valor.idSubEvento !== "number" ||
     typeof valor.nombre !== "string" ||
     typeof valor.descripcion !== "string" ||
-    typeof valor.accesoQR !== "boolean"
+    typeof valor.idModalidadAcceso !== "number"
   ) {
     throw new Error("La respuesta contiene un subevento inválido.");
   }
@@ -127,7 +128,7 @@ function convertirSubevento(valor: unknown): OrganizerSubeventCardData {
     idSubEvento: valor.idSubEvento,
     nombre: valor.nombre,
     descripcion: valor.descripcion,
-    accesoQR: valor.accesoQR,
+    idModalidadAcceso: valor.idModalidadAcceso as ModalidadAcceso,
     estado: typeof valor.estado === "string" ? valor.estado : undefined,
     fecha,
     recinto,

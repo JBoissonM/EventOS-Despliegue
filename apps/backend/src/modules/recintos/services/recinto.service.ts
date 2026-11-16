@@ -9,7 +9,14 @@ import { Repository, DataSource } from 'typeorm';
 import { RecintoEntity } from '../entities/recinto.entity';
 import { SubEventoEntity } from '../../eventos/entities/subevento.entity';
 import { EstadoEquipoEntity } from '../entities/estadoEquipo.entity';
-import { EstadoEvento, EstadoRecinto, EstadoSubEvento, RecintoId } from '@eventos/shared';
+import {
+  esModalidadConQr,
+  EstadoEvento,
+  EstadoRecinto,
+  EstadoSubEvento,
+  ModalidadAcceso,
+  RecintoId,
+} from '@eventos/shared';
 
 @Injectable()
 export class RecintoService {
@@ -173,7 +180,10 @@ export class RecintoService {
     }
 
     // Validación de recinto y aforo de equipos disponibles al solicitar evento
-    async validarRecinto(idRecinto: number, accesoQR: boolean = false) {
+    async validarRecinto(
+        idRecinto: number,
+        idModalidadAcceso: ModalidadAcceso = ModalidadAcceso.ACCESO_LIBRE,
+    ) {
         const recinto = await this.recintoRepository.findOneBy({ idRecinto });
 
         if (!recinto) {
@@ -187,16 +197,18 @@ export class RecintoService {
             );
         }
 
+        const requiereQr = esModalidadConQr(idModalidadAcceso);
+
         // Sala 14 no permite emisión de boletos ni acceso QR
-        if (idRecinto === RecintoId.SALA_14 && accesoQR === true) {
+        if (idRecinto === RecintoId.SALA_14 && requiereQr) {
             throw new BadRequestException(
                 'En Sala 14 no se permite acceso con boleto o código QR individual.',
             );
-            }
+        }
 
         // En Laboratorios es obligatorio acceso con boleto/QR y contar con aforo > 0 calculado desde estadoEquipo
         if (this.esLaboratorio(idRecinto)) {
-            if (accesoQR === false) {
+            if (!requiereQr) {
                 throw new BadRequestException(
                     'En los laboratorios de cómputo es obligatorio el acceso con boleto/código QR.',
                 );
@@ -267,7 +279,7 @@ export class RecintoService {
                 nombreEvento: sub.evento?.nombre ?? '',
                 idEstadoEvento: sub.evento?.idEstadoEvento,
                 estadoSubEvento: sub.estado,
-                accesoQR: sub.accesoQR,
+                idModalidadAcceso: sub.idModalidadAcceso,
                 horaInicio: sub.fecha?.horaInicio ?? '',
                 horaFin: sub.fecha?.horaFin ?? '',
             })),

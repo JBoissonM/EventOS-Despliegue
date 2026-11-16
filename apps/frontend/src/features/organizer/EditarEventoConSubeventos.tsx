@@ -5,6 +5,8 @@ import {
   AlcanceEvento,
   EstadoSubEvento,
   InvitadoEventoItem,
+  ModalidadAcceso,
+  modalidadPorDefectoRecinto,
   RecintoId,
   type ActualizarInfoGeneralPayload,
   type EventoOrganizadorDetalle,
@@ -49,7 +51,7 @@ interface ActividadEditable {
   fecha: string;
   horaInicio: string;
   horaFin: string;
-  accesoQR: boolean;
+  idModalidadAcceso: ModalidadAcceso;
 }
 
 interface DatosGenerales {
@@ -66,9 +68,14 @@ interface ErroresActividad {
   horaFin?: string;
 }
 
-const ACCESOS = [
-  { value: "true", label: "Acceso con QR" },
-  { value: "false", label: "Entrada libre" },
+const ACCESOS_POR_DEFECTO = (idRecinto?: number) => [
+  {
+    value: String(
+      modalidadPorDefectoRecinto(idRecinto ?? RecintoId.AUDITORIO, true),
+    ),
+    label: "Acceso con QR",
+  },
+  { value: String(ModalidadAcceso.ACCESO_LIBRE), label: "Entrada libre" },
 ];
 
 const ALCANCES = [
@@ -251,7 +258,10 @@ function mapearPropuesta(
     fecha: actividad.fecha.slice(0, 10),
     horaInicio: actividad.horaInicio.slice(0, 5),
     horaFin: actividad.horaFin.slice(0, 5),
-    accesoQR: actividad.accesoQR ?? actual?.accesoQR ?? false,
+    idModalidadAcceso:
+      actividad.idModalidadAcceso ??
+      actual?.idModalidadAcceso ??
+      ModalidadAcceso.ACCESO_LIBRE,
   };
 }
 
@@ -281,7 +291,7 @@ function obtenerActividades(
       fecha: subevento.fecha?.fecha.slice(0, 10) ?? "",
       horaInicio: subevento.fecha?.horaInicio.slice(0, 5) ?? "",
       horaFin: subevento.fecha?.horaFin.slice(0, 5) ?? "",
-      accesoQR: subevento.accesoQR,
+      idModalidadAcceso: subevento.idModalidadAcceso,
     }));
 }
 
@@ -297,7 +307,7 @@ function obtenerPayloadActividades(
     nombre: actividad.nombre.trim() || nombreEvento.trim(),
     descripcion: actividad.descripcion.trim() || descripcionEvento.trim(),
     idRecinto: Number(actividad.idRecinto),
-    accesoQR: actividad.accesoQR,
+    idModalidadAcceso: actividad.idModalidadAcceso,
     fecha: actividad.fecha,
     horaInicio: actividad.horaInicio,
     horaFin: actividad.horaFin,
@@ -710,7 +720,7 @@ export function EditarEventoConSubeventos() {
         fecha: primeraActividad?.fecha ?? "",
         horaInicio: "",
         horaFin: "",
-        accesoQR: false,
+        idModalidadAcceso: ModalidadAcceso.ACCESO_LIBRE,
       },
     ]);
   }
@@ -1398,7 +1408,7 @@ export function EditarEventoConSubeventos() {
                     idSubEvento: actividad.idSubEvento,
                     nombre: actividad.nombre,
                     descripcion: actividad.descripcion,
-                    accesoQR: actividad.accesoQR,
+                    idModalidadAcceso: actividad.idModalidadAcceso,
                     fecha: actividad.fecha
                       ? {
                           fecha: actividad.fecha,
@@ -1500,14 +1510,20 @@ export function EditarEventoConSubeventos() {
                           if (idRecintoNum === RecintoId.SALA_14) {
                             actualizarActividad(
                               actividad.llave,
-                              "accesoQR",
-                              false,
+                              "idModalidadAcceso",
+                              ModalidadAcceso.ACCESO_LIBRE,
                             );
                           } else if (idRecintoNum !== RecintoId.AUDITORIO) {
                             actualizarActividad(
                               actividad.llave,
-                              "accesoQR",
-                              true,
+                              "idModalidadAcceso",
+                              ModalidadAcceso.QR_GENERAL,
+                            );
+                          } else {
+                            actualizarActividad(
+                              actividad.llave,
+                              "idModalidadAcceso",
+                              ModalidadAcceso.QR_MAPA,
                             );
                           }
                         }}
@@ -1589,11 +1605,11 @@ export function EditarEventoConSubeventos() {
                       <Select
                         id={`selectBoleto-${indice}`}
                         placeholder="Selecciona una opción"
-                        options={ACCESOS}
+                        options={ACCESOS_POR_DEFECTO(Number(actividad.idRecinto))}
                         className="disabled:cursor-not-allowed disabled:text-gray-500"
                         value={
-                          actividad.accesoQR !== undefined
-                            ? String(actividad.accesoQR)
+                          actividad.idModalidadAcceso !== undefined
+                            ? String(actividad.idModalidadAcceso)
                             : ""
                         }
                         disabled={
@@ -1602,8 +1618,8 @@ export function EditarEventoConSubeventos() {
                         onChange={(e) =>
                           actualizarActividad(
                             actividad.llave,
-                            "accesoQR",
-                            e.target.value === "true",
+                            "idModalidadAcceso",
+                            Number(e.target.value) as ModalidadAcceso,
                           )
                         }
                       />

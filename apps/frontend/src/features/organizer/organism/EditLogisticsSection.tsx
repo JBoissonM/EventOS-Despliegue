@@ -1,5 +1,11 @@
 import { Pencil } from "lucide-react";
-import { AlcanceEvento, RecintoId, type Recinto } from "@eventos/shared";
+import {
+  AlcanceEvento,
+  ModalidadAcceso,
+  modalidadPorDefectoRecinto,
+  RecintoId,
+  type Recinto,
+} from "@eventos/shared";
 import { Input } from "../../../components/atoms/Input/Input";
 import { DateInput } from "../../../components/atoms/DateInput/DateInput";
 import { Select } from "../../../components/atoms/Select/Select";
@@ -7,9 +13,17 @@ import { TextArea } from "../../../components/atoms/TextArea/TextArea";
 import { InputFile } from "../../../components/atoms/InputFile/InputFile";
 import { FormField } from "../../../components/molecules/FormField";
 
-const ACCESOS = [
-  { value: "true", label: "Acceso con boleto" },
-  { value: "false", label: "Acceso libre" },
+const ACCESOS_POR_DEFECTO = (idRecinto?: number) => [
+  {
+    value: String(
+      modalidadPorDefectoRecinto(idRecinto ?? RecintoId.AUDITORIO, true),
+    ),
+    label: "Acceso con boleto",
+  },
+  {
+    value: String(ModalidadAcceso.ACCESO_LIBRE),
+    label: "Acceso libre",
+  },
 ];
 
 const ALCANCES = [
@@ -126,7 +140,7 @@ export interface EditLogisticsValues {
   fecha: string;
   horaInicio: string;
   horaFin: string;
-  accesoQR: string;
+  idModalidadAcceso: string;
   motivoModificacion: string;
 }
 
@@ -300,9 +314,20 @@ export function EditLogisticsSection({
                   idRecinto !== RecintoId.AUDITORIO &&
                   idRecinto !== RecintoId.SALA_14
                 ) {
-                  onCambioLogistica("accesoQR", "true");
+                  onCambioLogistica(
+                    "idModalidadAcceso",
+                    String(ModalidadAcceso.QR_GENERAL),
+                  );
                 } else if (idRecinto === RecintoId.SALA_14) {
-                  onCambioLogistica("accesoQR", "false");
+                  onCambioLogistica(
+                    "idModalidadAcceso",
+                    String(ModalidadAcceso.ACCESO_LIBRE),
+                  );
+                } else {
+                  onCambioLogistica(
+                    "idModalidadAcceso",
+                    String(ModalidadAcceso.QR_MAPA),
+                  );
                 }
               }}
             />
@@ -446,11 +471,11 @@ export function EditLogisticsSection({
             <Select
               id="campoAcceso"
               placeholder="Selecciona una opción"
-              options={ACCESOS}
-              value={valores.accesoQR}
+              options={ACCESOS_POR_DEFECTO(recintoSeleccionado?.idRecinto)}
+              value={valores.idModalidadAcceso}
               disabled={deshabilitado || accesoFijo}
               onChange={(event) =>
-                onCambioLogistica("accesoQR", event.currentTarget.value)
+                onCambioLogistica("idModalidadAcceso", event.currentTarget.value)
               }
             />
           </FormField>

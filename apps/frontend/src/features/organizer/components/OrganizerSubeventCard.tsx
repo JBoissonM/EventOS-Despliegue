@@ -1,4 +1,5 @@
 import { useState } from "react";
+import type { ModalidadAcceso } from "@eventos/shared";
 import { EventSessionCard } from "../../event-details/components/molecules/EventSessionCard";
 import Button from "../../../components/atoms/Button/Button";
 import { Modal } from "../../../components/molecules/Modal";
@@ -9,7 +10,7 @@ export interface OrganizerSubeventCardData {
   idSubEvento: number;
   nombre: string;
   descripcion: string;
-  accesoQR: boolean;
+  idModalidadAcceso: ModalidadAcceso;
   estado?: string;
   fecha: {
     fecha: string;

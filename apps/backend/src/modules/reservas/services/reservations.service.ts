@@ -5,7 +5,15 @@ import { CreateReservationDto } from '../dto/createReservation.dto';
 import { Repository, In, DataSource } from 'typeorm';
 import { InjectRepository } from '@nestjs/typeorm';
 
-import { DisponibilidadSubEvento, AsientoDisponible, EstadoRecinto, EstadoBoleto, EstadoSubEvento, AlcanceEvento } from '@eventos/shared';
+import {
+  DisponibilidadSubEvento,
+  AsientoDisponible,
+  EstadoRecinto,
+  EstadoBoleto,
+  EstadoSubEvento,
+  AlcanceEvento,
+  esModalidadConQr,
+} from '@eventos/shared';
 
 import { BoletoEntity } from '../entities/boleto.entity';
 import { AsistenteEventoEntity } from '../entities/asistenteEvento.entity';
@@ -303,7 +311,7 @@ export class ReservationsService {
 
             let qrBase64Data: string | undefined = undefined;
 
-            if (subEvento.accesoQR) {
+            if (esModalidadConQr(subEvento.idModalidadAcceso)) {
                 const infoBoleto = {
                     idBoleto: boletoGuardado.idBoleto,
                     idEvento: subEvento.idEvento,
@@ -438,7 +446,10 @@ export class ReservationsService {
 
             
             let qrImagenBase64: string | null = null;
-            if (subEvento.accesoQR && boleto.idEstadoBoleto === EstadoBoleto.VALIDO) {
+            if (
+                esModalidadConQr(subEvento.idModalidadAcceso) &&
+                boleto.idEstadoBoleto === EstadoBoleto.VALIDO
+            ) {
                 const infoBoleto = {
                     idBoleto: boleto.idBoleto,
                     idEvento: subEvento.idEvento,
@@ -468,7 +479,7 @@ export class ReservationsService {
                 poster: evento ? this.resolverPosterUrl(evento.poster) : null,
                 posterUrl: evento ? this.resolverPosterUrl(evento.poster) : null,
                 alcance: evento?.idAlcance ? mapaAlcance[evento.idAlcance] : 'Público',
-                accesoQR: subEvento.accesoQR,
+                idModalidadAcceso: subEvento.idModalidadAcceso,
                 filaAsiento,
                 numeroAsiento,
                 ponentes,
@@ -561,7 +572,7 @@ export class ReservationsService {
                 idEvento: subEvento.idEvento,
                 nombre: subEvento.nombre,
                 descripcion: subEvento.descripcion,
-                accesoQR: subEvento.accesoQR,
+                idModalidadAcceso: subEvento.idModalidadAcceso,
                 fecha: fechaEvento.fecha,
                 horaInicio: fechaEvento.horaInicio,
                 horaFin: fechaEvento.horaFin,

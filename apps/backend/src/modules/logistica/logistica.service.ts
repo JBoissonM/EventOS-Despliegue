@@ -62,7 +62,7 @@ export class LogisticaService {
          se."idSubEvento",
          se.nombre AS "nombreSubEvento",
          se.descripcion AS "descripcionSubEvento",
-         se."accesoQR",
+         se."idModalidadAcceso",
          se.estado AS "estadoSubEvento",
          e."idEvento",
          e.nombre AS "nombreEvento",
@@ -118,7 +118,7 @@ export class LogisticaService {
         idRecinto: fila.idRecinto,
         espacio: fila.espacio,
         aforoMaximo: fila.aforoMaximo,
-        accesoQR: fila.accesoQR,
+        idModalidadAcceso: fila.idModalidadAcceso,
         ponentes,
       });
     }
@@ -155,7 +155,7 @@ export class LogisticaService {
       `SELECT 
          se."idSubEvento",
          se.nombre AS "nombreSubEvento",
-         se."accesoQR",
+         se."idModalidadAcceso",
          se."idEvento",
          e.nombre AS "nombreEvento",
          r."idRecinto",

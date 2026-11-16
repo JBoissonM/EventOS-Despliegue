@@ -256,7 +256,7 @@ export class OrganizadorService {
           idSubEvento: sub.idSubEvento,
           nombre: sub.nombre,
           descripcion: sub.descripcion,
-          accesoQR: sub.accesoQR,
+          idModalidadAcceso: sub.idModalidadAcceso,
           estado: sub.estado,
           fecha: sub.fecha
             ? {

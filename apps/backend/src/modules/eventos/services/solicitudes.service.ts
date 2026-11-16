@@ -9,11 +9,14 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, EntityManager, In, Repository } from 'typeorm';
 import {
+  esModalidadConQr,
   EstadoBoleto,
   EstadoEvento,
   EstadoRecinto,
   EstadoSubEvento,
   EstadoVerificacion,
+  ModalidadAcceso,
+  modalidadPorDefectoRecinto,
   RecintoId,
   TipoCuentaUsuario,
   type SolicitanteResumen,
@@ -218,7 +221,7 @@ export class SolicitudesService {
 
   private async validarReglasRecintoConManager(
     recinto: RecintoEntity,
-    accesoQR: boolean,
+    idModalidadAcceso: ModalidadAcceso,
     manager: EntityManager,
   ): Promise<void> {
     if (recinto.idEstadoRecinto !== EstadoRecinto.HABILITADO) {
@@ -227,7 +230,9 @@ export class SolicitudesService {
       );
     }
 
-    if (recinto.idRecinto === RecintoId.SALA_14 && accesoQR === true) {
+    const requiereQr = esModalidadConQr(idModalidadAcceso);
+
+    if (recinto.idRecinto === RecintoId.SALA_14 && requiereQr) {
       throw new BadRequestException(
         'En Sala 14 no se permite acceso con boleto o código QR individual.',
       );
@@ -237,7 +242,7 @@ export class SolicitudesService {
       recinto.idRecinto !== RecintoId.AUDITORIO &&
       recinto.idRecinto !== RecintoId.SALA_14
     ) {
-      if (accesoQR === false) {
+      if (!requiereQr) {
         throw new BadRequestException(
           'En los laboratorios de cómputo es obligatorio el acceso con boleto/código QR.',
         );
@@ -295,7 +300,8 @@ export class SolicitudesService {
         const recinto = recintosBloqueados.get(subeventoActual.idRecinto)!;
         await this.validarReglasRecintoConManager(
           recinto,
-          subeventoActual.accesoQR ?? false,
+          subeventoActual.idModalidadAcceso ??
+            modalidadPorDefectoRecinto(subeventoActual.idRecinto, false),
           manager,
         );
         await this.consultarColisionBD(
@@ -311,7 +317,8 @@ export class SolicitudesService {
     for (const subeventoActual of subeventos) {
       await this.recintoService.validarRecinto(
         subeventoActual.idRecinto,
-        subeventoActual.accesoQR ?? false,
+        subeventoActual.idModalidadAcceso ??
+          modalidadPorDefectoRecinto(subeventoActual.idRecinto, false),
       );
 
       await this.consultarColisionBD(subeventoActual, excluirIdEvento);
@@ -385,7 +392,8 @@ export class SolicitudesService {
           const recinto = recintosBloqueados.get(subeventoActual.idRecinto)!;
           await this.validarReglasRecintoConManager(
             recinto,
-            subeventoActual.accesoQR ?? false,
+            subeventoActual.idModalidadAcceso ??
+              modalidadPorDefectoRecinto(subeventoActual.idRecinto, false),
             manager,
           );
           await this.consultarColisionBD(subeventoActual, undefined, manager);
@@ -413,7 +421,9 @@ export class SolicitudesService {
           idEvento: eventoGuardado.idEvento,
           idRecinto: sub.idRecinto,
           idFecha: fechaGuardada.idFecha,
-          accesoQR: sub.accesoQR ?? false,
+          idModalidadAcceso:
+            sub.idModalidadAcceso ??
+            modalidadPorDefectoRecinto(sub.idRecinto, false),
           estado: estadoSubEventoInicial,
         });
 
@@ -662,7 +672,7 @@ export class SolicitudesService {
         idSubEvento: sub.idSubEvento,
         nombre: sub.nombre,
         descripcion: sub.descripcion,
-        accesoQR: sub.accesoQR,
+        idModalidadAcceso: sub.idModalidadAcceso,
         estado: sub.estado,
         idFecha: sub.idFecha,
         fecha: sub.fecha
@@ -805,7 +815,8 @@ export class SolicitudesService {
         const recinto = recintosBloqueados.get(subeventoActual.idRecinto)!;
         await this.validarReglasRecintoConManager(
           recinto,
-          subeventoActual.accesoQR ?? false,
+          subeventoActual.idModalidadAcceso ??
+            modalidadPorDefectoRecinto(subeventoActual.idRecinto, false),
           manager,
         );
         await this.consultarColisionBD(subeventoActual, idEvento, manager);
@@ -859,7 +870,8 @@ export class SolicitudesService {
             nombre: propuesto.nombre,
             descripcion: propuesto.descripcion,
             idRecinto: propuesto.idRecinto,
-            accesoQR: propuesto.accesoQR ?? existente.accesoQR,
+            idModalidadAcceso:
+              propuesto.idModalidadAcceso ?? existente.idModalidadAcceso,
             estado: EstadoSubEvento.ACEPTADO,
           });
           idSubEventoAfectado = existente.idSubEvento;
@@ -875,7 +887,9 @@ export class SolicitudesService {
             idEvento,
             idRecinto: propuesto.idRecinto,
             idFecha: nuevaFecha.idFecha,
-            accesoQR: propuesto.accesoQR ?? false,
+            idModalidadAcceso:
+              propuesto.idModalidadAcceso ??
+              modalidadPorDefectoRecinto(propuesto.idRecinto, false),
             estado: EstadoSubEvento.ACEPTADO,
           });
           idsConservados.add(nuevoSub.idSubEvento);
@@ -1013,7 +1027,7 @@ export class SolicitudesService {
             horaFin: s.fecha!.horaFin,
             nombre: s.nombre,
             descripcion: s.descripcion,
-            accesoQR: s.accesoQR,
+            idModalidadAcceso: s.idModalidadAcceso,
           }));
         const urgenciaOriginal = this.calcularEsUrgente(payloads);
         await manager.update(EventoEntity, idEvento, {
