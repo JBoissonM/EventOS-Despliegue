@@ -42,13 +42,6 @@ export class EventosService {
     private readonly storageService: StorageService,
   ) {}
 
-  private resolverPosterUrl(poster?: string | null): string | null {
-    if (!poster) return null;
-    return poster.startsWith('http://') || poster.startsWith('https://')
-      ? poster
-      : this.storageService.publicUrl(poster);
-  }
-
   private obtenerAhoraCDMX(): { fechaHoy: string; horaActual: string } {
     const ahora = new Date();
     const fechaHoy = new Intl.DateTimeFormat('en-CA', {
@@ -145,7 +138,7 @@ export class EventosService {
       const esAccesoLibre = subeventosVigentes.some(
         (s) => s.idModalidadAcceso === ModalidadAcceso.ACCESO_LIBRE,
       );
-      const posterUrl = this.resolverPosterUrl(evento.poster);
+      const posterUrl = this.storageService.resolvePublicUrl(evento.poster);
 
       cartelera.push({
         idEvento: evento.idEvento,
@@ -301,7 +294,7 @@ export class EventosService {
       });
     }
 
-    const posterUrl = this.resolverPosterUrl(evento.poster);
+    const posterUrl = this.storageService.resolvePublicUrl(evento.poster);
 
     return {
       idEvento: evento.idEvento,

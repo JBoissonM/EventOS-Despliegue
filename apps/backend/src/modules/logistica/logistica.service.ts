@@ -22,13 +22,6 @@ export class LogisticaService {
     private readonly storageService: StorageService,
   ) {}
 
-  private resolverPosterUrl(poster?: string | null): string | null {
-    if (!poster) return null;
-    return poster.startsWith('http://') || poster.startsWith('https://')
-      ? poster
-      : this.storageService.publicUrl(poster);
-  }
-
   /**
    * Verifica que el usuario esté asignado como Personal de Logística en ese evento
    */
@@ -113,8 +106,8 @@ export class LogisticaService {
         nombreEvento: fila.nombreEvento,
         nombreSubEvento: fila.nombreSubEvento,
         descripcion: fila.descripcionSubEvento,
-        poster: this.resolverPosterUrl(fila.poster),
-        posterUrl: this.resolverPosterUrl(fila.poster),
+        poster: this.storageService.resolvePublicUrl(fila.poster),
+        posterUrl: this.storageService.resolvePublicUrl(fila.poster),
         idAlcance: fila.idAlcance,
         alcance: mapaAlcance[fila.idAlcance] ?? 'Público',
         fecha: fila.fecha,

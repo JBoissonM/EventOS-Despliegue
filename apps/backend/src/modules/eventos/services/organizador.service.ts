@@ -72,13 +72,6 @@ export class OrganizadorService {
     private readonly mailService: MailService,
   ) {}
 
-  private obtenerPosterUrl(poster?: string | null): string | null {
-    if (!poster) return null;
-    return poster.startsWith('http://') || poster.startsWith('https://')
-      ? poster
-      : this.storageService.publicUrl(poster);
-  }
-
   private async obtenerMetricasPorSubevento(
     subEventoIds: number[],
   ): Promise<
@@ -213,7 +206,7 @@ export class OrganizadorService {
           descripcion: evento.descripcion,
           justificacion: evento.justificacion,
           poster: evento.poster,
-          posterUrl: this.obtenerPosterUrl(evento.poster),
+          posterUrl: this.storageService.resolvePublicUrl(evento.poster),
           idAlcance: evento.idAlcance,
           idEstadoEvento: evento.idEstadoEvento,
           cupoMaximo,
@@ -419,7 +412,7 @@ export class OrganizadorService {
       descripcion: evento.descripcion,
       justificacion: evento.justificacion,
       poster: evento.poster,
-      posterUrl: this.obtenerPosterUrl(evento.poster),
+      posterUrl: this.storageService.resolvePublicUrl(evento.poster),
       idAlcance: evento.idAlcance,
       idEstadoEvento: evento.idEstadoEvento,
       motivoRechazo: evento.motivoRechazo ?? null,
@@ -841,7 +834,7 @@ export class OrganizadorService {
       justificacion: eventoGuardado.justificacion,
       idAlcance: eventoGuardado.idAlcance,
       poster: eventoGuardado.poster,
-      posterUrl: this.obtenerPosterUrl(eventoGuardado.poster),
+      posterUrl: this.storageService.resolvePublicUrl(eventoGuardado.poster),
     };
   }
 

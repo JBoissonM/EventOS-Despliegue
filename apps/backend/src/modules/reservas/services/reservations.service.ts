@@ -58,13 +58,6 @@ export class ReservationsService {
         private readonly storageService: StorageService,
     ) {}
 
-    private resolverPosterUrl(poster?: string | null): string | null {
-        if (!poster) return null;
-        return poster.startsWith('http://') || poster.startsWith('https://')
-            ? poster
-            : this.storageService.publicUrl(poster);
-    }
-
     //CONSULTAR DISPONIBILIDAD
 
     async consultarDisponibilidad(idSubEvento: number): Promise<any> {
@@ -507,8 +500,8 @@ export class ReservationsService {
                 // Campos adicionales 
                 estadoBoletoTexto: mapaEstadoTexto[boleto.idEstadoBoleto] ?? 'Desconocido',
                 etiquetaEstado: mapaEtiquetaUI[boleto.idEstadoBoleto] ?? 'Cancelado',
-                poster: evento ? this.resolverPosterUrl(evento.poster) : null,
-                posterUrl: evento ? this.resolverPosterUrl(evento.poster) : null,
+                poster: evento ? this.storageService.resolvePublicUrl(evento.poster) : null,
+                posterUrl: evento ? this.storageService.resolvePublicUrl(evento.poster) : null,
                 alcance: evento?.idAlcance ? mapaAlcance[evento.idAlcance] : 'Público',
                 idModalidadAcceso: subEvento.idModalidadAcceso,
                 filaAsiento,
