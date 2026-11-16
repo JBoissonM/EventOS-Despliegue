@@ -30,7 +30,7 @@ Permite al Organizador visualizar el listado y los detalles específicos de los 
 | **Actor** | Organizador |
 | **Propósito** | Listar los eventos creados por el usuario y servir como punto de partida para consultar su estado, modificar sus especificaciones, cancelarlos y/o emitir boletos directos. |
 | **Entradas** | Criterios de filtrado. Seleccionar un evento específico de la lista. |
-| **Salidas** | Listado en pantalla de los eventos. Vista de detalles del evento seleccionado (estado, recinto, horario, aforo, alcance, ponentes). |
+| **Salidas** | Listado en pantalla de los eventos. Vista de detalles del evento seleccionado (estado, recinto, horario, aforo, alcance, ponentes y métricas de **Inscritos** —todo registro activo incluyendo *Registro simple sin QR*— e **Ingresados** —asistencia validada mediante `CU-23` en modalidades con boleto QR—). |
 | **Precondiciones** | El usuario debe haber registrado exitosamente al menos una solicitud de evento para poseer los privilegios de Organizador **RN-02**. |
 | **Postcondiciones** | No se alteran registros de la base de datos (solo lectura). |
 | **Errores** | Se mostrará en pantalla el mensaje **MSG-E-08** "Error de conexión con la base de datos”. |
@@ -43,7 +43,7 @@ Permite al Organizador visualizar el listado y los detalles específicos de los 
 2. Verifica en la base de datos qué eventos están vinculados exclusivamente a la cuenta de usuario actual. [Trayectoria B]
 3. Despliega el listado de eventos, mostrando un resumen de cada uno (nombre, estado de aprobación, fecha y recinto) en la pantalla **UI14** Panel Consultar Mis Eventos. [Trayectoria A]
 4. Selecciona un evento específico del listado para consultar su información a detalle.
-5. Muestra en pantalla de detalles del evento seleccionado (descripción, logística, alcance, ponentes, lugar, hora de inicio, hora de finalización, modalidad de cupo, alcance, fecha, aforo estimado). Muestra la hora utilizando el formato de 24 horas y la zona horaria de la CDMX (**RNF-10**).
+5. Muestra en pantalla de detalles del evento seleccionado (descripción, logística, alcance, ponentes, lugar, hora de inicio, hora de finalización, modalidad de cupo, alcance, fecha, aforo estimado y conteo de **Inscritos** e **Ingresados** conforme a `RN-16`). Muestra la hora utilizando el formato de 24 horas y la zona horaria de la CDMX (**RNF-10**).
 6. Habilita y muestra los botones de acción extendida correspondientes a ese evento: “Modificar logística”, “Modificar detalles de un evento”, “Cancelar evento propio” y “Emitir boletos directos”.
 
 *Fin de la trayectoria.*

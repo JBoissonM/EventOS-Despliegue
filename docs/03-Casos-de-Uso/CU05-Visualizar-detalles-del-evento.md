@@ -30,7 +30,7 @@ Permitir al público general y a los usuarios de la plataforma visualizar los de
 | **Actor** | Público General / Asistente / Organizador / Subdirección de Servicios Educativos / Personal de Logística / Administrador. |
 | **Propósito** | Permitir que cualquier persona consulte los detalles de eventos publicados conforme a su alcance, sin exigir autenticación para eventos públicos. Las acciones exclusivas de logística requieren asignación y sesión activa. |
 | **Entradas** | ID del evento seleccionado en UI04 o UI18. Solicitud de visualización de detalles. La sesión es opcional para eventos públicos; se requiere cuando se accede a funciones restringidas. |
-| **Salidas** | Pantalla UI05 "Detalles del Evento", con fecha, horario, ponentes, recinto, descripción y modalidad de acceso. Eventos de acceso libre: no requieren boleto. Eventos con boleto: opción [Reservar lugar]. Opción [Escanear QR] únicamente para el personal de logística autorizado. |
+| **Salidas** | Pantalla UI05 "Detalles del Evento", con fecha, horario, ponentes, recinto, descripción y modalidad de acceso. Eventos de acceso libre: informan que no requieren registro ni boleto. Eventos con registro previo (*Registro simple sin QR*, *QR Admisión general* o *QR con mapa*): opción [Reservar lugar]. Opción [Escanear QR] únicamente para el personal de logística autorizado en modalidades con boleto QR. |
 | **Precondiciones** | Ninguna para consulta pública de un evento publicado. Para consultar datos internos de un evento asignado o usar [Escanear QR], el actor deberá estar autenticado y contar con autorización. |
 | **Postcondiciones** | El actor visualiza los detalles del evento autorizado para su alcance. La consulta no modifica la base de datos. La sesión, si existía, permanece activa. |
 | **Errores** | MSG-E-08 cuando no se recupera información. MSG-E-06 si el evento no existe, está cancelado o no es visible. MSG-E-41 si un usuario de logística intenta acceder a un evento no asignado mediante UI18. |
@@ -44,8 +44,8 @@ Permitir al público general y a los usuarios de la plataforma visualizar los de
 1. El actor selecciona [Ver detalles] de un evento visible desde UI04 "Cartelera de Eventos". El personal de logística también puede abrir un evento asignado desde UI18 "Panel de Eventos Asignados".
 2. El sistema obtiene el identificador y consulta los datos del evento sin exigir inicio de sesión cuando sea público; si proviene de UI18, verifica la asignación al personal de logística. [Trayectoria A] [Trayectoria B]
 3. El sistema verifica que el evento exista, esté publicado y sea visible para el actor de acuerdo con su alcance (si es alcance Privado, comprueba que el usuario autenticado esté registrado en la lista de invitados del evento, sea su organizador o personal asignado). [Trayectoria C]
-4. Muestra UI05 "Detalles del Evento" con nombre, descripción, fecha, horario, ponentes, recinto y modalidad de acceso. Si es de acceso libre, informa que no necesita boleto; si requiere boleto, habilita [Reservar lugar].
-5. El actor consulta los detalles. Puede solicitar una reserva cuando el evento requiera boleto [Trayectoria E]. Solo el personal de logística autenticado y asignado puede seleccionar [Escanear QR]. [Trayectoria D]
+4. Muestra UI05 "Detalles del Evento" con nombre, descripción, fecha, horario, ponentes, recinto y modalidad de acceso. Si es de acceso libre, informa que no necesita registro ni boleto; si requiere registro previo (*Registro simple sin QR*, *QR Admisión general* o *QR con mapa*), habilita [Reservar lugar].
+5. El actor consulta los detalles. Puede solicitar una reserva cuando el evento requiera registro previo [Trayectoria E]. Solo el personal de logística autenticado y asignado puede seleccionar [Escanear QR] cuando el subevento utilice boleto QR. [Trayectoria D]
 
 *Fin de la trayectoria.*
 
@@ -92,9 +92,9 @@ Permitir al público general y a los usuarios de la plataforma visualizar los de
 - **D-3.** Muestra la pantalla **UI19** "Pantalla de Escáner QR", de acuerdo con la trayectoria definida en el CU-23.
 - *----- Continúa la ejecución del CU-23 "Escanear QR".*
 
-### Trayectoria alternativa E: Solicitar reserva para evento con boleto
+### Trayectoria alternativa E: Solicitar reserva para evento con registro previo
 
-> **Condición:** En el paso 5, el actor selecciona [Reservar lugar] en un evento de acceso con boleto.
+> **Condición:** En el paso 5, el actor selecciona [Reservar lugar] en un evento cuya modalidad requiere registro previo (*Registro simple sin QR*, *QR Admisión general* o *QR con mapa*).
 
 - **E-1.** selecciona [Reservar lugar] en la pantalla UI05 "Detalles del Evento".
 - **E-2.** ejecuta CU-15 "Reservar lugar a un evento". Si el actor no está autenticado, el flujo de reserva conserva el evento seleccionado y solicita iniciar sesión o registrarse.

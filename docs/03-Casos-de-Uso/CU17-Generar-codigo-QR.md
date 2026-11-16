@@ -31,7 +31,7 @@ Generar automáticamente el código QR asociado al boleto digital del Asistente 
 | **Propósito** | Generar un código QR único y asociarlo al boleto digital de la reserva confirmada. |
 | **Entradas** | • Identificador de la reserva confirmada.<br>• Datos del Asistente asociados a la reserva.<br>• Datos del evento reservado. |
 | **Salidas** | Código QR único asociado a la reserva.<br>Confirmación visual de que se generó el boleto. |
-| **Precondiciones** | CU-15 “Reservar lugar a un evento” ha iniciado el proceso de confirmación y dispone de un identificador de reserva. |
+| **Precondiciones** | CU-15 “Reservar lugar a un evento” ha iniciado el proceso de confirmación para un subevento con modalidad de boleto QR (*QR con mapa* o *QR Admisión general*, excluyendo *Registro simple sin QR*) y dispone de un identificador de reserva. |
 | **Postcondiciones** | El código QR queda asociado a una reserva confirmada.<br>El boleto digital queda almacenado y disponible para el Asistente. |
 | **Errores** | • **MSG-E-27**: “La reserva no ha sido confirmada”.<br>• **MSG-E-26**: “No fue posible generar el código QR. Intenta nuevamente”.<br>• **MSG-E-30**: “No fue posible guardar el boleto digital. Intenta nuevamente”. |
 | **Tipo** | Secundario, incluye de **CU-15** (`<<include>>`). |
@@ -42,7 +42,7 @@ Generar automáticamente el código QR asociado al boleto digital del Asistente 
 1. Recibe el identificador de la reserva, los datos del Asistente y los datos del evento.
 2. Verifica que el boleto corresponda al estado "Vigente". [Trayectoria A]
 3. Genera un TokenQr único y encriptado que asocia el identificador del boleto. [Trayectoria B]
-4. Construye el boleto digital fusionando la imagen del código QR (basada en el token) con los datos del Asistente y del evento.
+4. Construye el boleto digital fusionando la imagen del código QR (basada en el token) con los datos del Asistente y del evento; cuando `idAsiento = null` (*QR Admisión general*), incluye en `UI09` y en el correo la leyenda `"Admisión general — Sin asiento asignado"`.
 5. Almacena la actualización del boleto, guardando el TokenQr generado y registrando el timestamp. [Trayectoria C]
 6. Almacena el boleto digital y su información asociada. [Trayectoria C]
 7. Notifica el éxito de la operación mostrando en pantalla el **MSG-I-16** “Operación exitosa, su reserva se ha generado correctamente”.

@@ -50,9 +50,9 @@ tags:
 | :--- | :--- | :--- | :--- |
 | **CU-13** | [CU-13 Registrar usuario](./CU13-Registrar-usuario.md) | Asistente / Administrador | Registrar una nueva cuenta en la plataforma (`UI02` para autogestión de Asistente, `UI33` desde Administrador). |
 | **CU-14** | [CU-14 Visualizar bitácora de eventos realizados](./CU14-Visualizar-bitacora-de-eventos-realizados.md) | Asistente | Consultar el historial de eventos pasados en los que el asistente participó (`UI10`). |
-| **CU-15** | [CU-15 Reservar lugar a un evento](./CU15-Reservar-lugar-a-un-evento.md) | Asistente | Reservar un lugar o recurso específico (butaca o equipo de cómputo) en un evento disponible (`UI05`, `UI06`). |
-| **CU-16** | [CU-16 Consultar disponibilidad de lugares (include de CU-15)](./CU16-Consultar-disponibilidad-de-lugares.md) | Asistente | Verificar en tiempo real la disponibilidad de cupo general, asientos o equipos del recinto (`UI06`). |
-| **CU-17** | [CU-17 Generar código QR (include de CU-15)](./CU17-Generar-codigo-QR.md) | Asistente | Generar el boleto digital con código QR único firmado criptográficamente al confirmar una reserva (`UI09`). |
+| **CU-15** | [CU-15 Reservar lugar a un evento](./CU15-Reservar-lugar-a-un-evento.md) | Asistente | Reservar una butaca en mapa (`UI06`) o un lugar en admisión general / registro simple sin QR en un evento disponible (`UI05`, `UI06`). |
+| **CU-16** | [CU-16 Consultar disponibilidad de lugares (include de CU-15)](./CU16-Consultar-disponibilidad-de-lugares.md) | Asistente | Verificar en tiempo real la disponibilidad de cupo general o butacas en mapa del recinto y su modalidad de acceso (`UI06`). |
+| **CU-17** | [CU-17 Generar código QR (include de CU-15)](./CU17-Generar-codigo-QR.md) | Asistente | Generar el boleto digital con código QR único firmado criptográficamente al confirmar una reserva en modalidades con QR (`UI09`). |
 | **CU-18** | [CU-18 Consultar mis eventos por asistir](./CU18-Consultar-mis-eventos-por-asistir.md) | Asistente | Consultar el listado de eventos próximos en los que el asistente cuenta con una reserva activa (`UI08`). |
 | **CU-19** | [CU-19 Cancelar su asistencia (extend de CU-18)](./CU19-Cancelar-su-asistencia.md) | Asistente | Cancelar una reserva activa liberando el cupo o recurso asignado e invalidando el código QR (`UI08`). |
 | **CU-20** | [CU-20 Visualizar QR de acceso (extend de CU-18)](./CU20-Visualizar-QR-de-acceso.md) | Asistente | Mostrar en pantalla el boleto digital y código QR asociado a una reserva activa (`UI09`). |

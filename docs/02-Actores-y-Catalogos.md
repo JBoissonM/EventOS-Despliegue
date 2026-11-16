@@ -23,7 +23,7 @@ tags:
 
 ### Asistente
 
-Este actor interactúa con la plataforma para consultar la cartelera (`CU-04`) y gestionar su participación. Tiene la capacidad de reservar su lugar o recursos específicos (`CU-15`, `CU-16` en `UI06`), generar y visualizar su boleto digital de acceso mediante código QR (`CU-17`, `CU-20` en `UI09`), administrar o cancelar sus reservas activas (`CU-18`, `CU-19` en `UI08`), consultar la bitácora de eventos realizados (`CU-14` en `UI10`) y solicitar la creación de un evento (`CU-21` en `UI07`) contando previamente con su identidad verificada (`UI32`). Puede operar desde una cuenta de tipo `Usuario Interno` (comunidad ESCOM/IPN) o `Usuario Externo` (público general), lo cual determinará su visibilidad en la cartelera.
+Este actor interactúa con la plataforma para consultar la cartelera (`CU-04`) y gestionar su participación. Tiene la capacidad de reservar su lugar o butaca (`CU-15`, `CU-16` en `UI06`), generar y visualizar su boleto digital de acceso mediante código QR cuando la modalidad del evento lo requiera (`CU-17`, `CU-20` en `UI09`), administrar o cancelar sus reservas activas (`CU-18`, `CU-19` en `UI08`), consultar la bitácora de eventos realizados (`CU-14` en `UI10`) y solicitar la creación de un evento (`CU-21` en `UI07`) contando previamente con su identidad verificada (`UI32`). Puede operar desde una cuenta de tipo `Usuario Interno` (comunidad ESCOM/IPN) o `Usuario Externo` (público general), lo cual determinará su visibilidad en la cartelera.
 
 ### Organizador
 
@@ -216,7 +216,99 @@ Este actor cuenta con privilegios de gestión sobre las cuentas de usuario, la i
 
 ---
 
-## 7. Notas de Consolidación (Versión 2.0 — Unificación Normativa UI35)
+## 7. Plantillas Estandarizadas de Correo Electrónico (Cambios de Recinto y Aforo)
+
+Textos estandarizados para las notificaciones automáticas enviadas por correo electrónico ante cambios de recinto, modalidad de acceso o reducción de aforo (`RN-31`, `CU-07`, `CU-25`).
+
+### a) Correo A — Actualización de Recinto (Boleto Conservado)
+
+- **Asunto:** `Actualización de ubicación para [Nombre del Evento]`
+- **Cuerpo del mensaje:**
+
+```text
+Hola, [Nombre del Asistente]:
+
+Te informamos que el evento [Nombre del Evento], programado para el día [Fecha], ha cambiado de ubicación.
+
+Nuevo Recinto: [Nombre del Recinto Destino]
+Ubicación: [Ubicación del Recinto]
+Horario: [Hora de Inicio]
+
+Tu boleto actual sigue siendo totalmente válido. No es necesario realizar ningún proceso de re-registro ni generar un nuevo comprobante; puedes presentar el mismo código QR que recibiste previamente al momento de ingresar.
+
+Si tienes dudas adicionales, puedes contactar al equipo organizador a través de este medio.
+
+Saludos cordiales,
+Equipo de EventOS
+```
+
+### b) Correo B — Cancelación por Cambio de Modalidad (Requiere Nuevo Registro)
+
+- **Asunto:** `IMPORTANTE: Cambio de sede y reasignación de accesos - [Nombre del Evento]`
+- **Cuerpo del mensaje:**
+
+```text
+Hola, [Nombre del Asistente]:
+
+Te contactamos para informarte que el evento [Nombre del Evento] ha tenido un cambio en el recinto de confirmación, lo cual modifica la distribución de asientos y la capacidad del lugar.
+
+Debido a los requerimientos del nuevo espacio ([Nombre del Recinto Destino]), tu boleto anterior ha sido invalidado automáticamente en nuestro sistema.
+
+Para asegurar tu asistencia, es necesario que realices un nuevo registro para seleccionar tu espacio en la nueva configuración:
+
+Enlace para nuevo registro: [Enlace a EventOS]
+Ubicación del nuevo recinto: [Ubicación del Recinto]
+
+Lamentamos los inconvenientes que este cambio pueda ocasionarle a tu logística y agradecemos tu comprensión.
+
+Atentamente,
+Equipo de EventOS
+```
+
+### c) Correo C — Cambio a Acceso Libre
+
+- **Asunto:** `Actualización de acceso: Entrada libre para [Nombre del Evento]`
+- **Cuerpo del mensaje:**
+
+```text
+Hola, [Nombre del Asistente]:
+
+Queremos informarte que la modalidad de entrada para [Nombre del Evento], a celebrarse el próximo [Fecha], ha sido modificada a Acceso Libre.
+
+El evento se llevará a cabo en [Nombre del Recinto Destino] ([Ubicación del Recinto]).
+
+¿Qué significa esto para ti?
+
+Tu boleto o registro previo ha sido cancelado por el sistema, ya que no se requerirá presentar código QR ni boleto impreso para ingresar.
+El acceso se registrará directamente en la entrada por orden de llegada hasta completar el aforo del recinto.
+
+Te recomendamos llegar con anticipación para asegurar tu lugar.
+
+Saludos cordiales,
+Equipo de EventOS
+```
+
+### d) Correo D — Cancelación por Sobrecupo (Reducción de Aforo — Flujo FIFO)
+
+- **Asunto:** `Cancelación de boleto por reducción de aforo - [Nombre del Evento]`
+- **Cuerpo del mensaje:**
+
+```text
+Hola, [Nombre del Asistente]:
+
+Queremos informarte que el evento [Nombre del Evento] ha tenido que cambiar de sede a un recinto de menor capacidad. Para gestionar el acceso con justicia y transparencia, los lugares se han conservado respetando de manera estricta el orden cronológico de registro.
+
+Lamentamos profundamente comunicarte que, debido a esta reducción del aforo máximo, tu boleto ha tenido que ser cancelado ya que se superó el límite de lugares disponibles en la nueva ubicación.
+
+Ofrecemos una sincera disculpa en nombre de la organización por los inconvenientes y molestias que esta situación imprevista pueda ocasionar en tus planes.
+
+Atentamente,
+Equipo de EventOS
+```
+
+---
+
+## 8. Notas de Consolidación (Versión 2.0 — Unificación Normativa UI35)
 
 - La cartelera y la visualización de detalles del evento quedaron como casos universales `CU-04` y `CU-05`.
 - El catálogo oficial consta de exactamente **35 pantallas consecutivas (`UI01` a `UI35`)**, en estricta sincronía 1:1 con Figma y los 39 Casos de Uso del sistema.

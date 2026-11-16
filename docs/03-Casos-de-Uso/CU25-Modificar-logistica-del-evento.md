@@ -19,7 +19,7 @@ tags:
 
 **Resumen:**
 
-Permite al Organizador reprogramar o reubicar un evento previamente creado, actualizando su fecha, horario o recinto, requiriendo obligatoriamente una justificación, validando que el nuevo aforo cubra las reservas activas y notificando a los asistentes. Si la modificación involucra fechas dentro de los próximos 7 días naturales, se cataloga como modificación con prioridad urgente para dictamen de Subdirección (RN-23, RN-31).
+Permite al Organizador reprogramar o reubicar un evento previamente creado, actualizando su fecha, horario, recinto o modalidad, requiriendo obligatoriamente una justificación y notificando a los asistentes. Ante cambios de recinto o reducción de aforo aprobados por Subdirección (`CU-07`), se aplica la Matriz de Cambios de Recinto y la Política de Reducción de Aforo (Flujo FIFO). Si la modificación involucra fechas dentro de los próximos 7 días naturales, se cataloga como modificación con prioridad urgente para dictamen de Subdirección (RN-23, RN-31).
 
 **Descripción:**
 
@@ -30,10 +30,10 @@ Permite al Organizador reprogramar o reubicar un evento previamente creado, actu
 | **Actor** | Organizador |
 | **Propósito** | Actualizar la logística del evento, garantizando que los asistentes estén informados y que no existan empalmes de infraestructura y horario en la escuela. |
 | **Entradas** | Nueva fecha, nueva hora de inicio/fin, nuevo espacio físico. Motivo de posposición o cambio de recinto. |
-| **Salidas** | Ventana modal para ingreso de motivo, mensajes de confirmación visual **MSG-I-08** / **MSG-I-09** y mensaje de error **MSG-E-03** ante aforo insuficiente. |
+| **Salidas** | Ventana modal para ingreso de motivo, mensajes de confirmación visual **MSG-I-08** / **MSG-I-09** y notificación por correo electrónico aplicable según la Matriz de Cambios de Recinto y Flujo FIFO (**Correo A**, **Correo B**, **Correo C** o **Correo D**). |
 | **Precondiciones** | El usuario debe haber consultado sus eventos y haber seleccionado el botón Modificar en la pantalla **UI14**. |
-| **Postcondiciones** | El evento actualiza sus datos logísticos. El sistema libera el espacio físico anterior y ocupa el nuevo. El estado del evento se mantiene en “Aprobado” o cambia a “Pendiente” (**RN-31**). Si la modificación aprobada incluye cambio de recinto en subeventos con boletos reservados, los boletos conservan su estado válido (`EstadoBoleto.VALIDO`) desvinculando la asignación de asiento (`idAsiento = null`) hacia admisión general, notificando por correo electrónico a los asistentes. |
-| **Errores** | • **MSG-E-11** "Por favor, completa todos los campos obligatorios resaltados para continuar".<br>• **MSG-E-24** "El lugar seleccionado ya no se encuentra disponible.".<br>• **MSG-E-03** "La cantidad solicitada excede el límite disponible." cuando el aforo del nuevo recinto sea menor a los boletos activos ya reservados.<br>• **MSG-E-14** "La descripción excede el límite máximo de caracteres permitidos". |
+| **Postcondiciones** | El evento actualiza sus datos logísticos. El sistema libera el espacio físico anterior y ocupa el nuevo. El estado del evento se mantiene en “Aprobado” o cambia a “Pendiente” (**RN-31**). Al aprobarse un cambio de recinto o modalidad (`CU-07`) en subeventos con reservas activas, se ejecuta primero el Flujo FIFO si el nuevo aforo es menor (`CANCELADO_POR_SOBRECUPO` + **Correo D** para el excedente) y después se aplica la Matriz de Cambios de Recinto (**CONSERVADO** con `idAsiento = null` o intacto + **Correo A**; **CANCELADO** + **Correo B**; o **CANCELADO (Liberado)** + **Correo C**). |
+| **Errores** | • **MSG-E-11** "Por favor, completa todos los campos obligatorios resaltados para continuar".<br>• **MSG-E-24** "El lugar seleccionado ya no se encuentra disponible.".<br>• **MSG-E-14** "La descripción excede el límite máximo de caracteres permitidos". |
 | **Tipo** | Extensión de **CU-24** (`<<extend>>`). |
 
 **Trayectorias del caso de uso:**
@@ -46,8 +46,8 @@ Permite al Organizador reprogramar o reubicar un evento previamente creado, actu
 3. Ingresa la nueva fecha, ajusta el recinto y/o horario y da click en el botón de guardar cambios. [Trayectoria A]
 4. Muestra el modal exigiendo un motivo para el cambio (**RN-25**).
 5. Escribe la justificación y confirma la acción. [Trayectoria B] [Trayectoria C]
-6. Verifica el tiempo de anticipación (**RN-23**, **RN-31**); si la reprogramación ocurre con menos de 7 días naturales o propone fechas dentro de ese intervalo, cataloga la solicitud con prioridad urgente [Trayectoria E]. Valida la disponibilidad para evitar colisiones (**RN-06**, **RN-10**) [Trayectoria D], comprueba que el aforo del nuevo recinto cubra las reservas activas existentes [Trayectoria F] y comprueba si la duración total o recinto difiere de lo aprobado. [Trayectoria A]
-7. Guarda los cambios o actualiza la solicitud *in-flight*, mantiene vigentes las reservas y boletos de los asistentes notificando la reprogramación, y muestra el mensaje de confirmación correspondiente (**MSG-I-08** o **MSG-I-09**).
+6. Verifica el tiempo de anticipación (**RN-23**, **RN-31**); si la reprogramación ocurre con menos de 7 días naturales o propone fechas dentro de ese intervalo, cataloga la solicitud con prioridad urgente [Trayectoria E]. Valida la disponibilidad para evitar colisiones (**RN-06**, **RN-10**) [Trayectoria D], verifica si el cambio de recinto implica una reducción de aforo frente a las reservas activas para aplicar el Flujo FIFO [Trayectoria F] y comprueba si la duración total, recinto o modalidad difiere de lo aprobado. [Trayectoria A]
+7. Guarda los cambios o actualiza la solicitud *in-flight* (conservando las reservas activas sin alterarlas hasta el dictamen definitivo de Subdirección en `CU-07`, momento en el que se ejecutará la Matriz de Cambios de Recinto, el Flujo FIFO y el envío de **Correo A / B / C / D**), y muestra el mensaje de confirmación correspondiente (**MSG-I-08** o **MSG-I-09**).
 
 *Fin de la trayectoria.*
 
@@ -108,12 +108,13 @@ Permite al Organizador reprogramar o reubicar un evento previamente creado, actu
 *Fin de la trayectoria.*
 
 
-### Trayectoria alternativa F: Aforo del nuevo recinto insuficiente para reservas activas
+### Trayectoria alternativa F: Cambio de recinto con reducción de aforo (Flujo FIFO)
 
 > **Condición:** Ocurre en el paso 6 cuando el Organizador solicita reubicar un subevento a un nuevo espacio físico cuya capacidad máxima es menor que la cantidad de boletos activos ya reservados (**RN-31**, **RN-40**).
 
-- **F-1.** El sistema detecta que la capacidad máxima del recinto propuesto es menor que el número de reservas activas emitidas para el subevento.
-- **F-2.** Muestra en pantalla el mensaje de error **MSG-E-03**: "La cantidad solicitada excede el límite disponible.", alertando que no es posible seleccionar un espacio con capacidad inferior a los boletos ya reservados.
-- **F-3.** Bloquea el guardado de la solicitud de modificación y mantiene el formulario activo para que el Organizador elija un recinto con capacidad suficiente o conserve el recinto actual.
+- **F-1.** El sistema detecta que la capacidad máxima del recinto propuesto es menor que el número de reservas activas emitidas para el subevento y advierte en la solicitud el impacto de reducción de aforo.
+- **F-2.** Al aprobarse la modificación logística por Subdirección (`CU-07`), el sistema ordena cronológicamente los registros activos de inscripción (*First-In, First-Out* / FIFO).
+- **F-3.** Conserva como válidos los primeros registros hasta completar el aforo máximo permitido por la nueva sede (aplicando posteriormente la Matriz de Cambios de Recinto: **Correo A** si se conserva, **Correo B** si requiere nuevo registro o **Correo C** si pasa a Acceso Libre).
+- **F-4.** Los registros excedentes pasan automáticamente al estado `CANCELADO_POR_SOBRECUPO` y reciben notificación inmediata mediante el **Correo D (Cancelación por Sobrecupo)**.
 
 *Fin de la trayectoria.*
