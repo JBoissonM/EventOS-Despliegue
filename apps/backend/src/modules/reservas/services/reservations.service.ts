@@ -5,7 +5,7 @@ import { CreateReservationDto } from '../dto/createReservation.dto';
 import { Repository, In, DataSource } from 'typeorm';
 import { InjectRepository } from '@nestjs/typeorm';
 
-import { DisponibilidadSubEvento, AsientoDisponible, EstadoRecinto, EstadoBoleto, EstadoSubEvento, AlcanceEvento } from '@eventos/shared';
+import { DisponibilidadSubEvento, AsientoDisponible, EstadoRecinto, EstadoBoleto, EstadoSubEvento, AlcanceEvento, TipoCuentaUsuario } from '@eventos/shared';
 
 import { BoletoEntity } from '../entities/boleto.entity';
 import { AsistenteEventoEntity } from '../entities/asistenteEvento.entity';
@@ -172,6 +172,17 @@ export class ReservationsService {
             // Auto-reserva: Validar idOrganizador !== idUsuario al solicitar boletos (HTTP 400)
             if (Number(eventoPrincipal.idOrganizador) === Number(idUsuario)) {
                 throw new BadRequestException('El organizador no puede solicitar boletos para su propio evento.');
+            }
+
+            if (eventoPrincipal.idAlcance === AlcanceEvento.INTERNO) {
+                const esUsuarioInterno =
+                    usuario.tipoCuenta === TipoCuentaUsuario.INTERNO ||
+                    usuario.tipoCuenta === TipoCuentaUsuario.SUBDIRECCION ||
+                    usuario.tipoCuenta === TipoCuentaUsuario.ADMINISTRADOR;
+
+                if (!esUsuarioInterno) {
+                    throw new ForbiddenException('Este evento es exclusivo para la comunidad interna del IPN.');
+                }
             }
 
             if (eventoPrincipal.idAlcance === AlcanceEvento.PRIVADO) {

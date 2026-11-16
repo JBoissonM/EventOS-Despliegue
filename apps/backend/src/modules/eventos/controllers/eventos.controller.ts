@@ -1,5 +1,6 @@
 import {
   Controller,
+  ForbiddenException,
   Get,
   Param,
   ParseIntPipe,
@@ -11,7 +12,7 @@ import {
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { JwtService } from '@nestjs/jwt';
 import { EventosService } from '../services/eventos.service';
-import { RolesGuard } from '../../auth/roles.guard';
+import { RolesGuard, TOKEN_BLACKLIST } from '../../auth/roles.guard';
 import { Roles } from '../../../common/decorators/roles.decorator';
 import { TipoCuentaUsuario } from '@eventos/shared';
 
@@ -30,6 +31,12 @@ export class EventosController {
 
     const [bearer, token] = authHeader.split(' ');
     if (bearer !== 'Bearer' || !token) return undefined;
+
+    if (TOKEN_BLACKLIST.has(token)) {
+      throw new ForbiddenException(
+        'La sesión ya fue finalizada. Token invalidado en lista negra (HTTP 403).',
+      );
+    }
 
     try {
       return await this.jwtService.verifyAsync(token, {
