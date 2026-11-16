@@ -1,11 +1,13 @@
 import { Injectable, Logger } from '@nestjs/common';
 import * as nodemailer from 'nodemailer';
 import PDFDocument from 'pdfkit';
+import { ModalidadAcceso } from '@eventos/shared';
 
 export interface DatosCorreoBoleto {
   destinatario: string;
   nombreAsistente: string;
   idBoleto: number;
+  idModalidadAcceso?: ModalidadAcceso;
   nombreEvento: string;
   nombreSubEvento: string;
   fecha: string;
@@ -82,7 +84,9 @@ export class MailService {
       const col2X = startX + 140;
       const rowHeight = 24;
 
-      const textoAsiento = datos.asiento ? `Fila ${datos.asiento.fila}, Asiento ${datos.asiento.numero}` : 'Entrada General (Sin asiento numerado)';
+      const textoAsiento = datos.asiento
+        ? `Fila ${datos.asiento.fila}, Asiento ${datos.asiento.numero}`
+        : 'Admisión general — Sin asiento asignado';
 
       const fields = [
           { label: 'Folio:', value: `#${datos.idBoleto}` },
@@ -135,15 +139,16 @@ export class MailService {
   async enviarCorreoConfirmacionReserva(datos: DatosCorreoBoleto): Promise<void> {
     const attachments: nodemailer.SendMailOptions['attachments'] = [];
     const timestamp = new Date().getTime();
-    
+    const esRegistroSimple =
+      datos.idModalidadAcceso === ModalidadAcceso.REGISTRO_SIMPLE;
+
     let seccionQrHtml = `
-      <p style="color: #555; font-size: 14px; margin-top: 16px;">
-        <em>Esta actividad es de acceso libre y no requiere presentar código QR en la entrada.</em>
-      </p>
+      <div style="margin-top: 20px; padding: 14px; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; color: #334155; font-size: 14px; line-height: 1.5;">
+        Tu inscripción nominal ha quedado confirmada en el padrón de inscritos. Esta actividad utiliza <strong>Registro simple sin QR</strong>, por lo que no necesitas presentar código QR ni boleto impreso en la entrada.
+      </div>
     `;
 
-
-    if (datos.qrBase64) {
+    if (datos.qrBase64 && !esRegistroSimple) {
       const base64Data = datos.qrBase64.replace(/^data:image\/png;base64,/, '');
       const uniqueCid = `qr-${datos.idBoleto}-${timestamp}@eventos.escom`; 
       
@@ -162,22 +167,28 @@ export class MailService {
           <img src="cid:${uniqueCid}" alt="Código QR del Boleto" style="width: 220px; height: 220px; border: 1px solid #e2e8f0; border-radius: 8px; padding: 8px;" />
         </div>
       `;
-    }
 
-    try {
-      const pdfBuffer = await this.generarPDFBoleto(datos);
-      attachments.push({
-        filename: `Boleto_EventOS_${datos.idBoleto}.pdf`,
-        content: pdfBuffer,
-        contentType: 'application/pdf',
-      });
-    } catch (error) {
-      this.logger.error('Error al generar el PDF del boleto', error);
+      try {
+        const pdfBuffer = await this.generarPDFBoleto(datos);
+        attachments.push({
+          filename: `Boleto_EventOS_${datos.idBoleto}.pdf`,
+          content: pdfBuffer,
+          contentType: 'application/pdf',
+        });
+      } catch (error) {
+        this.logger.error('Error al generar el PDF del boleto', error);
+      }
     }
 
     const textoAsiento = datos.asiento
       ? `Fila ${datos.asiento.fila}, Asiento ${datos.asiento.numero}`
-      : 'Entrada General (Sin asiento numerado)';
+      : esRegistroSimple
+        ? 'Registro nominal (Sin asiento asignado)'
+        : 'Admisión general — Sin asiento asignado';
+
+    const mensajeIntro = esRegistroSimple
+      ? 'Tu lugar ha sido confirmado en la lista de inscritos de la actividad.'
+      : 'Tu lugar ha sido reservado exitosamente. Hemos adjuntado a este correo tu boleto oficial en formato <strong>PDF</strong> para que puedas descargarlo.';
 
     const html = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden;">
@@ -188,15 +199,15 @@ export class MailService {
         </div>
         
         <div style="padding: 24px; color: #334155;">
-          <p>Hola <strong>${datos.nombreAsistente}</strong>,</p>
-          <p>Tu lugar ha sido reservado exitosamente. Hemos adjuntado a este correo tu boleto oficial en formato <strong>PDF</strong> para que puedas descargarlo.</p>
+          <p>Hola <strong>${this.escaparHtml(datos.nombreAsistente)}</strong>,</p>
+          <p>${mensajeIntro}</p>
           
           <table style="width: 100%; border-collapse: collapse; margin-top: 16px; background-color: #f8fafc; border-radius: 8px; padding: 12px;">
             <tr><td style="padding: 8px 12px; font-weight: bold;">Folio:</td><td style="padding: 8px 12px;">#${datos.idBoleto}</td></tr>
-            <tr><td style="padding: 8px 12px; font-weight: bold;">Evento:</td><td style="padding: 8px 12px;">${datos.nombreEvento}</td></tr>
-            <tr><td style="padding: 8px 12px; font-weight: bold;">Actividad:</td><td style="padding: 8px 12px;">${datos.nombreSubEvento}</td></tr>
-            <tr><td style="padding: 8px 12px; font-weight: bold;">Horario:</td><td style="padding: 8px 12px;">${datos.fecha} (${datos.horaInicio} - ${datos.horaFin})</td></tr>
-            <tr><td style="padding: 8px 12px; font-weight: bold;">Recinto:</td><td style="padding: 8px 12px;">${datos.nombreRecinto}</td></tr>
+            <tr><td style="padding: 8px 12px; font-weight: bold;">Evento:</td><td style="padding: 8px 12px;">${this.escaparHtml(datos.nombreEvento)}</td></tr>
+            <tr><td style="padding: 8px 12px; font-weight: bold;">Actividad:</td><td style="padding: 8px 12px;">${this.escaparHtml(datos.nombreSubEvento)}</td></tr>
+            <tr><td style="padding: 8px 12px; font-weight: bold;">Horario:</td><td style="padding: 8px 12px;">${this.escaparHtml(datos.fecha)} (${this.escaparHtml(datos.horaInicio)} - ${this.escaparHtml(datos.horaFin)})</td></tr>
+            <tr><td style="padding: 8px 12px; font-weight: bold;">Recinto:</td><td style="padding: 8px 12px;">${this.escaparHtml(datos.nombreRecinto)}</td></tr>
             <tr><td style="padding: 8px 12px; font-weight: bold;">Lugar:</td><td style="padding: 8px 12px;">${textoAsiento}</td></tr>
           </table>
 
@@ -211,16 +222,19 @@ export class MailService {
     `;
 
     const randomSuffix = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
-    
+    const subject = esRegistroSimple
+      ? `Confirmación de registro: ${datos.nombreSubEvento} [Folio #${datos.idBoleto}-${randomSuffix}]`
+      : `Tu boleto: ${datos.nombreSubEvento} [Folio #${datos.idBoleto}-${randomSuffix}]`;
+
     await this.transporter.sendMail({
       from: process.env.SMTP_FROM || process.env.SMTP_USER,
       to: datos.destinatario,
-      subject: `Tu boleto: ${datos.nombreSubEvento} [Folio #${datos.idBoleto}-${randomSuffix}]`,
+      subject,
       html,
       attachments,
     });
 
-    this.logger.log(`Correo con PDF enviado a ${datos.destinatario} (Boleto #${datos.idBoleto})`);
+    this.logger.log(`Correo de confirmación enviado a ${datos.destinatario} (Boleto #${datos.idBoleto})`);
   }
 
   /** Escapa caracteres HTML especiales en texto ingresado por usuarios. */

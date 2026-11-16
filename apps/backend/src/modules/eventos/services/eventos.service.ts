@@ -8,7 +8,6 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
 import {
   AlcanceEvento,
-  esModalidadConQr,
   EstadoEvento,
   EstadoSubEvento,
   ModalidadAcceso,
@@ -144,7 +143,7 @@ export class EventosService {
       const primerSub = subeventosVigentes[0];
 
       const esAccesoLibre = subeventosVigentes.some(
-        (s) => !esModalidadConQr(s.idModalidadAcceso),
+        (s) => s.idModalidadAcceso === ModalidadAcceso.ACCESO_LIBRE,
       );
       const posterUrl = this.resolverPosterUrl(evento.poster);
 
@@ -209,7 +208,7 @@ export class EventosService {
       subEventos.some(
         (sub) =>
           sub.estado !== EstadoSubEvento.CANCELADO &&
-          !esModalidadConQr(sub.idModalidadAcceso),
+          sub.idModalidadAcceso === ModalidadAcceso.ACCESO_LIBRE,
       );
 
     if (evento.idAlcance === AlcanceEvento.PRIVADO) {

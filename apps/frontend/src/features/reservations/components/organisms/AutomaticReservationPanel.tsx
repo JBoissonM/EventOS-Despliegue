@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { type ModalidadAcceso, esModalidadConQr } from "@eventos/shared";
 import { Button } from "../../../../components/atoms/Button/Button";
 import { ConfirmationDialog } from "../../../../components/organisms/ConfirmationDialog/ConfirmationDialog";
 import { ReservationSummary } from "../molecules/ReservationSummary";
@@ -12,6 +13,7 @@ export interface AutomaticReservationPanelProps {
   startTime: string;
   endTime: string;
   venue: string;
+  idModalidadAcceso?: ModalidadAcceso;
   onReserve: () => Promise<CreateReservationResponse | void>;
   canReserve?: boolean;
 }
@@ -23,6 +25,7 @@ export function AutomaticReservationPanel({
   startTime,
   endTime,
   venue,
+  idModalidadAcceso,
   onReserve,
   canReserve = true,
 }: AutomaticReservationPanelProps) {
@@ -33,6 +36,7 @@ export function AutomaticReservationPanel({
   const [isSuccessOpen, setIsSuccessOpen] = useState(false);
   const [ticketId, setTicketId] = useState<number | null>(null);
   const [ticketQr, setTicketQr] = useState<string | null>(null);
+  const usesQr = idModalidadAcceso === undefined || esModalidadConQr(idModalidadAcceso);
 
   const handleConfirm = async () => {
     if (isLoading || isReserved || !canReserve) return;
@@ -71,9 +75,13 @@ export function AutomaticReservationPanel({
       />
 
       <div className="rounded-xl border border-eventos-panel-border bg-eventos-panel-surface p-5">
-        <h2 className="text-xl font-semibold text-eventos-ink">Reservación de lugar</h2>
+        <h2 className="text-xl font-semibold text-eventos-ink">
+          {usesQr ? "Reservación de lugar" : "Registro de asistencia"}
+        </h2>
         <p className="mt-3 text-sm">
-          Para esta actividad no necesitas seleccionar un asiento numerado. Al confirmar se registrará tu lugar disponible.
+          {usesQr
+            ? "Para esta actividad no necesitas seleccionar un asiento numerado. Al confirmar se registrará tu lugar y se generará tu boleto QR."
+            : "Esta actividad utiliza registro simple: no genera boleto QR ni requiere seleccionar asiento. Al confirmar quedarás inscrito en la lista de asistencia."}
         </p>
       </div>
 
@@ -100,6 +108,7 @@ export function AutomaticReservationPanel({
         eventName={eventName}
         ticketId={ticketId}
         qr={ticketQr}
+        idModalidadAcceso={idModalidadAcceso}
         onClose={() => setIsSuccessOpen(false)}
       />
     </section>

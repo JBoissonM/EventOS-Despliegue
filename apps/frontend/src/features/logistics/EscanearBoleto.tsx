@@ -3,6 +3,7 @@ import { useParams, useNavigate } from "react-router";
 import { User } from "lucide-react";
 import { API_BASE_URL } from "../../lib/apiClient";
 import { Button } from "../../components/atoms/Button/Button";
+import { PageState } from "../../components/organisms/PageState/PageState";
 import { Html5Qrcode } from "html5-qrcode";
 
 interface AsistenteInfo {
@@ -20,6 +21,9 @@ export function EscanearBoleto() {
   const [errorCamara, setErrorCamara] = useState<string | null>(null);
   
   const [isReady, setIsReady] = useState<boolean>(false);
+  const [requiereEscaneoQR, setRequiereEscaneoQR] = useState<boolean | null>(null);
+  const [etiquetaModalidad, setEtiquetaModalidad] = useState<string>("");
+  const [errorCarga, setErrorCarga] = useState<string | null>(null);
 
   const [estadoEscaneo, setEstadoEscaneo] = useState<"valido" | "denegado" | null>(null);
   const [datosAsistente, setDatosAsistente] = useState<AsistenteInfo | null>(null);
@@ -40,22 +44,29 @@ export function EscanearBoleto() {
         Authorization: `Bearer ${getToken()}`,
       },
     })
-      .then((res) => res.json())
-      .then((data) => {
-        if (data) {
-          setAforoActual(data.aforoActual ?? 0);
-          setAforoMaximo(data.aforoMaximo ?? 50);
+      .then(async (res) => {
+        const data = await res.json();
+        if (!res.ok) {
+          throw new Error(data.message || "No se pudo consultar la modalidad de acceso.");
         }
+        setAforoActual(data.totalIngresados ?? data.aforoActual ?? 0);
+        setAforoMaximo(data.aforoMaximo ?? 50);
+        setEtiquetaModalidad(data.etiquetaModalidad ?? "");
+        setRequiereEscaneoQR(data.requiereEscaneoQR !== false);
       })
-      .catch((err) => console.error(err));
+      .catch((err) => {
+        console.error(err);
+        setErrorCarga(err instanceof Error ? err.message : "Error al verificar la actividad.");
+      });
   }, [idSubEvento]);
 
   useEffect(() => {
+    if (requiereEscaneoQR !== true) return;
     const timer = setTimeout(() => {
       setIsReady(true);
     }, 100);
     return () => clearTimeout(timer);
-  }, []);
+  }, [requiereEscaneoQR]);
 
   const handleEscanearQr = async (qrValue: string) => {
     if (!qrValue.trim() || escaneando) return;
@@ -100,7 +111,7 @@ export function EscanearBoleto() {
   };
 
   useEffect(() => {
-    if (!isReady || estadoEscaneo) return;
+    if (!isReady || estadoEscaneo || requiereEscaneoQR !== true) return;
 
     const scannerId = "reader-qr";
     const html5QrCode = new Html5Qrcode(scannerId);
@@ -159,7 +170,33 @@ export function EscanearBoleto() {
           .catch((err) => console.error("Error al detener el escáner:", err));
       }
     };
-  }, [isReady, estadoEscaneo]);
+  }, [isReady, estadoEscaneo, requiereEscaneoQR]);
+
+  if (errorCarga) {
+    return (
+      <main className="mx-auto flex min-h-screen max-w-2xl items-center justify-center p-6 font-merriweather">
+        <PageState
+          variant="error"
+          title="Escáner no disponible"
+          description={errorCarga}
+          action={<Button text="Volver" variant="primary" onClick={() => navigate(-1)} />}
+        />
+      </main>
+    );
+  }
+
+  if (requiereEscaneoQR === false) {
+    return (
+      <main className="mx-auto flex min-h-screen max-w-2xl items-center justify-center p-6 font-merriweather">
+        <PageState
+          variant="error"
+          title="Escáner deshabilitado"
+          description={`Esta actividad tiene modalidad ${etiquetaModalidad || "sin boleto QR"} y no admite validación mediante código QR.`}
+          action={<Button text="Volver" variant="primary" onClick={() => navigate(-1)} />}
+        />
+      </main>
+    );
+  }
 
   return (
     <div className="fixed inset-0 w-screen h-screen bg-black font-merriweather text-white flex flex-col justify-between overflow-hidden">

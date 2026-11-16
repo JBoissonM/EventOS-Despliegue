@@ -1,5 +1,5 @@
 import { ArrowLeft } from "lucide-react";
-import { esModalidadConQr } from "@eventos/shared";
+import { ModalidadAcceso, esModalidadConRegistro } from "@eventos/shared";
 import { Link, Navigate, useParams } from "react-router";
 import { EventDetailsRequestState } from "../../event-details/components/molecules/EventDetailsRequestState";
 import { useSubEventDetails } from "../../event-details/hooks/useSubEventDetails";
@@ -56,11 +56,11 @@ export function ReservationRoute() {
     return <EventDetailsRequestState status={status === "success" ? "error" : status} error={error} onRetry={retry} />;
   }
 
-  if (!esModalidadConQr(activity.idModalidadAcceso)) {
+  if (!esModalidadConRegistro(activity.idModalidadAcceso) || activity.idModalidadAcceso === ModalidadAcceso.ACCESO_LIBRE) {
     return (
       <section className="mx-auto max-w-3xl space-y-4 p-6 text-eventos-body-text">
         <h1 className="text-2xl font-bold text-eventos-ink">Actividad de entrada libre</h1>
-        <p>Esta actividad no requiere una reservación con boleto QR.</p>
+        <p>Esta actividad es de acceso libre y no requiere reservación previa.</p>
         <Link to={detailPath} className="font-semibold text-eventos-primary underline">Volver a la actividad</Link>
       </section>
     );
@@ -122,6 +122,7 @@ export function ReservationRoute() {
           startTime={startTime}
           endTime={endTime}
           venue={venue}
+          idModalidadAcceso={activity.idModalidadAcceso}
           seats={toSeatMapItems(availability.asientos)}
           aisleAfter={[6, 17]}
           canReserve={canReserve}
@@ -136,6 +137,7 @@ export function ReservationRoute() {
           startTime={startTime}
           endTime={endTime}
           venue={venue}
+          idModalidadAcceso={activity.idModalidadAcceso}
           canReserve={canReserve}
           onReserve={() => submitReservation()}
         />

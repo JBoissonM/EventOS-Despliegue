@@ -71,6 +71,7 @@ export interface AsientoDisponible {
 
 export interface DisponibilidadSubEvento {
   idSubEvento: number;
+  idModalidadAcceso?: ModalidadAcceso;
   recinto: Recinto;
   lugaresDisponibles: number; //<- calculado por el back
   asientos: AsientoDisponible[]; // <- lista de asientos disponibles

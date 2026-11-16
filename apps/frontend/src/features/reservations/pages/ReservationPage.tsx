@@ -1,3 +1,5 @@
+import type { ModalidadAcceso } from "@eventos/shared";
+import { ModalidadAccesoHelp } from "../../../components/molecules/ModalidadAccesoHelp";
 import type { CreateReservationResponse } from "../services/reservations.service";
 import { ReservationPanel } from "../components/organisms/ReservationPanel";
 import { AutomaticReservationPanel } from "../components/organisms/AutomaticReservationPanel";
@@ -10,6 +12,7 @@ interface ReservationDetails {
   startTime: string;
   endTime: string;
   venue: string;
+  idModalidadAcceso?: ModalidadAcceso;
   canReserve?: boolean;
 }
 
@@ -33,6 +36,9 @@ export function ReservationPage(props: ReservationPageProps) {
       <header className="space-y-2">
         <h1 className="text-3xl font-bold text-eventos-ink">Reservar lugar</h1>
         <p className="text-xl font-semibold text-eventos-secondary">{props.eventName}</p>
+        {props.idModalidadAcceso && (
+          <ModalidadAccesoHelp idModalidadAcceso={props.idModalidadAcceso} />
+        )}
       </header>
       {props.mode === "manual" ? (
         <ReservationPanel
@@ -55,6 +61,7 @@ export function ReservationPage(props: ReservationPageProps) {
           startTime={props.startTime}
           endTime={props.endTime}
           venue={props.venue}
+          idModalidadAcceso={props.idModalidadAcceso}
           canReserve={props.canReserve}
           onReserve={props.onReserve}
         />

@@ -1,6 +1,6 @@
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { EstadoBoleto } from '@eventos/shared';
+import { esModalidadConQr, EstadoBoleto } from '@eventos/shared';
 import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage } from 'pdf-lib';
 import { Repository } from 'typeorm';
 import { UsuarioEntity } from '../../auth/entities/usuario.entity';
@@ -55,6 +55,9 @@ export class TicketPdfService {
 
   async generar(idUsuario: number, idBoleto: number): Promise<Uint8Array> {
     const detalle = await this.reservationsService.obtenerDetalleBoleto(idUsuario, idBoleto);
+    if (!esModalidadConQr(detalle.subEvento.idModalidadAcceso)) {
+      throw new ConflictException('Esta modalidad no genera boleto digital con código QR.');
+    }
     if (detalle.estadoBoleto !== EstadoBoleto.VALIDO) {
       throw new ConflictException('Solo se pueden descargar boletos activos.');
     }
@@ -70,7 +73,9 @@ export class TicketPdfService {
     const fecha = detalle.subEvento.fecha.split('T')[0].split('-');
     const fechaVisible = fecha.length === 3 ? `${fecha[2]}/${fecha[1]}/${fecha[0]}` : detalle.subEvento.fecha;
     const horario = `${detalle.subEvento.horaInicio.slice(0, 5)} - ${detalle.subEvento.horaFin.slice(0, 5)} hrs`;
-    const asignacion = detalle.asiento ? `Asiento ${detalle.asiento.fila}${detalle.asiento.numero}` : 'Acceso general';
+    const asignacion = detalle.asiento
+      ? `Asiento ${detalle.asiento.fila}${detalle.asiento.numero}`
+      : 'Admisión general — Sin asiento asignado';
     const documento = await PDFDocument.create();
     documento.setTitle(`EventOS - Boleto ${idBoleto}`);
     documento.setAuthor('EventOS');

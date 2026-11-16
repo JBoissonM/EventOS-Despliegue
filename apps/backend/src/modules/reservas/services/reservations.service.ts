@@ -13,6 +13,8 @@ import {
   EstadoSubEvento,
   AlcanceEvento,
   esModalidadConQr,
+  esModalidadConRegistro,
+  ModalidadAcceso,
 } from '@eventos/shared';
 
 import { BoletoEntity } from '../entities/boleto.entity';
@@ -117,11 +119,14 @@ export class ReservationsService {
         const limiteReserva = fechaEvento ? new Date(`${fechaEvento.fecha}T${fechaEvento.horaInicio}`) : new Date(0);
         const eventoActivo = evento && evento.idEstadoEvento === 2 && subEvento.estado === EstadoSubEvento.ACEPTADO && new Date() <= limiteReserva;
 
+        const permiteRegistro = esModalidadConRegistro(subEvento.idModalidadAcceso);
+        const requiereSeleccionAsiento =
+            subEvento.idModalidadAcceso === ModalidadAcceso.QR_MAPA;
         const lugaresDisponibles = eventoActivo ? Math.max(0, recinto.aforo - lugaresOcupados) : 0;
 
-        const asientosBD = await this.asientoRepo.find({ 
-            where: { idRecinto: recinto.idRecinto } 
-        });
+        const asientosBD = requiereSeleccionAsiento
+            ? await this.asientoRepo.find({ where: { idRecinto: recinto.idRecinto } })
+            : [];
 
         const asientos: AsientoDisponible[] = asientosBD.map(a => ({
             idAsiento: a.idAsiento,
@@ -132,10 +137,11 @@ export class ReservationsService {
 
         return {
             idSubEvento: subEvento.idSubEvento,
+            idModalidadAcceso: subEvento.idModalidadAcceso,
             recinto: recinto,
             lugaresDisponibles,
-            permiteReservar: Boolean(eventoActivo && lugaresDisponibles > 0),
-            requiereSeleccionAsiento: asientos.length > 0,
+            permiteReservar: Boolean(eventoActivo && permiteRegistro && lugaresDisponibles > 0),
+            requiereSeleccionAsiento,
             asientos,
         };
     }
@@ -167,6 +173,10 @@ export class ReservationsService {
 
             if (subEvento.estado !== EstadoSubEvento.ACEPTADO) {
                 throw new ConflictException('El registro para este evento se encuentra cerrado o cancelado');
+            }
+
+            if (subEvento.idModalidadAcceso === ModalidadAcceso.ACCESO_LIBRE) {
+                throw new BadRequestException('Esta actividad es de acceso libre y no requiere registro previo.');
             }
 
             const eventoPrincipal = await manager.findOne(EventoEntity, {
@@ -242,17 +252,20 @@ export class ReservationsService {
                 throw new ConflictException('El recinto del evento no está disponible.');
             }
             
-            const asientosDelRecinto = await manager.find(AsientoEntity, {
-                where: { idRecinto: recinto.idRecinto }
-            });
-            const requiereAsiento = asientosDelRecinto.length > 0;
+            const requiereAsiento =
+                subEvento.idModalidadAcceso === ModalidadAcceso.QR_MAPA;
+            const asientosDelRecinto = requiereAsiento
+                ? await manager.find(AsientoEntity, {
+                      where: { idRecinto: recinto.idRecinto },
+                  })
+                : [];
 
             if (requiereAsiento && !dto.idAsiento) {
                 throw new BadRequestException('Esta actividad requiere que selecciones un asiento.');
             }
 
             if (!requiereAsiento && dto.idAsiento) {
-                throw new BadRequestException('Esta actividad es de entrada general y no utiliza asientos numerados.');
+                throw new BadRequestException('Esta actividad es de admisión general y no utiliza asientos numerados.');
             }
 
             let asientoSeleccionado = null;
@@ -330,6 +343,7 @@ export class ReservationsService {
                 qrBase64: qrBase64Data,
                 datosCorreo: {
                     idBoleto: boletoGuardado.idBoleto,
+                    idModalidadAcceso: subEvento.idModalidadAcceso,
                     nombreEvento: eventoPrincipal.nombre,
                     nombreSubEvento: subEvento.nombre,
                     fecha: String(fechaEvento.fecha),
@@ -410,8 +424,11 @@ export class ReservationsService {
 
             const limiteTerminoEvento = new Date(`${fechaEvento.fecha}T${fechaEvento.horaFin}`);
 
-            // Si el evento ya terminó y el boleto seguía válido (no asistió), pasa a Cancelado
-            if (new Date() > limiteTerminoEvento && boleto.idEstadoBoleto === EstadoBoleto.VALIDO) {
+            if (
+                esModalidadConQr(subEvento.idModalidadAcceso) &&
+                new Date() > limiteTerminoEvento &&
+                boleto.idEstadoBoleto === EstadoBoleto.VALIDO
+            ) {
                 boleto.idEstadoBoleto = EstadoBoleto.CANCELADO;
                 await this.boletoRepo.save(boleto);
             }
@@ -538,13 +555,21 @@ export class ReservationsService {
         if (!recinto) throw new NotFoundException('Recinto no encontrado.'); 
 
         const limiteTerminoEvento = new Date(`${fechaEvento.fecha}T${fechaEvento.horaFin}`);
-        if (new Date() > limiteTerminoEvento && boleto.idEstadoBoleto === EstadoBoleto.VALIDO) {
+        if (
+            esModalidadConQr(subEvento.idModalidadAcceso) &&
+            new Date() > limiteTerminoEvento &&
+            boleto.idEstadoBoleto === EstadoBoleto.VALIDO
+        ) {
             boleto.idEstadoBoleto = EstadoBoleto.CANCELADO;
             await this.boletoRepo.save(boleto);
         }
 
         let qrBase64 = null;
-        if (boleto.tokenQr && boleto.tokenQr !== '') {
+        if (
+            esModalidadConQr(subEvento.idModalidadAcceso) &&
+            boleto.tokenQr &&
+            boleto.tokenQr !== ''
+        ) {
             qrBase64 = await this.qrService.generateImageFromToken(boleto.tokenQr);
         }
 

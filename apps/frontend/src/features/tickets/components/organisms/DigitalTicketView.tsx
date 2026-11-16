@@ -1,5 +1,8 @@
+import { type ModalidadAcceso, esModalidadConQr, obtenerEtiquetaModalidad } from "@eventos/shared";
 import { Badge } from "../../../../components/atoms/Badge/Badge";
 import { Button } from "../../../../components/atoms/Button/Button";
+import { FeedbackNotice } from "../../../../components/molecules/FeedbackNotice";
+import { ModalidadAccesoHelp } from "../../../../components/molecules/ModalidadAccesoHelp";
 
 import { QRDisplay } from "../molecules/QRDisplay";
 import type { TicketStatus } from "../molecules/TicketCard";
@@ -18,6 +21,7 @@ export interface DigitalTicketViewProps {
   venue: string;
   attendeeName?: string;
   status: TicketStatus;
+  idModalidadAcceso?: ModalidadAcceso;
   assignment?: TicketAssignment;
   qrImageUrl?: string | null;
   onBack: () => void;
@@ -48,6 +52,7 @@ export function DigitalTicketView({
                                     venue,
                                     attendeeName,
                                     status,
+                                    idModalidadAcceso,
                                     assignment,
                                     qrImageUrl,
                                     onBack,
@@ -57,6 +62,7 @@ export function DigitalTicketView({
     isDownloadingPdf = false,
                                   }: DigitalTicketViewProps) {
   const isActive = status === "active";
+  const requiresQr = idModalidadAcceso === undefined || esModalidadConQr(idModalidadAcceso);
 
   const assignmentText =
     assignment?.kind === "seat"
@@ -64,7 +70,7 @@ export function DigitalTicketView({
       : assignment?.kind === "equipment"
         ? `Equipo: ${assignment.label}`
         : assignment?.kind === "general"
-          ? "Acceso general"
+          ? "Admisión general — Sin asiento asignado"
           : null;
 
   const qrUnavailableMessage = isActive
@@ -82,7 +88,7 @@ export function DigitalTicketView({
         />
 
         <h1 className="font-merriweather text-3xl font-bold">
-          Boleto Digital
+          {requiresQr ? "Boleto Digital" : "Registro de asistencia"}
         </h1>
       </header>
 
@@ -99,10 +105,21 @@ export function DigitalTicketView({
               </p>
             )}
 
-            <Badge variant={statusVariants[status]}>
-              {statusLabels[status]}
-            </Badge>
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge variant={statusVariants[status]}>
+                {statusLabels[status]}
+              </Badge>
+              {idModalidadAcceso !== undefined && (
+                <Badge variant="secondary">
+                  {obtenerEtiquetaModalidad(idModalidadAcceso)}
+                </Badge>
+              )}
+            </div>
           </div>
+
+          {idModalidadAcceso !== undefined && (
+            <ModalidadAccesoHelp idModalidadAcceso={idModalidadAcceso} />
+          )}
 
           <dl className="space-y-4 text-sm">
             <div>
@@ -138,15 +155,21 @@ export function DigitalTicketView({
           </dl>
         </div>
 
-        <QRDisplay
-          imageUrl={qrImageUrl}
-          isUsable={isActive}
-          unavailableMessage={qrUnavailableMessage}
-        />
+        {requiresQr ? (
+          <QRDisplay
+            imageUrl={qrImageUrl}
+            isUsable={isActive}
+            unavailableMessage={qrUnavailableMessage}
+          />
+        ) : (
+          <FeedbackNotice variant="warning" title="Registro nominal sin código QR">
+            Esta actividad utiliza registro simple y no genera código QR ni boleto en PDF. Tu asistencia se valida directamente en la lista de acceso.
+          </FeedbackNotice>
+        )}
       </div>
 
       <div className="flex flex-wrap gap-3">
-        {isActive && qrImageUrl && onPreviewPdf && (
+        {requiresQr && isActive && qrImageUrl && onPreviewPdf && (
           <Button
             text="Vista previa PDF"
             onClick={onPreviewPdf}
@@ -155,7 +178,7 @@ export function DigitalTicketView({
           />
         )}
 
-        {isActive && qrImageUrl && onDownloadPdf && (
+        {requiresQr && isActive && qrImageUrl && onDownloadPdf && (
           <Button
             text="Descargar PDF"
             onClick={onDownloadPdf}

@@ -1,5 +1,5 @@
 import { CalendarDays, Clock3, MapPin, UsersRound } from "lucide-react";
-import { esModalidadConQr } from "@eventos/shared";
+import { obtenerEtiquetaModalidad } from "@eventos/shared";
 import { Link } from "react-router";
 import Button from "../../../../components/atoms/Button/Button";
 import { useReservationAvailability } from "../../../reservations/hooks/useReservationAvailability";
@@ -40,7 +40,7 @@ export function EventSessionCard({
           {activity.nombre}
         </h3>
         <p className="mt-2 text-sm font-medium text-eventos-secondary">
-          {esModalidadConQr(activity.idModalidadAcceso) ? "Con boleto QR" : "Entrada libre"}
+          {obtenerEtiquetaModalidad(activity.idModalidadAcceso)}
         </p>
       </div>
       <dl className="min-w-0 space-y-3 text-sm text-eventos-body-text">

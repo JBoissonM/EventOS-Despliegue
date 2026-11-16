@@ -179,6 +179,7 @@ function DigitalTicketContent({ idBoleto }: { idBoleto?: string }) {
         venue={detail.recinto.nombre}
         attendeeName={getSessionName()}
         status={status}
+        idModalidadAcceso={detail.subEvento.idModalidadAcceso}
         assignment={assignment}
         qrImageUrl={qrImageUrl}
         onBack={() => navigate("/asistente/boletos")}
