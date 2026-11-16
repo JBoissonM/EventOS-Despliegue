@@ -413,6 +413,29 @@ export function esModalidadConRegistro(
   );
 }
 
+export function esLaboratorioRecinto(idRecinto?: number | null): boolean {
+  return (
+    typeof idRecinto === 'number' &&
+    idRecinto > 0 &&
+    idRecinto !== RecintoId.AUDITORIO &&
+    idRecinto !== RecintoId.SALA_14
+  );
+}
+
+export function obtenerEtiquetaModalidad(
+  idModalidadAcceso?: ModalidadAcceso | number | null,
+): string {
+  if (
+    idModalidadAcceso === ModalidadAcceso.ACCESO_LIBRE ||
+    idModalidadAcceso === ModalidadAcceso.REGISTRO_SIMPLE ||
+    idModalidadAcceso === ModalidadAcceso.QR_GENERAL ||
+    idModalidadAcceso === ModalidadAcceso.QR_MAPA
+  ) {
+    return ETIQUETAS_MODALIDAD[idModalidadAcceso];
+  }
+  return 'No especificado';
+}
+
 export function obtenerModalidadesPermitidasPorRecinto(
   idRecinto: number,
 ): ModalidadAcceso[] {
@@ -432,6 +455,28 @@ export function obtenerModalidadesPermitidasPorRecinto(
     ];
   }
   return [ModalidadAcceso.QR_GENERAL];
+}
+
+export function validarModalidadEnRecinto(
+  idRecinto: number,
+  idModalidadAcceso: ModalidadAcceso,
+): string | null {
+  if (
+    idRecinto === RecintoId.SALA_14 &&
+    idModalidadAcceso === ModalidadAcceso.QR_MAPA
+  ) {
+    return 'En Sala 14 no se permite la modalidad con mapa de asientos.';
+  }
+  if (
+    esLaboratorioRecinto(idRecinto) &&
+    idModalidadAcceso !== ModalidadAcceso.QR_GENERAL
+  ) {
+    return 'En los laboratorios de cómputo la única modalidad válida es QR Admisión general.';
+  }
+  if (!obtenerModalidadesPermitidasPorRecinto(idRecinto).includes(idModalidadAcceso)) {
+    return 'La modalidad de acceso seleccionada no es válida para este recinto.';
+  }
+  return null;
 }
 
 export function modalidadPorDefectoRecinto(

@@ -1,6 +1,11 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate, useLocation } from "react-router";
-import { AlcanceEvento, EstadoEvento, esModalidadConQr, ModalidadAcceso } from "@eventos/shared";
+import {
+  AlcanceEvento,
+  EstadoEvento,
+  ModalidadAcceso,
+  obtenerEtiquetaModalidad,
+} from "@eventos/shared";
 import {
   ArrowLeft,
   AlertTriangle,
@@ -534,10 +539,10 @@ export function DetallesSolicitud() {
 
                 <div>
                   <div className="text-xs font-semibold text-gray-800">
-                    Modalidad de cupo
+                    Modalidad de acceso
                   </div>
                   <p className="mt-1 font-merriweather text-xs sm:text-sm text-gray-700">
-                    {esModalidadConQr(subevento.idModalidadAcceso) ? "Boleto con QR" : "Acceso libre"}
+                    {obtenerEtiquetaModalidad(subevento.idModalidadAcceso)}
                   </p>
                 </div>
 

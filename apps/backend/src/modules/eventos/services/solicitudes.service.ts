@@ -9,16 +9,15 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, EntityManager, In, Repository } from 'typeorm';
 import {
-  esModalidadConQr,
+  esLaboratorioRecinto,
   EstadoBoleto,
   EstadoEvento,
   EstadoRecinto,
   EstadoSubEvento,
   EstadoVerificacion,
   ModalidadAcceso,
-  modalidadPorDefectoRecinto,
-  RecintoId,
   TipoCuentaUsuario,
+  validarModalidadEnRecinto,
   type SolicitanteResumen,
   type SubeventoPayload,
   type SubEventoLogisticaPayload,
@@ -219,6 +218,15 @@ export class SolicitudesService {
     return true;
   }
 
+  private resolverModalidadPayload(sub: SubeventoPayload): ModalidadAcceso {
+    return (
+      sub.idModalidadAcceso ??
+      (esLaboratorioRecinto(sub.idRecinto)
+        ? ModalidadAcceso.QR_GENERAL
+        : ModalidadAcceso.ACCESO_LIBRE)
+    );
+  }
+
   private async validarReglasRecintoConManager(
     recinto: RecintoEntity,
     idModalidadAcceso: ModalidadAcceso,
@@ -226,28 +234,19 @@ export class SolicitudesService {
   ): Promise<void> {
     if (recinto.idEstadoRecinto !== EstadoRecinto.HABILITADO) {
       throw new ConflictException(
-        `El recinto "${recinto.nombre}" no está disponible por encontrarse inhabilitado o en mantenimiento (RN-34).`,
+        `El recinto "${recinto.nombre}" no está disponible por encontrarse inhabilitado o en mantenimiento.`,
       );
     }
 
-    const requiereQr = esModalidadConQr(idModalidadAcceso);
-
-    if (recinto.idRecinto === RecintoId.SALA_14 && requiereQr) {
-      throw new BadRequestException(
-        'En Sala 14 no se permite acceso con boleto o código QR individual.',
-      );
+    const errorModalidad = validarModalidadEnRecinto(
+      recinto.idRecinto,
+      idModalidadAcceso,
+    );
+    if (errorModalidad) {
+      throw new BadRequestException(errorModalidad);
     }
 
-    if (
-      recinto.idRecinto !== RecintoId.AUDITORIO &&
-      recinto.idRecinto !== RecintoId.SALA_14
-    ) {
-      if (!requiereQr) {
-        throw new BadRequestException(
-          'En los laboratorios de cómputo es obligatorio el acceso con boleto/código QR.',
-        );
-      }
-
+    if (esLaboratorioRecinto(recinto.idRecinto)) {
       const [{ total }] = await manager.query(
         `SELECT COUNT(*)::int AS total FROM "estadoEquipo" WHERE "idRecinto" = $1 AND estado = true`,
         [recinto.idRecinto],
@@ -300,8 +299,7 @@ export class SolicitudesService {
         const recinto = recintosBloqueados.get(subeventoActual.idRecinto)!;
         await this.validarReglasRecintoConManager(
           recinto,
-          subeventoActual.idModalidadAcceso ??
-            modalidadPorDefectoRecinto(subeventoActual.idRecinto, false),
+          this.resolverModalidadPayload(subeventoActual),
           manager,
         );
         await this.consultarColisionBD(
@@ -317,8 +315,7 @@ export class SolicitudesService {
     for (const subeventoActual of subeventos) {
       await this.recintoService.validarRecinto(
         subeventoActual.idRecinto,
-        subeventoActual.idModalidadAcceso ??
-          modalidadPorDefectoRecinto(subeventoActual.idRecinto, false),
+        this.resolverModalidadPayload(subeventoActual),
       );
 
       await this.consultarColisionBD(subeventoActual, excluirIdEvento);
@@ -392,8 +389,7 @@ export class SolicitudesService {
           const recinto = recintosBloqueados.get(subeventoActual.idRecinto)!;
           await this.validarReglasRecintoConManager(
             recinto,
-            subeventoActual.idModalidadAcceso ??
-              modalidadPorDefectoRecinto(subeventoActual.idRecinto, false),
+            this.resolverModalidadPayload(subeventoActual),
             manager,
           );
           await this.consultarColisionBD(subeventoActual, undefined, manager);
@@ -421,9 +417,7 @@ export class SolicitudesService {
           idEvento: eventoGuardado.idEvento,
           idRecinto: sub.idRecinto,
           idFecha: fechaGuardada.idFecha,
-          idModalidadAcceso:
-            sub.idModalidadAcceso ??
-            modalidadPorDefectoRecinto(sub.idRecinto, false),
+          idModalidadAcceso: this.resolverModalidadPayload(sub),
           estado: estadoSubEventoInicial,
         });
 
@@ -815,8 +809,7 @@ export class SolicitudesService {
         const recinto = recintosBloqueados.get(subeventoActual.idRecinto)!;
         await this.validarReglasRecintoConManager(
           recinto,
-          subeventoActual.idModalidadAcceso ??
-            modalidadPorDefectoRecinto(subeventoActual.idRecinto, false),
+          this.resolverModalidadPayload(subeventoActual),
           manager,
         );
         await this.consultarColisionBD(subeventoActual, idEvento, manager);
@@ -887,9 +880,7 @@ export class SolicitudesService {
             idEvento,
             idRecinto: propuesto.idRecinto,
             idFecha: nuevaFecha.idFecha,
-            idModalidadAcceso:
-              propuesto.idModalidadAcceso ??
-              modalidadPorDefectoRecinto(propuesto.idRecinto, false),
+            idModalidadAcceso: this.resolverModalidadPayload(propuesto),
             estado: EstadoSubEvento.ACEPTADO,
           });
           idsConservados.add(nuevoSub.idSubEvento);

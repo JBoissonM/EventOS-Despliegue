@@ -10,12 +10,12 @@ import { RecintoEntity } from '../entities/recinto.entity';
 import { SubEventoEntity } from '../../eventos/entities/subevento.entity';
 import { EstadoEquipoEntity } from '../entities/estadoEquipo.entity';
 import {
-  esModalidadConQr,
+  esLaboratorioRecinto,
   EstadoEvento,
   EstadoRecinto,
   EstadoSubEvento,
   ModalidadAcceso,
-  RecintoId,
+  validarModalidadEnRecinto,
 } from '@eventos/shared';
 
 @Injectable()
@@ -31,10 +31,7 @@ export class RecintoService {
     ) {}
 
     private esLaboratorio(idRecinto: number): boolean {
-        return (
-            idRecinto !== RecintoId.AUDITORIO &&
-            idRecinto !== RecintoId.SALA_14
-        );
+        return esLaboratorioRecinto(idRecinto);
     }
 
     // Calcula el aforo del laboratorio a través de la tabla de equipos disponibles (estadoEquipo con estado = true)
@@ -182,7 +179,7 @@ export class RecintoService {
     // Validación de recinto y aforo de equipos disponibles al solicitar evento
     async validarRecinto(
         idRecinto: number,
-        idModalidadAcceso: ModalidadAcceso = ModalidadAcceso.ACCESO_LIBRE,
+        idModalidadAcceso?: ModalidadAcceso,
     ) {
         const recinto = await this.recintoRepository.findOneBy({ idRecinto });
 
@@ -190,29 +187,24 @@ export class RecintoService {
             throw new NotFoundException(`El recinto con ID ${idRecinto} no fue encontrado.`);
         }
 
-        // Bloqueo preventivo por mantenimiento o inhabilitado (RN-34)
         if (recinto.idEstadoRecinto !== EstadoRecinto.HABILITADO) {
             throw new ConflictException(
                 `El recinto "${recinto.nombre}" no está disponible por encontrarse inhabilitado o en mantenimiento (RN-34).`,
             );
         }
 
-        const requiereQr = esModalidadConQr(idModalidadAcceso);
+        const modalidadEfectiva =
+            idModalidadAcceso ??
+            (esLaboratorioRecinto(idRecinto)
+                ? ModalidadAcceso.QR_GENERAL
+                : ModalidadAcceso.ACCESO_LIBRE);
 
-        // Sala 14 no permite emisión de boletos ni acceso QR
-        if (idRecinto === RecintoId.SALA_14 && requiereQr) {
-            throw new BadRequestException(
-                'En Sala 14 no se permite acceso con boleto o código QR individual.',
-            );
+        const errorModalidad = validarModalidadEnRecinto(idRecinto, modalidadEfectiva);
+        if (errorModalidad) {
+            throw new BadRequestException(errorModalidad);
         }
 
-        // En Laboratorios es obligatorio acceso con boleto/QR y contar con aforo > 0 calculado desde estadoEquipo
-        if (this.esLaboratorio(idRecinto)) {
-            if (!requiereQr) {
-                throw new BadRequestException(
-                    'En los laboratorios de cómputo es obligatorio el acceso con boleto/código QR.',
-                );
-            }
+        if (esLaboratorioRecinto(idRecinto)) {
             const aforoLaboratorio = await this.obtenerAforoReal(recinto);
             if (aforoLaboratorio <= 0) {
                 throw new ConflictException(

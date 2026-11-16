@@ -5,8 +5,9 @@ import Button from "../../components/atoms/Button/Button";
 import { useNavigate } from "react-router";
 import { Modal } from "../../components/molecules/Modal";
 import {
+  esLaboratorioRecinto,
   ModalidadAcceso,
-  RecintoId,
+  validarModalidadEnRecinto,
   type SubeventoPayload,
 } from "@eventos/shared";
 import { ModalMotivoUrgente } from "../../components/organisms/ModalMotivoUrgente/ModalMotivoUrgente";
@@ -201,12 +202,18 @@ function validarSubeventos(
       errors.idRecinto = "Selecciona un espacio para el evento";
     }
 
-    if (
-      subevento.idRecinto &&
-      subevento.idRecinto !== RecintoId.SALA_14 &&
-      subevento.idModalidadAcceso === undefined
-    ) {
-      errors.idModalidadAcceso = "Indica si el evento requiere boleto";
+    if (subevento.idRecinto) {
+      if (subevento.idModalidadAcceso === undefined) {
+        errors.idModalidadAcceso = "Selecciona una modalidad de acceso";
+      } else {
+        const errorModalidad = validarModalidadEnRecinto(
+          subevento.idRecinto,
+          subevento.idModalidadAcceso,
+        );
+        if (errorModalidad) {
+          errors.idModalidadAcceso = errorModalidad;
+        }
+      }
     }
 
     if (
@@ -411,16 +418,9 @@ export function SolicitudEvento() {
             updated.horaInicio = "";
             updated.horaFin = "";
           }
-          if (
-            idRecinto !== RecintoId.AUDITORIO &&
-            idRecinto !== RecintoId.SALA_14
-          ) {
-            updated.idModalidadAcceso = ModalidadAcceso.QR_GENERAL;
-          } else if (idRecinto === RecintoId.SALA_14) {
-            updated.idModalidadAcceso = ModalidadAcceso.ACCESO_LIBRE;
-          } else {
-            updated.idModalidadAcceso = undefined;
-          }
+          updated.idModalidadAcceso = esLaboratorioRecinto(idRecinto)
+            ? ModalidadAcceso.QR_GENERAL
+            : undefined;
           return updated;
         }
 
@@ -546,13 +546,9 @@ export function SolicitudEvento() {
             fecha: subevento.fecha,
             horaInicio: subevento.horaInicio,
             horaFin: subevento.horaFin,
-            idModalidadAcceso:
-              subevento.idRecinto !== RecintoId.AUDITORIO &&
-              subevento.idRecinto !== RecintoId.SALA_14
-                ? ModalidadAcceso.QR_GENERAL
-                : subevento.idRecinto === RecintoId.SALA_14
-                  ? ModalidadAcceso.ACCESO_LIBRE
-                  : subevento.idModalidadAcceso ?? ModalidadAcceso.ACCESO_LIBRE,
+            idModalidadAcceso: esLaboratorioRecinto(subevento.idRecinto)
+              ? ModalidadAcceso.QR_GENERAL
+              : subevento.idModalidadAcceso ?? ModalidadAcceso.ACCESO_LIBRE,
           }),
         ),
       ),
