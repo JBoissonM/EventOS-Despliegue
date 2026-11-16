@@ -17,7 +17,7 @@ tags:
 > - [Requerimientos y Reglas de Negocio](../01-Requerimientos-y-Reglas-de-Negocio.md)
 > - [Catálogos de Pantallas y Mensajes](../02-Actores-y-Catalogos.md)
 
-**Resumen:** El asistente tendrá la capacidad de reservar un asiento para un evento de su interés con su respectivo pase de entrada.
+**Resumen:** El asistente tendrá la capacidad de reservar una butaca o un lugar de admisión general para un evento de su interés cuya modalidad requiera registro previo, generando su confirmación nominal o boleto digital con código QR según corresponda.
 
 **Descripción:**
 
@@ -27,10 +27,10 @@ tags:
 | **Autor** | Vazquez Perez Axel Daniel |
 | **Actor** | Asistente |
 | **Propósito** | Permitir a los asistentes registrarse en un evento de su interés y obtener una entrada que le asegura un lugar en el evento. |
-| **Entradas** | Selección del evento de interés.<br>Selección de asiento (de ser el caso). |
-| **Salidas** | • Se muestra en pantalla el MSG-I-16 “Operación exitosa, su reserva se ha generado correctamente.”<br>• Se genera el boleto digital.<br>• Envío por correo electrónico al Asistente del pase digital y el código QR del boleto confirmado. |
-| **Precondiciones** | Para completar la reserva, el Asistente debe contar con una sesión activa; el visitante puede iniciar desde UI05 pero será redirigido a UI01 o UI02 para autenticarse. El evento debe estar activo, requerir boleto y contar con cupo disponible. |
-| **Postcondiciones** | • La reserva del asistente se añade como un asistente más al evento y reduce en uno el cupo del recinto.<br>• El evento se añade a los próximos eventos del asistente.<br>• El sistema envía al correo de la cuenta el boleto digital confirmado, junto con su código QR. |
+| **Entradas** | Selección del evento de interés.<br>Selección de butaca en `UI06` (exclusivo de Auditorio con mapa de asientos). |
+| **Salidas** | • Se muestra en pantalla el MSG-I-16 “Operación exitosa, su reserva se ha generado correctamente.”<br>• Registro confirmado en el padrón de inscritos (y emisión del boleto digital con código QR cuando la modalidad sea *QR con mapa* o *QR Admisión general*).<br>• Envío por correo electrónico al Asistente de su confirmación (incluyendo pase digital y código QR en modalidades con QR, o leyenda de admisión general sin asiento asignado cuando `idAsiento = null`). |
+| **Precondiciones** | Para completar la reserva, el Asistente debe contar con una sesión activa; el visitante puede iniciar desde UI05 pero será redirigido a UI01 o UI02 para autenticarse. El evento debe estar activo, requerir registro previo (no aplica para *Acceso libre*) y contar con cupo disponible. |
+| **Postcondiciones** | • La reserva del asistente se añade como un inscrito más al evento y reduce en uno el cupo del recinto.<br>• El evento se añade a los próximos eventos del asistente en `UI08` (`CU-18`).<br>• Si el subevento utiliza modalidad con boleto QR, se genera el boleto digital (`CU-17`) y se envía al correo de la cuenta; si es *Registro simple sin QR*, se omite `CU-17` y queda la inscripción nominal confirmada sin QR. |
 | **Errores** | • MSG-E-05 Evento sin lugares disponibles.<br>• MSG-E-06 Evento no encontrado o cancelado.<br>• MSG-E-20 Error: Ya tienes una reserva para este evento. |
 | **Tipo** | Primario |
 
@@ -39,14 +39,16 @@ tags:
 
 ### Trayectoria Principal
 
-1. Selecciona el botón “Reservar lugar” en la pantalla **UI05** Detalles del evento.
+1. Selecciona el botón “Reservar lugar” en la pantalla **UI05** Detalles del evento (habilitado únicamente cuando el subevento no es de *Acceso libre*).
 2. Verifica que el asistente se encuentre autenticado. [Trayectoria E]
-3. Verifica que el evento esté activo y con cupo disponible.
-4. Muestra la pantalla **UI06** Mapa de asientos y Disponibilidad del recinto con los lugares disponibles y ocupados. [Trayectoria B]
-5. Selecciona el asiento deseado y presiona el botón “Confirmar Reserva”.
+3. Consulta la disponibilidad y modalidad de registro del subevento mediante `CU-16` “Consultar disponibilidad de lugares”, verificando que esté activo y con cupo disponible. [Trayectoria A]
+4. Según la modalidad retornada por `CU-16`, bifurca el flujo de confirmación:
+   - **Vía 1 — QR con mapa de asientos (Auditorio):** Muestra la pantalla **UI06** Mapa de asientos y Disponibilidad del recinto con las butacas disponibles y ocupadas.
+   - **Vía 2 — QR Admisión general / Vía 3 — Registro simple sin QR:** Continúa por confirmación directa sin mapa (`idAsiento = null`). [Trayectoria B]
+5. En **Vía 1**, selecciona la butaca deseada y presiona el botón “Confirmar Reserva”.
 6. Valida que el asistente no tenga una reserva previa activa para el mismo evento. [Trayectoria C]
-7. Genera la reserva y descuenta un lugar en el cupo del evento; genera el boleto digital con código QR conforme a CU-17. [Trayectoria A]
-8. Muestra MSG-I-16 "Operación exitosa, su reserva se ha generado correctamente." y envía al correo registrado el boleto digital con código QR.
+7. Genera la reserva y descuenta un lugar en el cupo disponible del evento: si la modalidad usa boleto QR (**Vía 1** con butaca o **Vía 2** *QR Admisión general* con `idAsiento = null`), ejecuta `CU-17` “Generar código QR”; si la modalidad es **Vía 3** (*Registro simple sin QR*), omite `CU-17` y registra la inscripción nominal confirmada en el padrón (`CU-18`). [Trayectoria A]
+8. Muestra MSG-I-16 "Operación exitosa, su reserva se ha generado correctamente." y envía al correo registrado la confirmación (adjuntando el boleto digital con código QR cuando aplique).
 9. Muestra la pantalla **UI08** Consultar sus eventos (reservas del asistente).
 
 *Fin de la trayectoria.*
@@ -65,10 +67,10 @@ tags:
 
 ### Trayectoria alternativa B:
 
-> **Condición: El evento al que se desea registrar no requiere selección de asiento.**
+> **Condición: El subevento corresponde a *QR Admisión general* (Vía 2) o *Registro simple sin QR* (Vía 3), por lo que no requiere selección de asiento.**
 
-- **B-1.** Detecta que el evento no cuenta con mapa de asientos.
-- **B-2.** Muestra una ventana de confirmación general con el texto ¿Deseas confirmar tu reserva? [Trayectoria D]
+- **B-1.** Detecta que la modalidad del subevento no utiliza mapa de asientos (`idAsiento = null`).
+- **B-2.** Muestra una ventana de confirmación general con el texto ¿Deseas confirmar tu reserva?, indicando si se emitirá boleto QR de admisión general o inscripción simple sin QR. [Trayectoria D]
 - **B-3.** Presiona “Confirmar”.
 - **B-4.** Continúa en el paso 6 de la trayectoria principal.
 

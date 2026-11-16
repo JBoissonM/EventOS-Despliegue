@@ -28,8 +28,8 @@ tags:
 | **Actor** | Asistente |
 | **Propósito** | Permitir al Asistente visualizar el código QR de su boleto digital para presentarlo al personal de logística el día del evento. |
 | **Entradas** | • Se selecciona el evento desde el listado de "Consultar sus eventos". |
-| **Salidas** | • Se mostrará en pantalla el código QR del boleto junto con los datos del evento (nombre, fecha, hora, espacio). |
-| **Precondiciones** | • Que el sistema se encuentre en el punto de extensión de "Consultar sus eventos".<br>• Que el asistente cuente con una reserva activa y confirmada para el evento seleccionado. |
+| **Salidas** | • Se mostrará en pantalla el código QR del boleto junto con los datos del evento (nombre, fecha, hora, espacio y asiento o la leyenda `"Admisión general — Sin asiento asignado"` cuando `idAsiento = null`). |
+| **Precondiciones** | • Que el sistema se encuentre en el punto de extensión de "Consultar sus eventos".<br>• Que el asistente cuente con una reserva activa y confirmada en un subevento cuya modalidad incluya boleto QR (*QR con mapa* o *QR Admisión general*; no aplica para *Registro simple sin QR*). |
 | **Postcondiciones** | • No se modifican registros en la base de datos, la operación es de solo lectura. |
 | **Errores** | • Se mostrará el **MSG-E-06** "Evento no encontrado o cancelado." cuando el evento seleccionado haya sido cancelado después de generarse el boleto. |
 | **Tipo** | Secundario para el actor Asistente, viene del caso de uso **CU-18** Consultar sus eventos. |
@@ -41,7 +41,7 @@ tags:
 
 1. Selecciona un evento con reserva activa desde **UI08** “Consultar Sus Eventos (Reservas del Asistente)”.
 2. Selecciona la opción “Visualizar QR de acceso” en **UI08** “Consultar Sus Eventos (Reservas del Asistente)”. [Trayectoria A]
-3. Muestra el código QR del boleto junto con los datos del evento en **UI09** “Boleto Digital y Código QR”.
+3. Muestra el código QR del boleto junto con los datos del evento en **UI09** “Boleto Digital y Código QR” (mostrando `"Admisión general — Sin asiento asignado"` cuando `idAsiento = null`).
 
 *Fin de la trayectoria.*
 

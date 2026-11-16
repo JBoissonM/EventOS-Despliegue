@@ -30,7 +30,7 @@ Permitir al Asistente consultar los eventos en los que tiene o ha tenido una res
 | **Actor** | Asistente |
 | **Propósito** | Permitir al Asistente consultar sus reservas de eventos, visualizar la información correspondiente y conocer su estado, así como acceder a las acciones disponibles para cada reserva. |
 | **Entradas** | • Identificador del Asistente autenticado.<br>• Selección de la opción «Mis Boletos» desde **UI03** Menú Principal del Asistente.<br>• Criterios opcionales de búsqueda: nombre del evento, ponente, fecha, categoría o espacio. |
-| **Salidas** | • Listado de eventos asociados a las reservas del Asistente.<br>• Información del evento: nombre, categoría, alcance, fecha, horario y espacio.<br>• Estado de cada reserva.<br>• Opciones «Ver QR» y «Cancelar Asistencia», según corresponda.<br>• Mensajes informativos o de error, cuando corresponda. |
+| **Salidas** | • Listado de eventos asociados a las reservas del Asistente.<br>• Información del evento: nombre, categoría, alcance, fecha, horario, espacio y modalidad de acceso.<br>• Estado de cada reserva (incluyendo estados resultantes de cambios de recinto/aforo como `Cancelado` o `CANCELADO_POR_SOBRECUPO`).<br>• Opciones «Ver QR» (habilitada únicamente en modalidades con boleto QR y reserva vigente; omitida en *Registro simple sin QR*) y «Cancelar Asistencia», según corresponda.<br>• Mensajes informativos o de error, cuando corresponda. |
 | **Precondiciones** | El Asistente debe haber iniciado sesión en el sistema. |
 | **Postcondiciones** | El sistema presenta las reservas asociadas al Asistente y la información de sus respectivos eventos.<br>La consulta y aplicación de filtros no modifican los registros de las reservas. |
 | **Errores** | • **MSG-I-20** «No cuentas con eventos registrados».<br>• **MSG-I-23** «No se encontraron registros que coincidan con los filtros seleccionados».<br>• **MSG-E-28** «No fue posible consultar tus eventos. Intenta nuevamente». |
@@ -47,7 +47,7 @@ Permitir al Asistente consultar los eventos en los que tiene o ha tenido una res
 4. Muestra UI08 «Consultar Mis Eventos», identificada en el diseño como «Mis Boletos», con el listado de reservas, incluyendo nombre del evento, categoría, alcance, fecha, horario, espacio y estado de cada reserva.
 5. Visualiza la información de sus reservas y las opciones disponibles de acuerdo con el estado de cada una.
 6. Puede utilizar el buscador o los filtros de fecha, categoría, espacio y ponente para localizar un evento específico. [Trayectoria C]
-7. Muestra las opciones «Cancelar Asistencia» y «Ver QR» únicamente en las reservas que cumplen las condiciones correspondientes. [Punto de extensión: CU-19] [Punto de extensión: CU-20]
+7. Muestra las opciones «Cancelar Asistencia» y «Ver QR» únicamente en las reservas que cumplen las condiciones correspondientes (las inscripciones por *Registro simple sin QR* aparecen confirmadas en el listado con opción de cancelar asistencia, sin habilitar «Ver QR»). [Punto de extensión: CU-19] [Punto de extensión: CU-20]
 8. Continúa consultando sus reservas o selecciona «Volver» para regresar a UI03 Menú Principal del Asistente.
 
 *Fin de la trayectoria.*

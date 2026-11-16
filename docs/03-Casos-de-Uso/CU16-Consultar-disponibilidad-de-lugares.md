@@ -30,7 +30,7 @@ Permitir al asistente consultar la disponibilidad de lugares de un evento durant
 | **Actor** | Asistente |
 | **Propósito** | Obtener la cantidad de lugares disponibles para determinar si el Asistente puede continuar con su reserva. |
 | **Entradas** | Identificador del evento seleccionado |
-| **Salidas** | Cantidad de lugares disponibles para el evento.<br>Estado de disponibilidad del evento. |
+| **Salidas** | Cantidad de lugares disponibles (`lugaresDisponibles`) para el evento.<br>Estado de disponibilidad y modalidad de registro aplicable (*QR con mapa*, *QR Admisión general* o *Registro simple sin QR*). |
 | **Precondiciones** | El Asistente ha iniciado sesión en su cuenta.<br>El Asistente ha seleccionado la opción Reservar lugar desde UI05-Detalles del Evento. |
 | **Postcondiciones** | El sistema determina e informa la disponibilidad del evento.<br>No se modifican los cupos ni se genera una reserva. |
 | **Errores** | MSG-E-05: «Evento sin lugares disponibles».<br>MSG-E-06: «Evento no encontrado o cancelado». |
@@ -41,9 +41,9 @@ Permitir al asistente consultar la disponibilidad de lugares de un evento durant
 
 1. Selecciona botón “Reservar Lugar” desde **UI05** ”Detalles del Evento.”
 2. Verifica que el evento seleccionado exista y no esté cancelado. [Trayectoria B]
-3. Consulta la cantidad de lugares disponibles para el evento. [Trayectoria A]
-4. Devuelve la cantidad de lugares disponibles a **CU-15**.
-5. Muestra la disponibilidad en **UI06** “Mapa de Asientos y Disponibilidad del Recinto”, cuando corresponde esa modalidad, y permite continuar con el proceso de reserva.
+3. Consulta la cantidad de lugares disponibles (`lugaresDisponibles`) y la modalidad de registro aplicable para el subevento. [Trayectoria A]
+4. Devuelve la cantidad de lugares disponibles y la modalidad de registro a **CU-15**.
+5. Muestra la disponibilidad en **UI06** “Mapa de Asientos y Disponibilidad del Recinto” únicamente cuando la modalidad corresponda a *QR con mapa de asientos* en Auditorio, o habilita la confirmación directa en `CU-15` para *QR Admisión general* y *Registro simple sin QR*.
 
 *Fin de la trayectoria.*
 

@@ -27,7 +27,7 @@ tags:
 | **Autor** | Jaimes Jaramillo Santiago. |
 | **Actor** | Asistente. |
 | **Propósito** | Permitir al Asistente solicitar un evento indicando su contenido, beneficio para ESCOM/IPN y espacio con fechas y horarios disponibles, incluyendo varias sesiones o subeventos cuando la actividad dure varios días. |
-| **Entradas** | • ID del usuario autenticado.<br>• Nombre, descripción, justificación del beneficio para ESCOM/IPN, alcance Público/Interno/Privado, póster opcional y tipo de solicitante.<br>• Documento de identidad requerido según tipo Estudiante, Empresa o Externo.<br>• Modalidad de acceso con boleto, recinto solicitado y uno o varios bloques de fecha, hora de inicio y finalización (subeventos). |
+| **Entradas** | • ID del usuario autenticado.<br>• Nombre, descripción, justificación del beneficio para ESCOM/IPN, alcance Público/Interno/Privado, póster opcional y tipo de solicitante.<br>• Documento de identidad requerido según tipo Estudiante, Empresa o Externo.<br>• Recinto solicitado, modalidad de acceso configurada según el recinto (*Acceso libre*, *Registro simple sin QR*, *QR Admisión general* o *QR con mapa de asientos* según RN-03/RN-04) y uno o varios bloques de fecha, hora de inicio y finalización (subeventos). |
 | **Salidas** | • Pantalla **UI07** "Formulario de Solicitud de Evento".<br>• Registro del evento y sus subeventos o bloques horarios en estado "Pendiente de aprobación".<br>• Mensaje **MSG-I-08** "Operación realizada con éxito.".<br>• Privilegios de Organizador exclusivos para la solicitud creada, conforme a RN-02. |
 | **Precondiciones** | • El usuario cuenta con sesión activa y cuenta registrada (CU-01).<br>• Los espacios físicos solicitados están disponibles para recibir solicitudes.<br>• El usuario debe tener una cuenta activa con identidad verificada (esta_verificado == true) por la autoridad correspondiente antes de solicitar recintos institucionales. |
 | **Postcondiciones** | • Se guarda una solicitud con sus bloques horarios y el alcance seleccionado.<br>• No se reserva dos veces el mismo espacio en horarios traslapados (RN-06).<br>• El evento permanece pendiente hasta la evaluación de Subdirección; la creación por el Asistente no lo aprueba automáticamente. |
@@ -40,9 +40,9 @@ tags:
 ### Trayectoria Principal
 
 1. El Asistente selecciona [Solicitar evento] desde UI03 "Menú Principal del Asistente". El sistema valida que su cuenta esté verificada. [Trayectoria E]
-2. El sistema muestra **UI07** "Formulario de Solicitud de Evento" con nombre, descripción, justificación, alcance, póster, acceso con boleto, fecha, hora de inicio, hora de finalización y espacio deseado.
+2. El sistema muestra **UI07** "Formulario de Solicitud de Evento" con nombre, descripción, justificación, alcance, póster, modalidad de acceso, fecha, hora de inicio, hora de finalización y espacio deseado.
 3. El actor proporciona los datos del evento, selecciona su tipo de solicitante y adjunta el documento de identidad que corresponda.
-4. El actor define el primer bloque de fecha y horas, selecciona el espacio solicitado y la modalidad de acceso. Si necesita más sesiones o días, utiliza [Agregar nueva fecha]. [Trayectoria A]
+4. El actor define el primer bloque de fecha y horas, selecciona el espacio solicitado y configura la modalidad de acceso habilitada para dicho recinto (RN-03, RN-04): en **Laboratorio** queda fija *QR Admisión general* (obligatoria por RN-18); en **Sala 14** elige *Acceso libre*, *Registro simple sin QR* o *QR Admisión general*; en **Auditorio** dispone de las cuatro opciones (incluyendo *QR con mapa de asientos*). Si necesita más sesiones o días, utiliza [Agregar nueva fecha]. [Trayectoria A]
 5. El actor revisa los datos generales del evento y los bloques horarios capturados antes de enviar la solicitud.
 6. El actor selecciona [Solicitar Evento].
 7. El sistema revisa datos obligatorios y que cada bloque tenga fecha futura y hora de fin posterior a la de inicio. [Trayectoria B]
