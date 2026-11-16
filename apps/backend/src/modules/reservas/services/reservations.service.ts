@@ -5,7 +5,7 @@ import { CreateReservationDto } from '../dto/createReservation.dto';
 import { Repository, In, DataSource } from 'typeorm';
 import { InjectRepository } from '@nestjs/typeorm';
 
-import { DisponibilidadSubEvento, AsientoDisponible, EstadoRecinto, EstadoBoleto, EstadoSubEvento, AlcanceEvento } from '@eventos/shared';
+import { DisponibilidadSubEvento, AsientoDisponible, EstadoRecinto, EstadoBoleto, EstadoSubEvento, AlcanceEvento, TipoCuentaUsuario } from '@eventos/shared';
 
 import { BoletoEntity } from '../entities/boleto.entity';
 import { AsistenteEventoEntity } from '../entities/asistenteEvento.entity';
@@ -21,6 +21,8 @@ import { StorageService } from '../../../common/storage/storage.service';
 import {
     calcularClaveOrdenProximo,
     compararClavesOrdenProximo,
+    construirFechaEnCdmx,
+    haAlcanzadoFechaHoraCdmx,
     obtenerAhoraCdmx,
 } from '../../../common/utils/fecha-cdmx.util';
 
@@ -105,9 +107,11 @@ export class ReservationsService {
             }
         }
 
-        // Verificar si la actividad permite reservaciones (Evento Aceptado = 2, SubEvento Aceptado y Fecha futura)
-        const limiteReserva = fechaEvento ? new Date(`${fechaEvento.fecha}T${fechaEvento.horaInicio}`) : new Date(0);
-        const eventoActivo = evento && evento.idEstadoEvento === 2 && subEvento.estado === EstadoSubEvento.ACEPTADO && new Date() <= limiteReserva;
+        // Verificar si la actividad permite reservaciones (Evento Aceptado = 2, SubEvento Aceptado y Fecha futura en America/Mexico_City)
+        const haIniciado = fechaEvento
+            ? haAlcanzadoFechaHoraCdmx(String(fechaEvento.fecha), fechaEvento.horaInicio)
+            : true;
+        const eventoActivo = evento && evento.idEstadoEvento === 2 && subEvento.estado === EstadoSubEvento.ACEPTADO && !haIniciado;
 
         const lugaresDisponibles = eventoActivo ? Math.max(0, recinto.aforo - lugaresOcupados) : 0;
 
@@ -174,6 +178,17 @@ export class ReservationsService {
                 throw new BadRequestException('El organizador no puede solicitar boletos para su propio evento.');
             }
 
+            if (eventoPrincipal.idAlcance === AlcanceEvento.INTERNO) {
+                const esUsuarioInterno =
+                    usuario.tipoCuenta === TipoCuentaUsuario.INTERNO ||
+                    usuario.tipoCuenta === TipoCuentaUsuario.SUBDIRECCION ||
+                    usuario.tipoCuenta === TipoCuentaUsuario.ADMINISTRADOR;
+
+                if (!esUsuarioInterno) {
+                    throw new ForbiddenException('Este evento es exclusivo para la comunidad interna del IPN.');
+                }
+            }
+
             if (eventoPrincipal.idAlcance === AlcanceEvento.PRIVADO) {
                 const invitacionRaw = await manager.query(
                     `SELECT 1 FROM "invitacionEvento" WHERE "idEvento" = $1 AND "idUsuario" = $2 LIMIT 1`,
@@ -193,9 +208,7 @@ export class ReservationsService {
                 throw new ConflictException('El evento no tiene una fecha asignada en la base de datos.');
             }
 
-            const limiteReserva = new Date(`${fechaEvento.fecha}T${fechaEvento.horaInicio}`);
-            
-            if (new Date() > limiteReserva) {
+            if (haAlcanzadoFechaHoraCdmx(String(fechaEvento.fecha), fechaEvento.horaInicio)) {
                 throw new ConflictException('El tiempo límite para registrarse a este evento ha terminado.');
             }
 
@@ -283,7 +296,7 @@ export class ReservationsService {
             }
 
             // GENERACIÓN DE QR Y GUARDADO
-            const fechaFinEvento = new Date(`${fechaEvento.fecha}T${fechaEvento.horaFin}`);
+            const fechaFinEvento = construirFechaEnCdmx(String(fechaEvento.fecha), fechaEvento.horaFin);
 
             const boletoNuevoObj = manager.create(BoletoEntity, {
                 tokenQr: '', 
@@ -400,10 +413,10 @@ export class ReservationsService {
             const fechaEvento = await this.fechaRepo.findOne({ where: { idFecha: subEvento.idFecha } });
             if (!fechaEvento) continue;
 
-            const limiteTerminoEvento = new Date(`${fechaEvento.fecha}T${fechaEvento.horaFin}`);
+            const limiteTerminoEvento = construirFechaEnCdmx(String(fechaEvento.fecha), fechaEvento.horaFin);
 
             // Si el evento ya terminó y el boleto seguía válido (no asistió), pasa a Cancelado
-            if (new Date() > limiteTerminoEvento && boleto.idEstadoBoleto === EstadoBoleto.VALIDO) {
+            if (haAlcanzadoFechaHoraCdmx(String(fechaEvento.fecha), fechaEvento.horaFin) && boleto.idEstadoBoleto === EstadoBoleto.VALIDO) {
                 boleto.idEstadoBoleto = EstadoBoleto.CANCELADO;
                 await this.boletoRepo.save(boleto);
             }
@@ -526,8 +539,7 @@ export class ReservationsService {
         const recinto = await this.recintoRepo.findOne({ where: { idRecinto: subEvento.idRecinto } });
         if (!recinto) throw new NotFoundException('Recinto no encontrado.'); 
 
-        const limiteTerminoEvento = new Date(`${fechaEvento.fecha}T${fechaEvento.horaFin}`);
-        if (new Date() > limiteTerminoEvento && boleto.idEstadoBoleto === EstadoBoleto.VALIDO) {
+        if (haAlcanzadoFechaHoraCdmx(String(fechaEvento.fecha), fechaEvento.horaFin) && boleto.idEstadoBoleto === EstadoBoleto.VALIDO) {
             boleto.idEstadoBoleto = EstadoBoleto.CANCELADO;
             await this.boletoRepo.save(boleto);
         }
@@ -609,8 +621,7 @@ export class ReservationsService {
     if (subEvento) {
         const fechaEvento = await this.fechaRepo.findOne({ where: { idFecha: subEvento.idFecha } });
         if (fechaEvento) {
-            const limiteCancelacion = new Date(`${fechaEvento.fecha}T${fechaEvento.horaInicio}`);
-            if (new Date() > limiteCancelacion) {
+            if (haAlcanzadoFechaHoraCdmx(String(fechaEvento.fecha), fechaEvento.horaInicio)) {
                 throw new ConflictException('El evento ya comenzó, el periodo de cancelación ha finalizado.');
             }
         }
