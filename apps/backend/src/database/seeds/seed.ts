@@ -1,7 +1,9 @@
 import pg from 'pg';
 import bcrypt from 'bcrypt';
+import { JwtService } from '@nestjs/jwt';
 import {
   AlcanceEvento,
+  EstadoBoleto,
   EstadoEvento,
   EstadoSubEvento,
   EstadoVerificacion,
@@ -9,8 +11,23 @@ import {
   RecintoId,
   TipoCuentaUsuario,
 } from '@eventos/shared';
+import {
+  construirFechaEnCdmx,
+  obtenerAhoraCdmx,
+} from '../../common/utils/fecha-cdmx.util';
 
 const { Client } = pg;
+
+function fechaCdmxConOffset(diasDesdeHoy: number): string {
+  const { fechaHoy } = obtenerAhoraCdmx();
+  const baseUtc = new Date(`${fechaHoy}T12:00:00Z`);
+  const objetivo = new Date(
+    baseUtc.getTime() + diasDesdeHoy * 24 * 60 * 60 * 1000,
+  );
+  const iso = objetivo.toISOString().slice(0, 10);
+  const finSemestre = `${fechaHoy.slice(0, 4)}-12-19`;
+  return iso > finSemestre ? finSemestre : iso;
+}
 
 export async function runSeed() {
   const host = process.env.DB_HOST ?? 'localhost';
@@ -31,10 +48,13 @@ export async function runSeed() {
 
     const saltRounds = 10;
     const passwordHash = await bcrypt.hash('Admin123!', saltRounds);
+    const jwtService = new JwtService({
+      secret: process.env.JWT_SECRET || 'clave_secreta_desarrollo',
+    });
 
     console.log('Creando usuarios de prueba...');
 
-    // 1. Usuarios del sistema
+    // 1. Usuarios del sistema y comunidad ESCOM
     const usuarios = [
       {
         nombre: 'Claudia',
@@ -101,6 +121,99 @@ export async function runSeed() {
         esVerificado: EstadoVerificacion.VERIFICADO,
         tipoCuenta: TipoCuentaUsuario.INTERNO,
         esJefeAcademia: false,
+        idRolVerificacion: 1,
+        infoVerificacion: 'Alumno regular ESCOM - Ingeniería en Sistemas Computacionales',
+      },
+      {
+        nombre: 'Diego',
+        apellidoPa: 'Martínez',
+        apellidoMa: 'González',
+        correo: 'diego.martinezg@alumno.ipn.mx',
+        contrasena: passwordHash,
+        estatus: true,
+        esVerificado: EstadoVerificacion.VERIFICADO,
+        tipoCuenta: TipoCuentaUsuario.INTERNO,
+        esJefeAcademia: false,
+        idRolVerificacion: 1,
+        infoVerificacion: 'Alumno ESCOM - Licenciatura en Ciencia de Datos',
+      },
+      {
+        nombre: 'Valeria',
+        apellidoPa: 'Sánchez',
+        apellidoMa: 'Ramírez',
+        correo: 'valeria.sanchezr@alumno.ipn.mx',
+        contrasena: passwordHash,
+        estatus: true,
+        esVerificado: EstadoVerificacion.VERIFICADO,
+        tipoCuenta: TipoCuentaUsuario.INTERNO,
+        esJefeAcademia: false,
+        idRolVerificacion: 1,
+        infoVerificacion: 'Alumna ESCOM - Ingeniería en Inteligencia Artificial',
+      },
+      {
+        nombre: 'Alejandro',
+        apellidoPa: 'Herrera',
+        apellidoMa: 'Cruz',
+        correo: 'alejandro.herrerac@alumno.ipn.mx',
+        contrasena: passwordHash,
+        estatus: true,
+        esVerificado: EstadoVerificacion.VERIFICADO,
+        tipoCuenta: TipoCuentaUsuario.INTERNO,
+        esJefeAcademia: false,
+        idRolVerificacion: 1,
+        infoVerificacion: 'Alumno ESCOM - Ingeniería en Sistemas Computacionales',
+      },
+      {
+        nombre: 'Fernanda',
+        apellidoPa: 'López',
+        apellidoMa: 'Morales',
+        correo: 'fernanda.lopezm@alumno.ipn.mx',
+        contrasena: passwordHash,
+        estatus: true,
+        esVerificado: EstadoVerificacion.VERIFICADO,
+        tipoCuenta: TipoCuentaUsuario.INTERNO,
+        esJefeAcademia: false,
+        idRolVerificacion: 1,
+        infoVerificacion: 'Alumna ESCOM - Club de Algoritmia ESCOM',
+      },
+      {
+        nombre: 'Ricardo',
+        apellidoPa: 'Navarro',
+        apellidoMa: 'Vázquez',
+        correo: 'ricardo.navarrov@alumno.ipn.mx',
+        contrasena: passwordHash,
+        estatus: true,
+        esVerificado: EstadoVerificacion.VERIFICADO,
+        tipoCuenta: TipoCuentaUsuario.INTERNO,
+        esJefeAcademia: false,
+        idRolVerificacion: 1,
+        infoVerificacion: 'Alumno ESCOM - Comunidad Linux ESCOM',
+      },
+      {
+        nombre: 'Sofía',
+        apellidoPa: 'Domínguez',
+        apellidoMa: 'Torres',
+        correo: 'sofia.dominguezt@alumno.ipn.mx',
+        contrasena: passwordHash,
+        estatus: true,
+        esVerificado: EstadoVerificacion.VERIFICADO,
+        tipoCuenta: TipoCuentaUsuario.INTERNO,
+        esJefeAcademia: false,
+        idRolVerificacion: 1,
+        infoVerificacion: 'Alumna ESCOM - Ingeniería en Sistemas Computacionales',
+      },
+      {
+        nombre: 'Héctor',
+        apellidoPa: 'Castañeda',
+        apellidoMa: 'Flores',
+        correo: 'hector.castaneda@ipn.mx',
+        contrasena: passwordHash,
+        estatus: true,
+        esVerificado: EstadoVerificacion.VERIFICADO,
+        tipoCuenta: TipoCuentaUsuario.INTERNO,
+        esJefeAcademia: true,
+        idRolVerificacion: 2,
+        infoVerificacion: 'Docente e investigador - Academia de Ciencias de la Computación ESCOM',
       },
       {
         nombre: 'Juan',
@@ -123,6 +236,21 @@ export async function runSeed() {
         esVerificado: EstadoVerificacion.VERIFICADO,
         tipoCuenta: TipoCuentaUsuario.EXTERNO,
         esJefeAcademia: false,
+        idRolVerificacion: 3,
+        infoVerificacion: 'Asistente externo registrado - Egresada sector tecnológico',
+      },
+      {
+        nombre: 'Paulina',
+        apellidoPa: 'Vega',
+        apellidoMa: 'Contreras',
+        correo: 'paulina.vega@gmail.com',
+        contrasena: passwordHash,
+        estatus: true,
+        esVerificado: EstadoVerificacion.VERIFICADO,
+        tipoCuenta: TipoCuentaUsuario.EXTERNO,
+        esJefeAcademia: false,
+        idRolVerificacion: 3,
+        infoVerificacion: 'Asistente externo registrado - Invitada vinculación ESCOM',
       },
     ];
 
@@ -136,6 +264,7 @@ export async function runSeed() {
          SET contrasena = EXCLUDED.contrasena, 
              "tipoCuenta" = EXCLUDED."tipoCuenta", 
              "esVerificado" = EXCLUDED."esVerificado",
+             "esJefeAcademia" = EXCLUDED."esJefeAcademia",
              estatus = EXCLUDED.estatus
          RETURNING "idUsuario", correo;`,
         [
@@ -150,11 +279,43 @@ export async function runSeed() {
           u.esJefeAcademia,
         ],
       );
-      idsUsuarios[res.rows[0].correo] = res.rows[0].idUsuario;
-      console.log(`   Usuario listo: ${u.correo} (ID: ${res.rows[0].idUsuario}, Rol: ${u.tipoCuenta})`);
+      const idUsuario = Number(res.rows[0].idUsuario);
+      idsUsuarios[res.rows[0].correo] = idUsuario;
+
+      if (u.idRolVerificacion && u.infoVerificacion) {
+        const verExiste = await client.query(
+          `SELECT 1 FROM verificacion WHERE "idUsuario" = $1 LIMIT 1;`,
+          [idUsuario],
+        );
+        if (verExiste.rowCount === 0) {
+          await client.query(
+            `INSERT INTO verificacion ("informacionAdicional", archivo, "idRol", "idUsuario")
+             VALUES ($1, $2, $3, $4);`,
+            [
+              u.infoVerificacion,
+              'verificaciones/comprobante-escom.pdf',
+              u.idRolVerificacion,
+              idUsuario,
+            ],
+          );
+        }
+      }
+      console.log(`   Usuario listo: ${u.correo} (ID: ${idUsuario}, Rol: ${u.tipoCuenta})`);
     }
 
-    // 2. Recintos Iniciales de ESCOM
+    // 2. Catálogo de modalidades de acceso y Recintos Iniciales de ESCOM
+    await client.query(`
+      INSERT INTO "modalidadAcceso" ("idModalidadAcceso", modalidad)
+      OVERRIDING SYSTEM VALUE
+      VALUES
+        (1, 'Acceso libre'),
+        (2, 'Registro simple sin QR'),
+        (3, 'QR Admisión general'),
+        (4, 'QR con mapa de asientos')
+      ON CONFLICT ("idModalidadAcceso") DO UPDATE
+      SET modalidad = EXCLUDED.modalidad;
+    `);
+
     console.log('Creando recintos iniciales...');
     const recintos = [
       { id: 1, nombre: 'Auditorio Principal', aforo: 242, idEstadoRecinto: 1 },
@@ -212,9 +373,11 @@ export async function runSeed() {
     console.log('Limpiando eventos previos...');
     await client.query(`
       DELETE FROM "solicitudModificacion";
+      DELETE FROM "invitacionEvento";
       DELETE FROM "eventoPersonalLogistica";
       DELETE FROM ponente;
       DELETE FROM "asistenteEvento";
+      DELETE FROM boleto;
       DELETE FROM "bitacoraEvento";
       DELETE FROM "subEvento";
       DELETE FROM fecha;
@@ -224,12 +387,20 @@ export async function runSeed() {
     // 4. Creación de Eventos de prueba completos
     console.log('Creando solicitudes y eventos de prueba con datos enriquecidos...');
     const organizadorId = idsUsuarios['organizador@ipn.mx'];
+    const subdireccionId = idsUsuarios['subdireccion@ipn.mx'];
 
     interface PonenteSeed {
       nombre: string;
       apellidoPa: string;
       apellidoMa?: string;
       correo: string;
+    }
+
+    interface RegistroSeed {
+      correoUsuario: string;
+      estadoBoleto: EstadoBoleto;
+      asiento?: { fila: string; numero: number };
+      horasAntiguedad: number;
     }
 
     interface SubeventoSeed {
@@ -242,6 +413,7 @@ export async function runSeed() {
       horaInicio: string;
       horaFin: string;
       ponentes?: PonenteSeed[];
+      registros?: RegistroSeed[];
     }
 
     interface EventoSeed {
@@ -255,6 +427,7 @@ export async function runSeed() {
       idAlcance: AlcanceEvento;
       idEstadoEvento: EstadoEvento;
       personalLogistica?: string[];
+      invitados?: string[];
       solicitudModificacionPendiente?: {
         motivoModificacion: string;
         cambiosEnSubeventoIndice: number;
@@ -289,7 +462,7 @@ export async function runSeed() {
             idModalidadAcceso: ModalidadAcceso.QR_MAPA,
             estado: EstadoSubEvento.EN_PROCESO,
             idRecinto: RecintoId.AUDITORIO,
-            fecha: '2026-11-25',
+            fecha: fechaCdmxConOffset(9),
             horaInicio: '10:00:00',
             horaFin: '12:00:00',
             ponentes: [
@@ -314,7 +487,7 @@ export async function runSeed() {
             idModalidadAcceso: ModalidadAcceso.QR_GENERAL,
             estado: EstadoSubEvento.EN_PROCESO,
             idRecinto: RecintoId.LABORATORIO_2104,
-            fecha: '2026-11-26',
+            fecha: fechaCdmxConOffset(10),
             horaInicio: '12:00:00',
             horaFin: '14:00:00',
             ponentes: [
@@ -333,7 +506,7 @@ export async function runSeed() {
             idModalidadAcceso: ModalidadAcceso.REGISTRO_SIMPLE,
             estado: EstadoSubEvento.EN_PROCESO,
             idRecinto: RecintoId.SALA_14,
-            fecha: '2026-11-27',
+            fecha: fechaCdmxConOffset(11),
             horaInicio: '15:00:00',
             horaFin: '17:00:00',
             ponentes: [
@@ -370,7 +543,7 @@ export async function runSeed() {
             idModalidadAcceso: ModalidadAcceso.QR_MAPA,
             estado: EstadoSubEvento.EN_PROCESO,
             idRecinto: RecintoId.AUDITORIO,
-            fecha: '2026-11-12',
+            fecha: fechaCdmxConOffset(3),
             horaInicio: '09:00:00',
             horaFin: '11:00:00',
             ponentes: [
@@ -389,7 +562,7 @@ export async function runSeed() {
             idModalidadAcceso: ModalidadAcceso.QR_GENERAL,
             estado: EstadoSubEvento.EN_PROCESO,
             idRecinto: RecintoId.LABORATORIO_2105,
-            fecha: '2026-11-13',
+            fecha: fechaCdmxConOffset(4),
             horaInicio: '11:00:00',
             horaFin: '14:00:00',
             ponentes: [
@@ -425,7 +598,7 @@ export async function runSeed() {
             idModalidadAcceso: ModalidadAcceso.QR_GENERAL,
             estado: EstadoSubEvento.ACEPTADO,
             idRecinto: RecintoId.LABORATORIO_2104,
-            fecha: '2026-11-16',
+            fecha: fechaCdmxConOffset(12),
             horaInicio: '10:00:00',
             horaFin: '15:00:00',
             ponentes: [
@@ -434,6 +607,107 @@ export async function runSeed() {
                 apellidoPa: 'Franco',
                 apellidoMa: 'Martínez',
                 correo: 'eafrancom@ipn.mx',
+              },
+            ],
+            registros: [
+              {
+                correoUsuario: 'estudiante@ipn.mx',
+                estadoBoleto: EstadoBoleto.VALIDO,
+                horasAntiguedad: 48,
+              },
+              {
+                correoUsuario: 'diego.martinezg@alumno.ipn.mx',
+                estadoBoleto: EstadoBoleto.UTILIZADO,
+                horasAntiguedad: 40,
+              },
+              {
+                correoUsuario: 'valeria.sanchezr@alumno.ipn.mx',
+                estadoBoleto: EstadoBoleto.UTILIZADO,
+                horasAntiguedad: 32,
+              },
+              {
+                correoUsuario: 'alejandro.herrerac@alumno.ipn.mx',
+                estadoBoleto: EstadoBoleto.VALIDO,
+                horasAntiguedad: 24,
+              },
+              {
+                correoUsuario: 'fernanda.lopezm@alumno.ipn.mx',
+                estadoBoleto: EstadoBoleto.VALIDO,
+                horasAntiguedad: 16,
+              },
+              {
+                correoUsuario: 'ricardo.navarrov@alumno.ipn.mx',
+                estadoBoleto: EstadoBoleto.VALIDO,
+                horasAntiguedad: 8,
+              },
+            ],
+          },
+        ],
+      },
+      {
+        nombre: 'Foro de Ciencia de Datos e Inteligencia Artificial ESCOM 2026',
+        descripcion:
+          'Encuentro académico organizado por las academias de Ciencia de Datos e Ingeniería en Inteligencia Artificial de la ESCOM con paneles de egresados y análisis de proyectos aplicados a industria y sector público.',
+        poster:
+          'https://images.unsplash.com/photo-1555949963-aa79dcee981c?w=1200',
+        justificacion:
+          'Vincular a los alumnos de las carreras LCD e IIA de ESCOM con casos reales de aprendizaje automático, ciencia de datos y ética algorítmica.',
+        esUrgente: false,
+        motivoUrgencia: null,
+        motivoRechazo: null,
+        idAlcance: AlcanceEvento.PUBLICO,
+        idEstadoEvento: EstadoEvento.ACEPTADO,
+        personalLogistica: ['logistica1@ipn.mx'],
+        subeventos: [
+          {
+            nombre: 'Panel de Egresados y Cuerpos Académicos: Ciencia de Datos e IA Aplicada',
+            descripcion:
+              'Conversatorio con egresados y profesores investigadores de la ESCOM sobre arquitectura de datos, MLOps y modelos de lenguaje en producción.',
+            idModalidadAcceso: ModalidadAcceso.REGISTRO_SIMPLE,
+            estado: EstadoSubEvento.ACEPTADO,
+            idRecinto: RecintoId.SALA_14,
+            fecha: fechaCdmxConOffset(14),
+            horaInicio: '13:00:00',
+            horaFin: '15:00:00',
+            ponentes: [
+              {
+                nombre: 'Rocío',
+                apellidoPa: 'Palacios',
+                apellidoMa: 'Solano',
+                correo: 'rpalacioss@ipn.mx',
+              },
+              {
+                nombre: 'Roberto',
+                apellidoPa: 'Tecla',
+                apellidoMa: 'Parra',
+                correo: 'rteclap@ipn.mx',
+              },
+            ],
+            registros: [
+              {
+                correoUsuario: 'estudiante@ipn.mx',
+                estadoBoleto: EstadoBoleto.VALIDO,
+                horasAntiguedad: 36,
+              },
+              {
+                correoUsuario: 'externo@gmail.com',
+                estadoBoleto: EstadoBoleto.VALIDO,
+                horasAntiguedad: 30,
+              },
+              {
+                correoUsuario: 'diego.martinezg@alumno.ipn.mx',
+                estadoBoleto: EstadoBoleto.VALIDO,
+                horasAntiguedad: 24,
+              },
+              {
+                correoUsuario: 'sofia.dominguezt@alumno.ipn.mx',
+                estadoBoleto: EstadoBoleto.VALIDO,
+                horasAntiguedad: 18,
+              },
+              {
+                correoUsuario: 'paulina.vega@gmail.com',
+                estadoBoleto: EstadoBoleto.VALIDO,
+                horasAntiguedad: 10,
               },
             ],
           },
@@ -461,7 +735,7 @@ export async function runSeed() {
             idModalidadAcceso: ModalidadAcceso.QR_MAPA,
             estado: EstadoSubEvento.ACEPTADO,
             idRecinto: RecintoId.AUDITORIO,
-            fecha: '2026-12-02',
+            fecha: fechaCdmxConOffset(16),
             horaInicio: '10:00:00',
             horaFin: '12:00:00',
             ponentes: [
@@ -472,6 +746,50 @@ export async function runSeed() {
                 correo: 'aortigozac@ipn.mx',
               },
             ],
+            registros: [
+              {
+                correoUsuario: 'estudiante@ipn.mx',
+                estadoBoleto: EstadoBoleto.VALIDO,
+                asiento: { fila: 'A', numero: 4 },
+                horasAntiguedad: 72,
+              },
+              {
+                correoUsuario: 'externo@gmail.com',
+                estadoBoleto: EstadoBoleto.VALIDO,
+                asiento: { fila: 'A', numero: 5 },
+                horasAntiguedad: 64,
+              },
+              {
+                correoUsuario: 'diego.martinezg@alumno.ipn.mx',
+                estadoBoleto: EstadoBoleto.UTILIZADO,
+                asiento: { fila: 'A', numero: 6 },
+                horasAntiguedad: 56,
+              },
+              {
+                correoUsuario: 'valeria.sanchezr@alumno.ipn.mx',
+                estadoBoleto: EstadoBoleto.UTILIZADO,
+                asiento: { fila: 'B', numero: 3 },
+                horasAntiguedad: 48,
+              },
+              {
+                correoUsuario: 'alejandro.herrerac@alumno.ipn.mx',
+                estadoBoleto: EstadoBoleto.VALIDO,
+                asiento: { fila: 'B', numero: 4 },
+                horasAntiguedad: 36,
+              },
+              {
+                correoUsuario: 'hector.castaneda@ipn.mx',
+                estadoBoleto: EstadoBoleto.VALIDO,
+                asiento: { fila: 'C', numero: 10 },
+                horasAntiguedad: 24,
+              },
+              {
+                correoUsuario: 'paulina.vega@gmail.com',
+                estadoBoleto: EstadoBoleto.VALIDO,
+                asiento: { fila: 'C', numero: 11 },
+                horasAntiguedad: 12,
+              },
+            ],
           },
           {
             nombre: 'Taller Práctico: Desarrollo de Sistemas Embebidos y Conectividad IoT',
@@ -480,7 +798,7 @@ export async function runSeed() {
             idModalidadAcceso: ModalidadAcceso.QR_GENERAL,
             estado: EstadoSubEvento.ACEPTADO,
             idRecinto: RecintoId.LABORATORIO_2105,
-            fecha: '2026-12-03',
+            fecha: fechaCdmxConOffset(17),
             horaInicio: '10:00:00',
             horaFin: '13:00:00',
             ponentes: [
@@ -491,6 +809,28 @@ export async function runSeed() {
                 correo: 'kviverosv@ipn.mx',
               },
             ],
+            registros: [
+              {
+                correoUsuario: 'estudiante@ipn.mx',
+                estadoBoleto: EstadoBoleto.VALIDO,
+                horasAntiguedad: 44,
+              },
+              {
+                correoUsuario: 'fernanda.lopezm@alumno.ipn.mx',
+                estadoBoleto: EstadoBoleto.UTILIZADO,
+                horasAntiguedad: 30,
+              },
+              {
+                correoUsuario: 'ricardo.navarrov@alumno.ipn.mx',
+                estadoBoleto: EstadoBoleto.VALIDO,
+                horasAntiguedad: 20,
+              },
+              {
+                correoUsuario: 'sofia.dominguezt@alumno.ipn.mx',
+                estadoBoleto: EstadoBoleto.VALIDO,
+                horasAntiguedad: 10,
+              },
+            ],
           },
           {
             nombre: 'Muestra Anual de Proyectos de Trabajo Terminal y Software Libre',
@@ -499,7 +839,7 @@ export async function runSeed() {
             idModalidadAcceso: ModalidadAcceso.ACCESO_LIBRE,
             estado: EstadoSubEvento.ACEPTADO,
             idRecinto: RecintoId.SALA_14,
-            fecha: '2026-12-04',
+            fecha: fechaCdmxConOffset(18),
             horaInicio: '14:00:00',
             horaFin: '17:00:00',
             ponentes: [
@@ -508,6 +848,60 @@ export async function runSeed() {
                 apellidoPa: 'Sánchez',
                 apellidoMa: 'García',
                 correo: 'fsanchezg@ipn.mx',
+              },
+            ],
+          },
+        ],
+      },
+      {
+        nombre: 'Seminario de Ciberseguridad Defensiva y Auditoría de Redes - Club de Ciberseguridad ESCOM',
+        descripcion:
+          'Sesión técnica cerrada por invitación para integrantes y colaboradores del Club de Ciberseguridad ESCOM enfocada en análisis de tráfico, pruebas de penetración éticas y respuesta ante incidentes.',
+        poster:
+          'https://images.unsplash.com/photo-1550751827-4bd374c3f58b?w=1200',
+        justificacion:
+          'Fortalecer las capacidades prácticas en seguridad informática y preparar a los representantes de ESCOM para competencias nacionales CTF.',
+        esUrgente: false,
+        motivoUrgencia: null,
+        motivoRechazo: null,
+        idAlcance: AlcanceEvento.PRIVADO,
+        idEstadoEvento: EstadoEvento.ACEPTADO,
+        personalLogistica: ['logistica2@ipn.mx'],
+        invitados: [
+          'estudiante@ipn.mx',
+          'diego.martinezg@alumno.ipn.mx',
+          'valeria.sanchezr@alumno.ipn.mx',
+          'alejandro.herrerac@alumno.ipn.mx',
+        ],
+        subeventos: [
+          {
+            nombre: 'Laboratorio CTF: Análisis de Vulnerabilidades Web y Hardening en Linux',
+            descripcion:
+              'Entorno controlado en laboratorio para resolución de retos de seguridad ofensiva y defensiva.',
+            idModalidadAcceso: ModalidadAcceso.QR_GENERAL,
+            estado: EstadoSubEvento.ACEPTADO,
+            idRecinto: RecintoId.LABORATORIO_2106,
+            fecha: fechaCdmxConOffset(19),
+            horaInicio: '16:00:00',
+            horaFin: '18:00:00',
+            ponentes: [
+              {
+                nombre: 'Axel Ernesto',
+                apellidoPa: 'Moreno',
+                apellidoMa: 'Cervantes',
+                correo: 'amorenoc@ipn.mx',
+              },
+            ],
+            registros: [
+              {
+                correoUsuario: 'diego.martinezg@alumno.ipn.mx',
+                estadoBoleto: EstadoBoleto.VALIDO,
+                horasAntiguedad: 28,
+              },
+              {
+                correoUsuario: 'valeria.sanchezr@alumno.ipn.mx',
+                estadoBoleto: EstadoBoleto.VALIDO,
+                horasAntiguedad: 14,
               },
             ],
           },
@@ -532,7 +926,7 @@ export async function runSeed() {
             'Se solicita cambio de horario y reubicación al Auditorio Principal debido al sobrecupo en el pre-registro de alumnos para el Taller de Contenedores y Redes.',
           cambiosEnSubeventoIndice: 1,
           nuevoRecinto: RecintoId.AUDITORIO,
-          nuevaFecha: '2026-12-09',
+          nuevaFecha: fechaCdmxConOffset(23),
           nuevaHoraInicio: '14:00:00',
           nuevaHoraFin: '17:00:00',
         },
@@ -544,7 +938,7 @@ export async function runSeed() {
             idModalidadAcceso: ModalidadAcceso.QR_GENERAL,
             estado: EstadoSubEvento.ACEPTADO,
             idRecinto: RecintoId.SALA_14,
-            fecha: '2026-12-08',
+            fecha: fechaCdmxConOffset(22),
             horaInicio: '11:00:00',
             horaFin: '13:00:00',
             ponentes: [
@@ -555,6 +949,23 @@ export async function runSeed() {
                 correo: 'mtellezm@ipn.mx',
               },
             ],
+            registros: [
+              {
+                correoUsuario: 'ricardo.navarrov@alumno.ipn.mx',
+                estadoBoleto: EstadoBoleto.VALIDO,
+                horasAntiguedad: 36,
+              },
+              {
+                correoUsuario: 'sofia.dominguezt@alumno.ipn.mx',
+                estadoBoleto: EstadoBoleto.VALIDO,
+                horasAntiguedad: 24,
+              },
+              {
+                correoUsuario: 'hector.castaneda@ipn.mx',
+                estadoBoleto: EstadoBoleto.VALIDO,
+                horasAntiguedad: 12,
+              },
+            ],
           },
           {
             nombre: 'Taller Práctico: Despliegue de Servicios y Redes con Docker y Kubernetes',
@@ -563,7 +974,7 @@ export async function runSeed() {
             idModalidadAcceso: ModalidadAcceso.QR_GENERAL,
             estado: EstadoSubEvento.ACEPTADO,
             idRecinto: RecintoId.LABORATORIO_2104,
-            fecha: '2026-12-09',
+            fecha: fechaCdmxConOffset(23),
             horaInicio: '12:00:00',
             horaFin: '14:00:00',
             ponentes: [
@@ -572,6 +983,28 @@ export async function runSeed() {
                 apellidoPa: 'García',
                 apellidoMa: 'Mendoza',
                 correo: 'sgarciam@ipn.mx',
+              },
+            ],
+            registros: [
+              {
+                correoUsuario: 'estudiante@ipn.mx',
+                estadoBoleto: EstadoBoleto.VALIDO,
+                horasAntiguedad: 50,
+              },
+              {
+                correoUsuario: 'alejandro.herrerac@alumno.ipn.mx',
+                estadoBoleto: EstadoBoleto.VALIDO,
+                horasAntiguedad: 38,
+              },
+              {
+                correoUsuario: 'fernanda.lopezm@alumno.ipn.mx',
+                estadoBoleto: EstadoBoleto.VALIDO,
+                horasAntiguedad: 26,
+              },
+              {
+                correoUsuario: 'ricardo.navarrov@alumno.ipn.mx',
+                estadoBoleto: EstadoBoleto.VALIDO,
+                horasAntiguedad: 14,
               },
             ],
           },
@@ -599,7 +1032,7 @@ export async function runSeed() {
             idModalidadAcceso: ModalidadAcceso.QR_MAPA,
             estado: EstadoSubEvento.RECHAZADO,
             idRecinto: RecintoId.AUDITORIO,
-            fecha: '2026-11-20',
+            fecha: fechaCdmxConOffset(7),
             horaInicio: '09:00:00',
             horaFin: '11:00:00',
             ponentes: [
@@ -618,7 +1051,7 @@ export async function runSeed() {
             idModalidadAcceso: ModalidadAcceso.ACCESO_LIBRE,
             estado: EstadoSubEvento.RECHAZADO,
             idRecinto: RecintoId.SALA_14,
-            fecha: '2026-11-20',
+            fecha: fechaCdmxConOffset(7),
             horaInicio: '12:00:00',
             horaFin: '16:00:00',
           },
@@ -662,6 +1095,22 @@ export async function runSeed() {
               [idEvento, idPersonal],
             );
             console.log(`      -> Personal de logística asignado: ${correoLogistica} (ID Usuario: ${idPersonal})`);
+          }
+        }
+      }
+
+      // Registrar invitados para eventos privados
+      if (ev.invitados && ev.invitados.length > 0) {
+        for (const correoInvitado of ev.invitados) {
+          const idInvitado = idsUsuarios[correoInvitado];
+          if (idInvitado) {
+            await client.query(
+              `INSERT INTO "invitacionEvento" ("idEvento", "idUsuario")
+               VALUES ($1, $2)
+               ON CONFLICT ("idEvento", "idUsuario") DO NOTHING;`,
+              [idEvento, idInvitado],
+            );
+            console.log(`      -> Invitado privado: ${correoInvitado}`);
           }
         }
       }
@@ -734,6 +1183,88 @@ export async function runSeed() {
               `         -> Ponente: ${ponente.nombre} ${ponente.apellidoPa} (${ponente.correo})`,
             );
           }
+        }
+
+        // Registrar bitácora histórica para eventos ya dictaminados
+        if (
+          subdireccionId &&
+          (ev.idEstadoEvento === EstadoEvento.ACEPTADO ||
+            ev.idEstadoEvento === EstadoEvento.RECHAZADO)
+        ) {
+          await client.query(
+            `INSERT INTO "bitacoraEvento" ("idEvento", "idSubEvento", "idUsuarioActor", "idEstadoEvento")
+             VALUES ($1, $2, $3, $4);`,
+            [idEvento, idSubEvento, subdireccionId, ev.idEstadoEvento],
+          );
+        }
+
+        // Sembrar reservas/boletos cuando apliquen y la modalidad admita registro
+        if (
+          sub.registros &&
+          sub.registros.length > 0 &&
+          sub.idModalidadAcceso !== ModalidadAcceso.ACCESO_LIBRE
+        ) {
+          const usaQr =
+            sub.idModalidadAcceso === ModalidadAcceso.QR_GENERAL ||
+            sub.idModalidadAcceso === ModalidadAcceso.QR_MAPA;
+          const fechaFin = construirFechaEnCdmx(sub.fecha, sub.horaFin);
+          const expSegundos = Math.max(
+            60,
+            Math.floor((fechaFin.getTime() - Date.now()) / 1000),
+          );
+
+          for (const reg of sub.registros) {
+            const idUsuarioAsistente = idsUsuarios[reg.correoUsuario];
+            if (!idUsuarioAsistente) continue;
+
+            let idAsiento: number | null = null;
+            if (
+              sub.idModalidadAcceso === ModalidadAcceso.QR_MAPA &&
+              reg.asiento
+            ) {
+              const resAsiento = await client.query(
+                `SELECT "idAsiento"
+                 FROM asiento
+                 WHERE "idRecinto" = $1 AND fila = $2 AND numero = $3
+                 LIMIT 1;`,
+                [sub.idRecinto, reg.asiento.fila, reg.asiento.numero],
+              );
+              if (resAsiento.rows.length > 0) {
+                idAsiento = Number(resAsiento.rows[0].idAsiento);
+              }
+            }
+
+            const fechaGen = new Date(
+              Date.now() - reg.horasAntiguedad * 60 * 60 * 1000,
+            );
+            const resBoleto = await client.query(
+              `INSERT INTO boleto ("tokenQR", "fechaGeneracion", "idAsiento", "idEstadoBoleto")
+               VALUES ('', $1, $2, $3)
+               RETURNING "idBoleto";`,
+              [fechaGen, idAsiento, reg.estadoBoleto],
+            );
+            const idBoleto = Number(resBoleto.rows[0].idBoleto);
+
+            if (usaQr) {
+              const token = await jwtService.signAsync(
+                { idBoleto, idEvento, idUsuario: idUsuarioAsistente },
+                { expiresIn: expSegundos },
+              );
+              await client.query(
+                `UPDATE boleto SET "tokenQR" = $1 WHERE "idBoleto" = $2;`,
+                [token, idBoleto],
+              );
+            }
+
+            await client.query(
+              `INSERT INTO "asistenteEvento" ("idSubEvento", "idUsuario", "idBoleto")
+               VALUES ($1, $2, $3);`,
+              [idSubEvento, idUsuarioAsistente, idBoleto],
+            );
+          }
+          console.log(
+            `         -> ${sub.registros.length} registros sembrados para subevento ID ${idSubEvento}`,
+          );
         }
       }
 

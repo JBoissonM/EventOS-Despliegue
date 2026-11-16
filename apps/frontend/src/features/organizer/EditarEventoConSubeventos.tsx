@@ -7,6 +7,7 @@ import {
   EstadoSubEvento,
   InvitadoEventoItem,
   ModalidadAcceso,
+  calcularImpactoCambioSubevento,
   esLaboratorioRecinto,
   modalidadPorDefectoRecinto,
   obtenerModalidadesPermitidasPorRecinto,
@@ -14,6 +15,7 @@ import {
   validarModalidadEnRecinto,
   type ActualizarInfoGeneralPayload,
   type EventoOrganizadorDetalle,
+  type ImpactoCambioSubevento,
   type ModificarLogisticaPayload,
   type PersonalLogisticaItem,
   type Recinto,
@@ -663,6 +665,45 @@ export function EditarEventoConSubeventos() {
           .map((s) => `${s.nombre}: ${s.boletosEmitidos}`)
           .join(", ")}). Si Subdirección aprueba el cambio, esos boletos se cancelarán y se notificará a los asistentes.`
       : null;
+
+  const impactosPorActividad = useMemo(() => {
+    const mapa = new Map<string, ImpactoCambioSubevento>();
+    for (const act of actividades) {
+      if (act.idSubEvento === undefined || !act.idRecinto) continue;
+      const subOriginal = evento?.subEventos.find(
+        (s) => s.idSubEvento === act.idSubEvento,
+      );
+      if (!subOriginal || (subOriginal.boletosEmitidos ?? 0) <= 0) continue;
+
+      const recintoDest =
+        recintos.find((r) => String(r.idRecinto) === act.idRecinto) ??
+        subOriginal.recinto;
+      const impacto = calcularImpactoCambioSubevento({
+        idSubEvento: subOriginal.idSubEvento,
+        nombreSubEvento: act.nombre.trim() || subOriginal.nombre,
+        inscritosActivos: subOriginal.boletosEmitidos ?? 0,
+        aforoDestino: recintoDest?.aforo ?? 0,
+        idRecintoOrigen: subOriginal.recinto?.idRecinto ?? 0,
+        idRecintoDestino: Number(act.idRecinto) || 0,
+        modalidadOrigen: subOriginal.idModalidadAcceso,
+        modalidadDestino: act.idModalidadAcceso,
+      });
+
+      if (impacto && impacto.resumenTexto) {
+        mapa.set(act.llave, impacto);
+      }
+    }
+    return mapa;
+  }, [actividades, evento, recintos]);
+
+  const partesAvisoImpacto = [
+    ...(avisoImpactoEliminacion ? [avisoImpactoEliminacion] : []),
+    ...Array.from(impactosPorActividad.values()).map(
+      (imp) => `${imp.nombreSubEvento}: ${imp.resumenTexto}`,
+    ),
+  ];
+  const avisoImpactoTotal =
+    partesAvisoImpacto.length > 0 ? partesAvisoImpacto.join(" ") : null;
 
   function calcularErroresActividades(listaActividades: ActividadEditable[]): {
     errores: Record<string, ErroresActividad>;
@@ -1453,6 +1494,9 @@ export function EditarEventoConSubeventos() {
                 const recintoSeleccionado = recintos.find(
                   (r) => String(r.idRecinto) === actividad.idRecinto,
                 );
+                const impactoActividad = impactosPorActividad.get(
+                  actividad.llave,
+                );
 
                 return (
                   <div
@@ -1659,6 +1703,17 @@ export function EditarEventoConSubeventos() {
                       />
                     </FormField>
 
+                    {impactoActividad && (
+                      <div className="col-span-full">
+                        <FeedbackNotice
+                          variant="warning"
+                          title="Aviso de impacto en registros actuales"
+                        >
+                          {impactoActividad.resumenTexto}
+                        </FeedbackNotice>
+                      </div>
+                    )}
+
                     <div className="col-span-full flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                       <div
                         id="contenedorBotonesCard"
@@ -1746,7 +1801,7 @@ export function EditarEventoConSubeventos() {
           mostrarModalAviso={mostrarModalAviso}
           intentoMotivo={intentoMotivo}
           esUrgente={esModificacionUrgente}
-          avisoImpacto={avisoImpactoEliminacion}
+          avisoImpacto={avisoImpactoTotal}
           logistica={{ motivoModificacion: motivo } as any}
           onCerrar={() => setMostrarModalMotivo(false)}
           onCerrarAviso={() => {
