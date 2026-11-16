@@ -1,73 +1,83 @@
 import { useEffect, useState } from "react";
 import { SeccionSolicitudesPendientes } from "../../components/organisms/MenuSubdireccion/SeccionSolicitudesPendientes";
-import { AgendaRecinto } from "../../components/organisms/AgendaRecinto/AgendaRecinto";
 import { CardMetricas } from "../../components/molecules/CardMetricas";
 import { API_BASE_URL } from "../../lib/apiClient";
+import { PageHeader } from "../../components/organisms/PageHeader/PageHeader";
+import { AgendaDiaria } from "../../components/organisms/MenuSubdireccion/SeccionAgendaDiaria";
 
 export function MenuSubdireccion() {
+  const [totalSolicitudes, setTotalSolicitudes] = useState<number>(0);
+  const [totalCuentas, setTotalCuentas] = useState<number>(0);
+  const usuario = JSON.parse(localStorage.getItem("usuario") || "{}");
+  const nombreUsuario = usuario.nombre || "";
 
   useEffect(() => {
-    const fetchCuentasPendientes = async () => {
+    const fetchMetricas = async () => {
+      const token = localStorage.getItem("token") || "";
+      if (!token) return;
+      const headers = { Authorization: `Bearer ${token}` };
       try {
-        const usuario = JSON.parse(localStorage.getItem("usuario") || "{}");
-        const token = usuario.token || localStorage.getItem("token") || "";
-        const res = await fetch(`${API_BASE_URL}/usuarios/verificaciones/pendientes`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
-        if (res.ok) {
-          const data = await res.json();
+        const resSolicitudes = await fetch(
+          `${API_BASE_URL}/solicitudes?estado=Pendiente`,
+          { headers },
+        );
+        if (resSolicitudes.ok) {
+          const data = await resSolicitudes.json();
           if (Array.isArray(data)) {
-            //Cuentas por verificar
+            setTotalSolicitudes(data.length);
           }
         }
-      } catch {
-        // En caso de fallo de red, se mantiene en 0
+        const resCuentas = await fetch(
+          `${API_BASE_URL}/usuarios/verificaciones/pendientes`,
+          { headers },
+        );
+        if (resCuentas.ok) {
+          const data = await resCuentas.json();
+          if (Array.isArray(data)) {
+            setTotalCuentas(data.length);
+          }
+        }
+      } catch (error) {
+        console.error("Error al cargar métricas:", error);
       }
     };
-    fetchCuentasPendientes();
+    fetchMetricas();
   }, []);
 
   return (
     <section className="space-y-5 ">
-      <h1 className="font-merriweather font-bold text-[36px]">
-        Menú principal
-      </h1>
-      <h2 className="font-merriweather text-[24px]">Metricas</h2>
-      <br />
-      <div
-        id="contenedorMetricas"
-        className="grid grid-cols-3 justify-items-center">
-        <CardMetricas titulo="Solicitudes pendientes" variant="primary">
-          <span className="text-merriweather font-bold text-3xl">3</span>
-        </CardMetricas>
-        <CardMetricas titulo="Eventos del mes" variant="primary">
-          <span className="text-merriweather font-bold text-3xl">6</span>{" "}
-        </CardMetricas>
-        <CardMetricas titulo="Cuentas por verificar" variant="primary">
-          <span className="text-merriweather font-bold text-3xl">0</span>{" "}
-        </CardMetricas>
+      <div className="min-w-0 xl:max-w-sm xl:shrink-0">
+        <PageHeader
+          title="Menú principal"
+          description={`Nos alegra verte por aquí, ${nombreUsuario}`}
+        />
       </div>
-      <br />
-      <h2 className="font-merriweather text-[24px]">
-        Agenda de los recintos del día de hoy
+      <h2 className="font-merriweather text-base sm:text-[24px]">
+        Tus pendientes
       </h2>
       <br />
       <div
-        id="contenedorAgendaRecintos"
-        className="grid grid-cols-1 items-start justify-items-center gap-15 md:grid-cols-2">
-        <div className="flex flex-col gap-15">
-          <AgendaRecinto titulo="Auditorio" />
-          <AgendaRecinto titulo="Laboratorio 2104" />
-        </div>
-        <div className="flex flex-col gap-15">
-          <AgendaRecinto titulo="Sala 14" />
-          <AgendaRecinto titulo="Laboratorio 2105" />
-        </div>
+        id="contenedorMetricas"
+        className="grid grid-cols-1 gap-5 sm:grid-cols-2 justify-items-center "
+      >
+        <CardMetricas titulo="Solicitudes pendientes">
+          <span className="font-merriweather font-bold text-3xl">
+            {totalSolicitudes}
+          </span>
+        </CardMetricas>
+        <CardMetricas titulo="Cuentas por verificar">
+          <span className="font-merriweather font-bold text-3xl">
+            {totalCuentas}
+          </span>
+        </CardMetricas>
       </div>
       <br />
-      <h2 className="font-merriweather text-[24px]">
+      <h2 className="font-merriweather text-base sm:text-[24px]">
+        Agenda del día de hoy
+      </h2>
+      <AgendaDiaria />
+      <br />
+      <h2 className="font-merriweather text-base sm:text-[24px]">
         Solicitudes pendientes recientes
       </h2>
       <SeccionSolicitudesPendientes />

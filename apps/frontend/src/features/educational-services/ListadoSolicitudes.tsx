@@ -368,9 +368,9 @@ export function ListadoSolicitudes() {
     },
     {
       id: "solicitante",
-      encabezado: "Nombre del solicitante",
+      encabezado: "Solicitante",
       render: (solicitud) => solicitud.nombreSolicitante,
-      className: "min-w-[12rem] max-w-[10rem] px-4",
+      className: "min-w-[12rem] max-w-[10rem] px-4 ",
     },
     {
       id: "fechaInicio",

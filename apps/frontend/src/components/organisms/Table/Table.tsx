@@ -22,11 +22,14 @@ export function Table<T>({
   className = "",
 }: TableProps<T>) {
   return (
-    <table className={className}>
+    <table className={`text-sm sm:text-base ${className}`}>
       <thead>
         <tr className="h-[120px] border-b border-gray-300">
           {columnas.map((columna) => (
-            <th key={columna.id} className={`whitespace-nowrap ${columna.className ?? ""}`}>
+            <th
+              key={columna.id}
+              className={`whitespace-nowrap ${columna.className ?? ""}`}
+            >
               {columna.encabezado}
             </th>
           ))}
@@ -38,7 +41,8 @@ export function Table<T>({
             {columnas.map((columna) => (
               <td
                 key={columna.id}
-                className={`border-b  border-gray-300 ${columna.className ?? ""}`}  >
+                className={`border-b border-gray-300 ${columna.className ?? ""}`}
+              >
                 {columna.resaltar ? (
                   <div className="inline-block max-w-full rounded-md bg-gray-100 px-4 py-3">
                     {columna.render(fila)}
