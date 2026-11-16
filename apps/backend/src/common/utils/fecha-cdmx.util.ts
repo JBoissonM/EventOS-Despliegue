@@ -17,8 +17,7 @@ export interface ClaveOrdenProximo {
 /**
  * Obtiene la fecha y hora actuales en zona horaria America/Mexico_City.
  */
-export function obtenerAhoraCdmx(): AhoraCdmx {
-  const ahora = new Date();
+export function obtenerAhoraCdmx(ahora: Date = new Date()): AhoraCdmx {
   const fechaHoy = new Intl.DateTimeFormat('en-CA', {
     timeZone: 'America/Mexico_City',
     year: 'numeric',
@@ -48,6 +47,43 @@ export function normalizarHoraConSegundos(
   if (!limpia) return fallback;
   if (limpia.length === 5) return `${limpia}:00`;
   return limpia.slice(0, 8);
+}
+
+/**
+ * Construye un objeto Date (instante UTC exacto) interpretando la fecha (YYYY-MM-DD)
+ * y hora (HH:mm o HH:mm:ss) explícitamente en la zona horaria America/Mexico_City.
+ */
+export function construirFechaEnCdmx(
+  fecha: string,
+  hora?: string | null,
+): Date {
+  const fechaLimpia = String(fecha ?? '').trim().slice(0, 10);
+  const horaLimpia = normalizarHoraConSegundos(hora, '00:00:00');
+
+  const refUtc = new Date(`${fechaLimpia}T${horaLimpia}Z`);
+  const partes = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/Mexico_City',
+    timeZoneName: 'longOffset',
+  }).formatToParts(refUtc);
+
+  const tzOffset =
+    partes.find((p) => p.type === 'timeZoneName')?.value.replace('GMT', '') ||
+    '-06:00';
+
+  return new Date(`${fechaLimpia}T${horaLimpia}${tzOffset}`);
+}
+
+/**
+ * Evalúa de forma inclusiva (>=) si el instante actual ya alcanzó o superó
+ * la fecha y hora indicadas en America/Mexico_City.
+ */
+export function haAlcanzadoFechaHoraCdmx(
+  fecha: string,
+  hora?: string | null,
+  ahora: Date = new Date(),
+): boolean {
+  const limite = construirFechaEnCdmx(fecha, hora);
+  return ahora.getTime() >= limite.getTime();
 }
 
 /**
