@@ -538,8 +538,10 @@ Los boletos con QR **no se guardan**: se generan al momento con `QrService`.
 | ----------------------------------------- | ----------------------- | -------------------------------------------------------------------- |
 | `upload(file, folder, visibilidad)`       | `Promise<string>` (key) | Guarda el archivo con nombre único (UUID) y devuelve la key.         |
 | `publicUrl(key)`                          | `string`                | URL directa. Solo para archivos subidos como `'public'`.             |
+| `resolvePublicUrl(keyOrUrl)`              | `string \| null`        | Devuelve `null` si está vacío, la URL tal cual si ya empieza con `http(s)://`, o `publicUrl(key)`. |
 | `privateUrl(key, segundos = 300)`         | `Promise<string>`       | URL temporal (5 minutos por defecto) para archivos `'private'`.      |
 | `delete(key, visibilidad)`                | `Promise<void>`         | Borra el archivo.                                                    |
+| `deleteSafe(keyOrUrl, visibilidad)`       | `Promise<void>`         | Borra el archivo ignorando vacíos o URLs externas (`http(s)://`, `data:`), registrando errores sin lanzar excepción. |
 
 **Cómo usarlo en un controlador:**
 
@@ -590,9 +592,11 @@ Para otro caso de uso, se crea una configuración nueva con `crearUploadOptions(
 | `S3_SECRET_KEY`     | `miniopassword`                             | Secret Access Key del token de R2                   |
 | `S3_BUCKET_PUBLIC`  | `eventos-public`                            | Nombre del bucket público en R2                     |
 | `S3_BUCKET_PRIVATE` | `eventos-private`                           | Nombre del bucket privado en R2                     |
-| `S3_PUBLIC_URL`     | `http://localhost:9000/eventos-public`      | URL pública del bucket (`https://pub-xxxx.r2.dev` o dominio propio) |
+| `S3_PUBLIC_URL`     | `http://localhost:9000/eventos-public`      | URL pública del bucket (`https://pub-xxxx.r2.dev` o dominio propio, sin `/` final y sin el nombre del bucket) |
 
 **Pasar a producción (R2):** crear los dos buckets en Cloudflare R2, habilitar acceso público solo en el de pósters, crear un token de API con permisos de lectura y escritura, y reemplazar las variables de la tabla en el `.env` del servidor. **No se modifica código.** El nivel gratuito de R2 (10 GB, sin costo por transferencia de salida) cubre las necesidades del proyecto.
+
+> **Nota sobre producción (R2 / Render):** En el hosting es obligatorio definir `NODE_ENV=production`. Cuando `NODE_ENV=production`, el backend verifica al arrancar que `S3_ENDPOINT`, `S3_ACCESS_KEY`, `S3_SECRET_KEY`, `S3_BUCKET_PUBLIC`, `S3_BUCKET_PRIVATE` y `S3_PUBLIC_URL` existan y no estén vacías; **si falta alguna variable `S3_*`, el servidor no arranca** y muestra los nombres de las variables faltantes. En Cloudflare R2, `S3_PUBLIC_URL` debe ir **sin `/` final y sin el nombre del bucket** (por ejemplo, `https://pub-xxxx.r2.dev`).
 
 > **Nota sobre MinIO:** MinIO dejó de publicar imágenes en Docker Hub y quay.io. Por eso `docker-compose.yml` usa `cgr.dev/chainguard/minio` (imagen de Chainguard) y `amazon/aws-cli` para crear los buckets. Es solo para desarrollo local; no afecta a producción con R2.
 

@@ -460,13 +460,6 @@ export class SolicitudesService {
     };
   }
 
-  private resolverPosterUrl(poster?: string | null): string | null {
-    if (!poster) return null;
-    return poster.startsWith('http://') || poster.startsWith('https://')
-      ? poster
-      : this.storageService.publicUrl(poster);
-  }
-
   async listarSolicitudesPorEstado(estado?: string) {
     const mapa: Record<string, EstadoEvento> = {
       pendiente: EstadoEvento.ENPROCESO,
@@ -565,7 +558,7 @@ export class SolicitudesService {
       const modPendiente = mapaModPorEvento.get(evento.idEvento) ?? null;
       return {
         ...evento,
-        posterUrl: this.resolverPosterUrl(evento.poster),
+        posterUrl: this.storageService.resolvePublicUrl(evento.poster),
         solicitante: mapaSolicitantes.get(evento.idOrganizador) ?? null,
         esModificacion: Boolean(modPendiente),
         solicitudModificacion: modPendiente
@@ -737,7 +730,7 @@ export class SolicitudesService {
         }));
     }
 
-    const posterUrl = this.resolverPosterUrl(evento.poster);
+    const posterUrl = this.storageService.resolvePublicUrl(evento.poster);
 
     return {
       idEvento: evento.idEvento,
