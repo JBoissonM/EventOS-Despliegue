@@ -1,39 +1,24 @@
-import { Children, ReactNode } from "react";
+import type { ReactNode } from "react";
 
-export interface CardMetrcasProps {
+export interface CardMetricasProps {
   titulo: string;
   children: ReactNode;
-  variant?:
-    | "primary"
-    | "secondary"
-    | "success"
-    | "error"
-    | "warning"
-    | "neutral";
+  className?: string;
 }
-
-const variantStyles = {
-  primary: "border-eventos-primary-light",
-
-  secondary: "border-eventos-secondary-light",
-
-  success: "border-eventos-success/15",
-
-  error: "border-eventos-error/15",
-
-  warning: "border-eventos-warning/40",
-
-  neutral: "border-eventos-neutral",
-};
 
 export function CardMetricas({
   titulo,
   children,
-  variant = "neutral",
-}: CardMetrcasProps) {
+  className = "",
+}: CardMetricasProps) {
   return (
-    <div id="contenedorCard border" className={`grid grid-cols-1 gap-5 justify-items-center border w-fit p-5 ${variantStyles[variant]}`}>
-    <span className="text-merriweather font-medium text-2xl">{titulo}</span>
+    <div
+      id="contenedorCard"
+      className={`grid grid-cols-1 gap-5 justify-items-center border border-gray-200 w-[15rem] sm:w-fit p-5 bg-white shadow-sm rounded-md ${className}`}
+    >
+      <span className="font-merriweather font-medium text-base sm:text-2xl text-center">
+        {titulo}
+      </span>
       {children}
     </div>
   );
