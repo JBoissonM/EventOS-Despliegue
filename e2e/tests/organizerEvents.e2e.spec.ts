@@ -91,12 +91,12 @@ async function seedOrganizerEvent(db: any, idOrganizador: number, eventName: str
     `INSERT INTO "subEvento" (
        nombre,
        descripcion,
-       "accesoQR",
+       "idModalidadAcceso",
        estado,
        "idEvento",
        "idFecha",
        "idRecinto"
-     ) VALUES ($1, $2, true, 'Aceptado', $3, $4, $5)
+     ) VALUES ($1, $2, 4, 'Aceptado', $3, $4, $5)
      RETURNING "idSubEvento"`,
     [
       `Conferencia Magistral - ${eventName}`,
@@ -187,12 +187,21 @@ async function runOrganizerEventsSuite(): Promise<void> {
     );
     assert.equal(await emptyFilterMsg.isDisplayed(), true);
 
-    // Clear search and filter by Espacio = Auditorio Principal
+    // Clear search and filter by Espacio = Auditorio Principal via FilterDropdown
     await searchInput.sendKeys(Key.chord(Key.CONTROL, "a"), Key.BACK_SPACE);
-    const selectRecinto = await driver.findElement(By.id("selectRecinto"));
-    await selectRecinto
-      .findElement(By.css("option[value='Auditorio Principal']"))
-      .click();
+    const espacioDropdown = await driver.findElement(
+      By.xpath("//summary[starts-with(@aria-label, 'Espacio:')]"),
+    );
+    await espacioDropdown.click();
+    const auditorioOpt = await driver.wait(
+      until.elementLocated(
+        By.xpath(
+          "//div[@role='group' and @aria-label='Espacio']//button[normalize-space()='Auditorio Principal']",
+        ),
+      ),
+      5000,
+    );
+    await auditorioOpt.click();
 
     const filteredCard = await driver.wait(
       until.elementLocated(
@@ -236,6 +245,23 @@ async function runOrganizerEventsSuite(): Promise<void> {
       5000,
     );
     assert.equal(await ponenteCell.isDisplayed(), true);
+
+    const modalidadLabel = await driver.wait(
+      until.elementLocated(
+        By.xpath("//*[contains(normalize-space(),'QR con mapa de asientos')]"),
+      ),
+      5000,
+    );
+    assert.equal(await modalidadLabel.isDisplayed(), true);
+
+    const inscritosMetric = await driver.findElement(
+      By.xpath("//*[normalize-space()='Inscritos']"),
+    );
+    const ingresadosMetric = await driver.findElement(
+      By.xpath("//*[normalize-space()='Ingresados']"),
+    );
+    assert.equal(await inscritosMetric.isDisplayed(), true);
+    assert.equal(await ingresadosMetric.isDisplayed(), true);
     console.log("  ✓ TC-ORG-03 passed");
 
     // =========================================================================
@@ -313,24 +339,18 @@ async function runOrganizerEventsSuite(): Promise<void> {
     );
     await cancelarEventoBtn.click();
 
-    // Try clicking 'Continuar' without entering a reason -> validation error
+    // While reason has < 10 chars, 'Continuar' stays disabled
     const continuarModalBtn = await driver.wait(
       until.elementLocated(
         By.xpath("//dialog[@open]//button[normalize-space()='Continuar']"),
       ),
       5000,
     );
-    await continuarModalBtn.click();
-
-    const emptyReasonErr = await driver.wait(
-      until.elementLocated(
-        By.xpath(
-          "//dialog[@open]//*[contains(normalize-space(),'La justificación no puede estar vacía')]",
-        ),
-      ),
-      5000,
+    assert.equal(
+      await continuarModalBtn.isEnabled(),
+      false,
+      "Botón 'Continuar' debe permanecer deshabilitado con motivo vacío o menor a 10 caracteres.",
     );
-    assert.equal(await emptyReasonErr.isDisplayed(), true);
 
     // Enter valid cancellation reason and confirm
     const motivoTextarea = await driver.findElement(
@@ -339,6 +359,7 @@ async function runOrganizerEventsSuite(): Promise<void> {
     await motivoTextarea.sendKeys(
       "Cancelación programada de prueba automatizada por ajuste de calendario institucional.",
     );
+    await driver.wait(until.elementIsEnabled(continuarModalBtn), 3000);
     await continuarModalBtn.click();
 
     const confirmarCancelacionBtn = await driver.wait(

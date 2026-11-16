@@ -194,6 +194,8 @@ export interface MisEventosItem {
   idEstadoEvento?: EstadoEvento;
   cupoMaximo: number;
   boletosEmitidos: number;
+  inscritosCount?: number;
+  ingresadosCount?: number | null;
   subeventos: SubEventoResumen[];
 }
 
@@ -207,6 +209,8 @@ export interface EventoOrganizadorDetalleSubevento {
   recinto: Recinto | null;
   ponentes: Ponente[];
   boletosEmitidos: number;
+  inscritosCount?: number;
+  ingresadosCount?: number | null;
 }
 
 export interface EventoOrganizadorDetalle {
@@ -224,6 +228,8 @@ export interface EventoOrganizadorDetalle {
   idOrganizador: number;
   cupoMaximo: number;
   boletosActivosCount: number;
+  inscritosCount?: number;
+  ingresadosCount?: number | null;
   subEventos: EventoOrganizadorDetalleSubevento[];
   solicitudModificacionPendiente?: {
     idSolicitudModificacion: number;

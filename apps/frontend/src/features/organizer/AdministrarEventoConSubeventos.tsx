@@ -132,6 +132,18 @@ function convertirSubevento(valor: unknown): OrganizerSubeventCardData {
     estado: typeof valor.estado === "string" ? valor.estado : undefined,
     fecha,
     recinto,
+    inscritosCount:
+      typeof valor.inscritosCount === "number"
+        ? valor.inscritosCount
+        : typeof valor.boletosEmitidos === "number"
+          ? valor.boletosEmitidos
+          : undefined,
+    ingresadosCount:
+      valor.ingresadosCount === null
+        ? null
+        : typeof valor.ingresadosCount === "number"
+          ? valor.ingresadosCount
+          : undefined,
   };
 }
 

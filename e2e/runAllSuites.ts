@@ -129,6 +129,12 @@ const SUITES: SuiteEntry[] = [
     file: "e2e/tests/fullAdversarialWorkflow.e2e.spec.ts",
     description: "Flujo completo 6 etapas (Organizador -> Subdirección -> No Verificado -> Reservas QR/Correo -> Modificación Logística) + DoS",
   },
+  {
+    id: "modalidades-fifo",
+    module: "Modalidades, Cambio de Recinto y FIFO",
+    file: "e2e/tests/modalidadesYCambioRecinto.e2e.spec.ts",
+    description: "Reglas de modalidad por recinto, Registro simple sin QR, corte FIFO, comparador UI y matriz de transición",
+  },
 ];
 
 function runSuites(): void {

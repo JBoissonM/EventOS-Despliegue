@@ -111,12 +111,12 @@ async function seedLogisticsScenario(
     `INSERT INTO "subEvento" (
        nombre,
        descripcion,
-       "accesoQR",
+       "idModalidadAcceso",
        estado,
        "idEvento",
        "idFecha",
        "idRecinto"
-     ) VALUES ($1, $2, true, 'Aceptado', $3, $4, $5)
+     ) VALUES ($1, $2, 3, 'Aceptado', $3, $4, $5)
      RETURNING "idSubEvento"`,
     [
       `Taller de Ciberseguridad - ${eventName}`,
@@ -302,6 +302,11 @@ async function runLogisticsAccessControlSuite(): Promise<void> {
       5000,
     );
     assert.equal(await initialCapacity.isDisplayed(), true);
+
+    const modalityBadge = await driver.findElement(
+      By.xpath("//*[contains(normalize-space(),'QR Admisión general')]"),
+    );
+    assert.equal(await modalityBadge.isDisplayed(), true);
 
     const emptyAttendeeMsg = await driver.findElement(
       By.xpath(

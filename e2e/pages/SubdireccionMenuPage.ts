@@ -6,7 +6,7 @@ export class SubdireccionMenuPage {
     "//h1[normalize-space()='Menú principal']",
   );
   private readonly metricsContainer = By.id("contenedorMetricas");
-  private readonly agendaContainer = By.id("contenedorAgendaRecintos");
+  private readonly agendaContainer = By.id("contenedorSeccionTabla");
   private readonly requestEventNavLink = By.xpath(
     "//nav//a[@href='/solicitud-evento' and normalize-space()='Solicitar evento']",
   );
@@ -24,8 +24,14 @@ export class SubdireccionMenuPage {
   }
 
   async isDashboardContentVisible(): Promise<boolean> {
-    const metrics = await this.driver.findElement(this.metricsContainer);
-    const agenda = await this.driver.findElement(this.agendaContainer);
+    const metrics = await this.driver.wait(
+      until.elementLocated(this.metricsContainer),
+      5000,
+    );
+    const agenda = await this.driver.wait(
+      until.elementLocated(this.agendaContainer),
+      5000,
+    );
     return (await metrics.isDisplayed()) && (await agenda.isDisplayed());
   }
 

@@ -208,12 +208,18 @@ async function runSubdireccionEventRequestSuite(): Promise<void> {
     console.log(
       "Running TC-SUB-05: Dynamic rules by venue (Sala 14 vs Laboratorio 1104 vs Auditorio)...",
     );
-    // Sala 14 ("4") disables both ticket select and space details button
+    // Sala 14 ("4") allows modalities 1, 2, 3 (no QR_MAPA) and disables space details button
     await eventRequestPage.setSubEventVenue("4", 0);
     assert.equal(
       await eventRequestPage.isTicketSelectDisabled(0),
-      true,
-      "Ticket select should be disabled for Sala 14",
+      false,
+      "Modality select should be enabled for Sala 14",
+    );
+    const sala14Modalities = await eventRequestPage.getAvailableModalityValues(0);
+    assert.deepEqual(
+      sala14Modalities,
+      ["1", "2", "3"],
+      "Sala 14 should offer Acceso libre, Registro simple sin QR, and QR Admisión general",
     );
     assert.equal(
       await eventRequestPage.isViewSpaceDetailsButtonDisabled(),
@@ -221,8 +227,18 @@ async function runSubdireccionEventRequestSuite(): Promise<void> {
       "View space details button should be disabled for Sala 14",
     );
 
-    // Laboratorio 1104 ("2") auto-selects Cupo limitado and enables space details modal
+    // Laboratorio 1104 ("2") locks modality to QR_GENERAL ("3") and enables space details modal
     await eventRequestPage.setSubEventVenue("2", 0);
+    assert.equal(
+      await eventRequestPage.isTicketSelectDisabled(0),
+      true,
+      "Modality select should be disabled for Laboratorio 1104",
+    );
+    assert.deepEqual(
+      await eventRequestPage.getAvailableModalityValues(0),
+      ["3"],
+      "Laboratorio 1104 should only allow QR Admisión general (3)",
+    );
     assert.equal(
       await eventRequestPage.isViewSpaceDetailsButtonDisabled(),
       false,
@@ -235,12 +251,19 @@ async function runSubdireccionEventRequestSuite(): Promise<void> {
     );
     await eventRequestPage.closeOpenDialogViaEscape();
 
-    // Auditorio ("1") enables ticket select
+    // Auditorio ("1") enables modality select with all 4 modalities
     await eventRequestPage.setSubEventVenue("1", 0);
     assert.equal(
       await eventRequestPage.isTicketSelectDisabled(0),
       false,
-      "Ticket select should be enabled for Auditorio",
+      "Modality select should be enabled for Auditorio",
+    );
+    const auditorioModalities =
+      await eventRequestPage.getAvailableModalityValues(0);
+    assert.deepEqual(
+      auditorioModalities,
+      ["1", "2", "3", "4"],
+      "Auditorio should offer all 4 access modalities",
     );
     console.log("  ✓ TC-SUB-05 passed");
 
@@ -279,7 +302,7 @@ async function runSubdireccionEventRequestSuite(): Promise<void> {
         horaInicio: "10:00",
         horaFin: "12:00",
         idRecinto: "1", // Auditorio
-        accesoQR: "true",
+        idModalidadAcceso: "4",
       },
     });
 

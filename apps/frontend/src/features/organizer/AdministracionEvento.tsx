@@ -6,6 +6,7 @@ import {
   EstadoEvento,
   EstadoSubEvento,
   ModalidadAcceso,
+  obtenerEtiquetaModalidad,
   type EventoOrganizadorDetalle,
   type EventoOrganizadorDetalleSubevento,
   type PersonalLogisticaItem,
@@ -25,6 +26,7 @@ import { apiRequest } from "../../lib/apiClient";
 
 import { ArrowLeft } from "lucide-react";
 import { Badge } from "../../components/atoms/Badge/Badge";
+import { ModalidadAccesoHelp } from "../../components/molecules/ModalidadAccesoHelp";
 
 type TablaPonente = {
   id: number;
@@ -235,6 +237,16 @@ function convertirSubevento(valor: unknown): EventoOrganizadorDetalleSubevento {
     recinto: convertirRecinto(valor.recinto),
     ponentes: valor.ponentes.map(convertirPonente),
     boletosEmitidos: obtenerNumero(valor, "boletosEmitidos"),
+    inscritosCount:
+      typeof valor.inscritosCount === "number"
+        ? valor.inscritosCount
+        : obtenerNumero(valor, "boletosEmitidos"),
+    ingresadosCount:
+      valor.ingresadosCount === null
+        ? null
+        : typeof valor.ingresadosCount === "number"
+          ? valor.ingresadosCount
+          : undefined,
   };
 }
 
@@ -665,13 +677,14 @@ export function AdministracionEvento() {
                     <span className="font-bold">Hora de finalización</span>
                     <span>{formatearHora(subevento.fecha?.horaFin)}</span>
                   </div>
-                  <div className="flex min-w-0 flex-col gap-2">
-                    <span className="font-bold">Acceso</span>
+                  <div className="flex min-w-0 flex-col gap-2 sm:col-span-2">
+                    <span className="font-bold">Modalidad de acceso</span>
                     <span>
-                      {esModalidadConQr(subevento.idModalidadAcceso)
-                        ? "Acceso con boleto"
-                        : "Acceso libre"}
+                      {obtenerEtiquetaModalidad(subevento.idModalidadAcceso)}
                     </span>
+                    <ModalidadAccesoHelp
+                      idModalidadAcceso={subevento.idModalidadAcceso}
+                    />
                   </div>
                   {!idSubEvento && (
                     <div className="flex min-w-0 flex-col gap-2">
@@ -686,8 +699,21 @@ export function AdministracionEvento() {
                     </span>
                   </div>
                   <div className="flex min-w-0 flex-col gap-2">
-                    <span className="font-bold">Boletos emitidos</span>
-                    <span>{subevento.boletosEmitidos}</span>
+                    <span className="font-bold">Inscritos</span>
+                    <span>
+                      {subevento.inscritosCount ?? subevento.boletosEmitidos}
+                    </span>
+                  </div>
+                  <div className="flex min-w-0 flex-col gap-2">
+                    <span className="font-bold">Ingresados</span>
+                    <span>
+                      {subevento.ingresadosCount !== null &&
+                      subevento.ingresadosCount !== undefined
+                        ? subevento.ingresadosCount
+                        : esModalidadConQr(subevento.idModalidadAcceso)
+                          ? 0
+                          : "No aplica (sin QR)"}
+                    </span>
                   </div>
                   <div className="flex min-w-0 flex-col gap-2">
                     <span className="font-bold">Estado</span>

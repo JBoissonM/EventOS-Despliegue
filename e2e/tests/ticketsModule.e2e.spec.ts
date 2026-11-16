@@ -107,9 +107,9 @@ async function setupTicketsTestData(): Promise<TestContext> {
   createdFechaIds.push(f1Id);
 
   const resSub1 = await client.query(
-    `INSERT INTO "subEvento" ("accesoQR", estado, nombre, descripcion, "idEvento", "idRecinto", "idFecha")
+    `INSERT INTO "subEvento" ("idModalidadAcceso", estado, nombre, descripcion, "idEvento", "idRecinto", "idFecha")
      VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING "idSubEvento";`,
-    [true, "Aceptado", `Magistral Auditorio ${timestamp}`, "SubEvento Auditorio", auditorioEventId, 1, f1Id],
+    [4, "Aceptado", `Magistral Auditorio ${timestamp}`, "SubEvento Auditorio", auditorioEventId, 1, f1Id],
   );
   const auditorioSubEventoId = resSub1.rows[0].idSubEvento;
   createdSubEventoIds.push(auditorioSubEventoId);
@@ -146,9 +146,9 @@ async function setupTicketsTestData(): Promise<TestContext> {
   createdFechaIds.push(f2Id);
 
   const resSub2 = await client.query(
-    `INSERT INTO "subEvento" ("accesoQR", estado, nombre, descripcion, "idEvento", "idRecinto", "idFecha")
+    `INSERT INTO "subEvento" ("idModalidadAcceso", estado, nombre, descripcion, "idEvento", "idRecinto", "idFecha")
      VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING "idSubEvento";`,
-    [true, "Aceptado", `Taller Automatización ${timestamp}`, "SubEvento Sala 14", generalEventId, 4, f2Id],
+    [3, "Aceptado", `Taller Automatización ${timestamp}`, "SubEvento Sala 14", generalEventId, 4, f2Id],
   );
   const generalSubEventoId = resSub2.rows[0].idSubEvento;
   createdSubEventoIds.push(generalSubEventoId);
@@ -185,9 +185,9 @@ async function setupTicketsTestData(): Promise<TestContext> {
   createdFechaIds.push(f3Id);
 
   const resSub3 = await client.query(
-    `INSERT INTO "subEvento" ("accesoQR", estado, nombre, descripcion, "idEvento", "idRecinto", "idFecha")
+    `INSERT INTO "subEvento" ("idModalidadAcceso", estado, nombre, descripcion, "idEvento", "idRecinto", "idFecha")
      VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING "idSubEvento";`,
-    [true, "Aceptado", `Seminario Concluido ${timestamp}`, "SubEvento Utilizado", usedEventId, 4, f3Id],
+    [3, "Aceptado", `Seminario Concluido ${timestamp}`, "SubEvento Utilizado", usedEventId, 4, f3Id],
   );
   const usedSubEventoId = resSub3.rows[0].idSubEvento;
   createdSubEventoIds.push(usedSubEventoId);
