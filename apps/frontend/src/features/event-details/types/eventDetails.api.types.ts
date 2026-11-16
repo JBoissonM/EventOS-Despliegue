@@ -1,4 +1,4 @@
-import type { AlcanceEvento, EstadoSubEvento } from "@eventos/shared";
+import type { AlcanceEvento, EstadoSubEvento, ModalidadAcceso } from "@eventos/shared";
 
 export interface EventDateApi {
   idFecha: number;
@@ -25,7 +25,7 @@ export interface SubEventDetailsApi {
   nombre: string;
   descripcion: string;
   estado: EstadoSubEvento;
-  accesoQR: boolean;
+  idModalidadAcceso: ModalidadAcceso;
   requiereSeleccionAsiento: boolean;
   fecha: EventDateApi | null;
   recinto: EventVenueApi | null;

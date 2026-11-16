@@ -128,7 +128,8 @@ e2e/
 - **`ticketReservation.e2e.spec.ts`**:
   1. **Flujo Auditorio (`UI04 -> UI05 -> UI06 -> UI07`)**: Selección de evento en cartelera, clic en reservar, selección manual de asiento disponible en el mapa interactivo del Auditorio Principal, confirmación, generación de código QR y vista de boleto digital.
   2. **Flujo Recinto General (`UI04 -> UI05 -> UI07`)**: Reserva en Sala 14 con asignación automática de lugar sin pasar por mapa de butacas.
-  3. **Flujo Entrada Libre (`UI04 -> UI05`)**: Verificación de etiqueta `"Entrada libre"` y ausencia de botones de reserva.
+  3. **Flujo Acceso Libre (`UI04 -> UI05`)**: Verificación de etiqueta `"Acceso libre"` y ausencia de botones de reserva.
+  4. **Flujo Registro Simple (`UI04 -> UI05 -> UI06 -> UI08`)**: Inscripción nominal sin código QR ni botón `"Ver QR"`, conservando `"Cancelar asistencia"`.
 - **`ticketsModule.e2e.spec.ts` (`TC-01` a `TC-10`)**: Listado en `/asistente/boletos`, consulta de QR en `/asistente/boletos/:idBoleto`, descarga de PDF, cancelación de boleto de Auditorio con liberación de butaca en BD, cancelación de reservación general, bloqueo de doble cancelación (`409`), protección de boletos ya escaneados (`Ingresado`), bloqueo IDOR entre usuarios (`404`), filtros combinados y estado vacío.
 
 ### 4.3 Organizador, Subdirección y Ciclo de Vida de Eventos

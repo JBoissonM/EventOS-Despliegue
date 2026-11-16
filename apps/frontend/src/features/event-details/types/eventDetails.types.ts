@@ -1,4 +1,4 @@
-import type { AlcanceEvento } from "@eventos/shared";
+import type { AlcanceEvento, ModalidadAcceso } from "@eventos/shared";
 
 export interface EventDateViewModel {
   fecha: string;
@@ -22,7 +22,7 @@ export interface EventActivityViewModel {
   idEvento: number;
   nombre: string;
   descripcion: string;
-  accesoQR: boolean;
+  idModalidadAcceso: ModalidadAcceso;
   requiereSeleccionAsiento: boolean;
   fecha: EventDateViewModel | null;
   recinto: EventVenueViewModel | null;

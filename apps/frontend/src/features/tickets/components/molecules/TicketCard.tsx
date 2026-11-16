@@ -13,6 +13,8 @@ export interface TicketCardProps {
   venue: string;
   status: TicketStatus;
   visibility: TicketVisibility;
+  modalityLabel?: string;
+  supportsQr?: boolean;
   posterUrl?: string;
   speakers?: string[];
   onViewQr?: () => void;
@@ -47,6 +49,8 @@ export function TicketCard({
   venue,
   status,
   visibility,
+  modalityLabel,
+  supportsQr = true,
   posterUrl,
   speakers = [],
   onViewQr,
@@ -94,6 +98,12 @@ export function TicketCard({
             <dt className="font-semibold text-eventos-ink">Espacio</dt>
             <dd className="break-words">{venue}</dd>
           </div>
+          {modalityLabel && (
+            <div>
+              <dt className="font-semibold text-eventos-ink">Modalidad</dt>
+              <dd className="break-words">{modalityLabel}</dd>
+            </div>
+          )}
           {speakers.length > 0 && (
             <div>
               <dt className="font-semibold text-eventos-ink">Ponentes</dt>
@@ -103,10 +113,16 @@ export function TicketCard({
         </dl>
       </div>
 
-      {(onViewQr || onViewDetails || onCancel) && (
+      {!supportsQr && (
+        <p className="text-xs text-eventos-muted-text">
+          Registro nominal sin código QR: tu acceso se valida con tu nombre en lista.
+        </p>
+      )}
+
+      {((supportsQr && (onViewQr || onViewDetails)) || onCancel) && (
         <div className="mt-auto flex w-full flex-wrap items-center gap-2 border-t border-eventos-divider pt-4">
-          {status === "active" && onViewQr && <Button text="Ver QR" size="sm" onClick={onViewQr} />}
-          {status !== "active" && onViewDetails && <Button text="Ver detalles" size="sm" onClick={onViewDetails} />}
+          {status === "active" && supportsQr && onViewQr && <Button text="Ver QR" size="sm" onClick={onViewQr} />}
+          {status !== "active" && supportsQr && onViewDetails && <Button text="Ver detalles" size="sm" onClick={onViewDetails} />}
           {status === "active" && onCancel && <Button text="Cancelar asistencia" variant="outline" size="sm" onClick={onCancel} />}
         </div>
       )}

@@ -7,6 +7,7 @@ export interface SubEventFormInput {
   horaInicio: string;
   horaFin: string;
   idRecinto: "1" | "2" | "3" | "4"; // 1=Auditorio, 2=Lab 1104, 3=Lab 1105, 4=Sala 14
+  idModalidadAcceso?: "1" | "2" | "3" | "4";
   accesoQR?: "true" | "false";
 }
 
@@ -162,11 +163,37 @@ export class EventRequestPage {
     await this.selectOptionByValue(this.venueSelect(index), venueId);
   }
 
+  async setSubEventModality(
+    modalidad: "1" | "2" | "3" | "4",
+    index = 0,
+  ): Promise<void> {
+    await this.selectOptionByValue(this.ticketSelect(index), modalidad);
+  }
+
+  async getAvailableModalityValues(index = 0): Promise<string[]> {
+    const selectEl = await this.driver.findElement(this.ticketSelect(index));
+    const options = await selectEl.findElements(By.css("option"));
+    const values: string[] = [];
+    for (const opt of options) {
+      const val = await opt.getAttribute("value");
+      if (val) values.push(val);
+    }
+    return values;
+  }
+
   async setSubEventTicketAccess(
     requiresTicket: "true" | "false",
     index = 0,
   ): Promise<void> {
-    await this.selectOptionByValue(this.ticketSelect(index), requiresTicket);
+    if (requiresTicket === "false") {
+      await this.selectOptionByValue(this.ticketSelect(index), "1");
+      return;
+    }
+    const available = await this.getAvailableModalityValues(index);
+    await this.selectOptionByValue(
+      this.ticketSelect(index),
+      available.includes("4") ? "4" : "3",
+    );
   }
 
   async isTicketSelectDisabled(index = 0): Promise<boolean> {
@@ -254,7 +281,12 @@ export class EventRequestPage {
       0,
     );
 
-    if (data.subEvento.idRecinto === "1" && data.subEvento.accesoQR) {
+    if (
+      data.subEvento.idModalidadAcceso &&
+      !(await this.isTicketSelectDisabled(0))
+    ) {
+      await this.setSubEventModality(data.subEvento.idModalidadAcceso, 0);
+    } else if (data.subEvento.idRecinto === "1" && data.subEvento.accesoQR) {
       await this.setSubEventTicketAccess(data.subEvento.accesoQR, 0);
     }
 

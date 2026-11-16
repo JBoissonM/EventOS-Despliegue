@@ -1,5 +1,6 @@
 
 import { useEffect, useId, useRef } from "react";
+import { type ModalidadAcceso, esModalidadConQr } from "@eventos/shared";
 import { Button } from "../../../../components/atoms/Button/Button";
 
 export interface ReservationSuccessDialogProps {
@@ -8,6 +9,7 @@ export interface ReservationSuccessDialogProps {
   seatLabel?: string | null;
   ticketId?: number | null;
   qr?: string | null;
+  idModalidadAcceso?: ModalidadAcceso;
   onClose: () => void;
   onViewTicket?: () => void;
 }
@@ -18,9 +20,13 @@ export function ReservationSuccessDialog({
                                            seatLabel,
                                            ticketId,
                                            qr,
+                                           idModalidadAcceso,
                                            onClose,
                                            onViewTicket,
                                          }: ReservationSuccessDialogProps) {
+  const requiresQr = idModalidadAcceso === undefined
+    ? Boolean(qr)
+    : esModalidadConQr(idModalidadAcceso);
   const dialogRef = useRef<HTMLDialogElement>(null);
 
   const titleId = useId();
@@ -80,7 +86,16 @@ export function ReservationSuccessDialog({
           >
             Tu reservación para {eventName} se
             registró correctamente.
-            {ticketId && <span className="mt-2 block font-semibold">Boleto #{ticketId}</span>}
+            {ticketId && (
+              <span className="mt-2 block font-semibold">
+                {requiresQr ? `Boleto #${ticketId}` : `Registro #${ticketId}`}
+              </span>
+            )}
+            {!requiresQr && (
+              <span className="mt-2 block text-xs text-eventos-muted-text">
+                Esta modalidad no genera código QR. Tu acceso se valida con tu nombre o correo en la lista de asistencia.
+              </span>
+            )}
             {seatLabel && (
               <span className="mt-2 block font-semibold">
                 Asiento: {seatLabel}
@@ -97,7 +112,7 @@ export function ReservationSuccessDialog({
         )}
 
         <div className="flex flex-wrap justify-center gap-3">
-          {onViewTicket && (
+          {onViewTicket && Boolean(qr) && requiresQr && (
             <Button
               text="Ver código QR"
               variant="outline"

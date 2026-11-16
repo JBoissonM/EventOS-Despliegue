@@ -1,7 +1,10 @@
 import { useState } from "react";
+import { esModalidadConQr, type ModalidadAcceso } from "@eventos/shared";
 import { EventSessionCard } from "../../event-details/components/molecules/EventSessionCard";
+import { Badge } from "../../../components/atoms/Badge/Badge";
 import Button from "../../../components/atoms/Button/Button";
 import { Modal } from "../../../components/molecules/Modal";
+import { ModalidadAccesoHelp } from "../../../components/molecules/ModalidadAccesoHelp";
 import { TextArea } from "../../../components/atoms/TextArea/TextArea";
 import { FormField } from "../../../components/molecules/FormField";
 
@@ -9,8 +12,10 @@ export interface OrganizerSubeventCardData {
   idSubEvento: number;
   nombre: string;
   descripcion: string;
-  accesoQR: boolean;
+  idModalidadAcceso: ModalidadAcceso;
   estado?: string;
+  inscritosCount?: number;
+  ingresadosCount?: number | null;
   fecha: {
     fecha: string;
     horaInicio: string;
@@ -113,15 +118,30 @@ export function OrganizerSubeventCard({
       {detailsVisible && (
         <section
           aria-labelledby={`subevento-descripcion-${subevento.idSubEvento}`}
-          className="rounded-md border border-gray-200 bg-white px-5 py-4">
+          className="space-y-3 rounded-md border border-gray-200 bg-white px-5 py-4">
           <h4
             id={`subevento-descripcion-${subevento.idSubEvento}`}
             className="font-semibold text-eventos-ink">
             Descripción de la actividad
           </h4>
-          <p className="mt-2 whitespace-pre-wrap break-words text-sm text-eventos-body-text">
+          <p className="whitespace-pre-wrap break-words text-sm text-eventos-body-text">
             {subevento.descripcion}
           </p>
+          <ModalidadAccesoHelp idModalidadAcceso={subevento.idModalidadAcceso} />
+          <div className="flex flex-wrap gap-2 pt-1">
+            <Badge variant="secondary">
+              Inscritos: {subevento.inscritosCount ?? 0}
+            </Badge>
+            <Badge variant="neutral">
+              Ingresados:{" "}
+              {subevento.ingresadosCount !== null &&
+              subevento.ingresadosCount !== undefined
+                ? subevento.ingresadosCount
+                : esModalidadConQr(subevento.idModalidadAcceso)
+                  ? 0
+                  : "No aplica (sin QR)"}
+            </Badge>
+          </div>
         </section>
       )}
       {onCancel && (

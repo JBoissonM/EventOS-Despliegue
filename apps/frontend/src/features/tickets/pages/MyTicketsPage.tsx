@@ -243,19 +243,22 @@ export function MyTicketsPage({ tickets, onCancelTicket, onViewQr }: MyTicketsPa
 
         {filteredTickets.length > 0 ? (
           <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
-            {filteredTickets.map((ticket) => (
-              <TicketCard
-                key={ticket.id}
-                {...ticket}
-                onViewQr={ticket.status === "active" ? () => onViewQr(ticket.id) : undefined}
-                onViewDetails={ticket.status !== "active" ? () => onViewQr(ticket.id) : undefined}
-                onCancel={ticket.status === "active" ? () => {
-                  setCancelError(null);
-                  setSuccessMessage(null);
-                  setSelectedTicketId(ticket.id);
-                } : undefined}
-              />
-            ))}
+            {filteredTickets.map((ticket) => {
+              const canViewQr = ticket.supportsQr !== false;
+              return (
+                <TicketCard
+                  key={ticket.id}
+                  {...ticket}
+                  onViewQr={ticket.status === "active" && canViewQr ? () => onViewQr(ticket.id) : undefined}
+                  onViewDetails={ticket.status !== "active" && canViewQr ? () => onViewQr(ticket.id) : undefined}
+                  onCancel={ticket.status === "active" ? () => {
+                    setCancelError(null);
+                    setSuccessMessage(null);
+                    setSelectedTicketId(ticket.id);
+                  } : undefined}
+                />
+              );
+            })}
           </div>
         ) : (
           <PageState

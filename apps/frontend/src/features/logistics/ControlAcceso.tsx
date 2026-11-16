@@ -1,8 +1,13 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router";
 import { QrCode, Users, LoaderCircle, AlertCircle } from "lucide-react";
+import { ModalidadAcceso } from "@eventos/shared";
 import { API_BASE_URL } from "../../lib/apiClient";
+import { Badge } from "../../components/atoms/Badge/Badge";
 import { Button } from "../../components/atoms/Button/Button";
+import { CardMetricas } from "../../components/molecules/CardMetricas";
+import { FeedbackNotice } from "../../components/molecules/FeedbackNotice";
+import { ModalidadAccesoHelp } from "../../components/molecules/ModalidadAccesoHelp";
 
 interface Asistente {
   idBoleto?: number;
@@ -17,9 +22,15 @@ interface Asistente {
 interface ControlAccesoData {
   nombreSubEvento: string;
   nombreEvento: string;
+  idModalidadAcceso?: number;
+  etiquetaModalidad?: string;
+  requiereEscaneoQR?: boolean;
   aforoActual: number;
   aforoMaximo: number;
+  totalInscritos?: number;
+  totalIngresados?: number;
   listaAsistentes: Asistente[];
+  listaReservados?: Asistente[];
 }
 
 export function ControlAcceso() {
@@ -85,6 +96,15 @@ export function ControlAcceso() {
     );
   }
 
+  const requiresQr = data?.requiereEscaneoQR !== false;
+  const isSimpleRegistration = data?.idModalidadAcceso === ModalidadAcceso.REGISTRO_SIMPLE;
+  const displayList = isSimpleRegistration
+    ? (data?.listaReservados ?? data?.listaAsistentes ?? [])
+    : (data?.listaAsistentes ?? []);
+  const enteredCount = data?.totalIngresados ?? data?.aforoActual ?? 0;
+  const enrolledCount = data?.totalInscritos ?? 0;
+  const maxCapacity = data?.aforoMaximo ?? 50;
+
   return (
     <div className="min-h-1 bg-gray-50 font-merriweather text-gray-800">
       <main className="mx-auto w-full px-10 py-0">
@@ -93,38 +113,81 @@ export function ControlAcceso() {
             <span className="font-merriweather text-[20px] mr-3">← Volver a los eventos asignados</span>
           </button>
         </div>
-        <div className="mb-8">
-          <h1 className="text-[36px] font-bold text-gray-900 mb-2">Control de Acceso</h1>
-          <h2 className="text-[28px] text-teal-800">
-            {data?.nombreSubEvento || "Actividad del Evento"}
-          </h2>
+        <div className="mb-8 space-y-2">
+          <h1 className="text-[36px] font-bold text-gray-900">Control de Acceso</h1>
+          <div className="flex flex-wrap items-center gap-3">
+            <h2 className="text-[28px] text-teal-800">
+              {data?.nombreSubEvento || "Actividad del Evento"}
+            </h2>
+            {data?.etiquetaModalidad && (
+              <Badge variant="secondary" size="md">
+                {data.etiquetaModalidad}
+              </Badge>
+            )}
+          </div>
+          {data?.idModalidadAcceso && (
+            <ModalidadAccesoHelp
+              idModalidadAcceso={data.idModalidadAcceso as ModalidadAcceso}
+              className="max-w-2xl"
+            />
+          )}
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 items-start">
-          <div className="p-8 flex flex-col items-center text-center space-y-8">
-            <div className="space-y-2">
-              <div className="text-[36px] font-semibold text-gray-900 tracking-tight font-merriweather">
-                {data?.aforoActual ?? 0}/{data?.aforoMaximo ?? 50}
+          <div className="p-8 flex flex-col items-center text-center space-y-6">
+            {requiresQr ? (
+              <div className="flex flex-wrap justify-center gap-4">
+                <CardMetricas titulo="Ingresados" className="min-w-[11rem]">
+                  <span className="font-merriweather font-bold text-3xl">
+                    {enteredCount}/{maxCapacity}
+                  </span>
+                </CardMetricas>
+                <CardMetricas titulo="Inscritos" className="min-w-[11rem]">
+                  <span className="font-merriweather font-bold text-3xl">
+                    {enrolledCount}/{maxCapacity}
+                  </span>
+                </CardMetricas>
               </div>
-              <p className="text-[24px] font-semibold text-gray-900">Aforo Actual</p>
-            </div>
+            ) : isSimpleRegistration ? (
+              <CardMetricas titulo="Inscritos confirmados">
+                <span className="font-merriweather font-bold text-3xl">
+                  {enrolledCount}/{maxCapacity}
+                </span>
+              </CardMetricas>
+            ) : (
+              <CardMetricas titulo="Aforo del recinto">
+                <span className="font-merriweather font-bold text-3xl">
+                  {maxCapacity}
+                </span>
+              </CardMetricas>
+            )}
 
-            <div className="w-70">
-              <Button
-                text="Abrir Escáner"
-                variant="primary"
-                onClick={() => navigate(`/escanear-boleto/${idSubEvento}`)}
-                className="w-full py-4 font-semibold rounded-lg shadow transition-colors flex items-center justify-center gap-2 font-merriweather bg-[#5c1d33] hover:bg-[#4a1c2d] text-white"
-              >
-                <QrCode size={22} /> Abrir Escáner
-              </Button>
-            </div>
+            {requiresQr ? (
+              <div className="w-70">
+                <Button
+                  text="Abrir Escáner"
+                  variant="primary"
+                  onClick={() => navigate(`/escanear-boleto/${idSubEvento}`)}
+                  className="w-full py-4 font-semibold rounded-lg shadow transition-colors flex items-center justify-center gap-2 font-merriweather bg-[#5c1d33] hover:bg-[#4a1c2d] text-white"
+                >
+                  <QrCode size={22} /> Abrir Escáner
+                </Button>
+              </div>
+            ) : (
+              <div className="max-w-md text-left">
+                <FeedbackNotice variant="warning" title="Escáner QR deshabilitado">
+                  {isSimpleRegistration
+                    ? "Esta actividad utiliza registro simple. Valida a los participantes directamente en la lista de inscritos."
+                    : "Esta actividad es de acceso libre hasta completar el aforo del recinto."}
+                </FeedbackNotice>
+              </div>
+            )}
           </div>
 
           <div className="bg-white rounded-xl border border-gray-300 shadow-sm p-6">
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-xl font-bold text-gray-900 flex items-center gap-2 font-merriweather">
-                <Users size={22} className="text-primary" /> Lista de Asistentes
+                <Users size={22} className="text-primary" /> {isSimpleRegistration ? "Lista de Inscritos" : "Lista de Asistentes"}
               </h3>
             </div>
 
@@ -134,20 +197,26 @@ export function ControlAcceso() {
                   <tr>
                     <th className="p-3">Nombre</th>
                     <th className="p-3">Ocupación</th>
+                    {isSimpleRegistration && <th className="p-3">Correo</th>}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200 text-sm">
-                  {data?.listaAsistentes && data.listaAsistentes.length > 0 ? (
-                    data.listaAsistentes.map((asistente, index) => (
-                      <tr key={index} className="hover:bg-gray-50/50">
+                  {displayList.length > 0 ? (
+                    displayList.map((asistente, index) => (
+                      <tr key={asistente.idBoleto ?? index} className="hover:bg-gray-50/50">
                         <td className="p-3 text-gray-900 font-medium">{asistente.nombre}</td>
                         <td className="p-3 text-gray-600">{asistente.ocupacion}</td>
+                        {isSimpleRegistration && (
+                          <td className="p-3 text-gray-600">{asistente.correo || "—"}</td>
+                        )}
                       </tr>
                     ))
                   ) : (
                     <tr>
-                      <td colSpan={2} className="p-6 text-center text-gray-400 italic">
-                        Ningún asistente ha accedido todavía.
+                      <td colSpan={isSimpleRegistration ? 3 : 2} className="p-6 text-center text-gray-400 italic">
+                        {isSimpleRegistration
+                          ? "Ningún asistente se ha registrado todavía."
+                          : "Ningún asistente ha accedido todavía."}
                       </td>
                     </tr>
                   )}

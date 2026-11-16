@@ -9,13 +9,18 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, EntityManager, In, Repository } from 'typeorm';
 import {
+  calcularImpactoCambioSubevento,
+  clasificarTransicionModalidad,
+  esLaboratorioRecinto,
   EstadoBoleto,
   EstadoEvento,
   EstadoRecinto,
   EstadoSubEvento,
   EstadoVerificacion,
-  RecintoId,
+  ModalidadAcceso,
   TipoCuentaUsuario,
+  validarModalidadEnRecinto,
+  type ImpactoCambioSubevento,
   type SolicitanteResumen,
   type SubeventoPayload,
   type SubEventoLogisticaPayload,
@@ -216,33 +221,35 @@ export class SolicitudesService {
     return true;
   }
 
+  private resolverModalidadPayload(sub: SubeventoPayload): ModalidadAcceso {
+    return (
+      sub.idModalidadAcceso ??
+      (esLaboratorioRecinto(sub.idRecinto)
+        ? ModalidadAcceso.QR_GENERAL
+        : ModalidadAcceso.ACCESO_LIBRE)
+    );
+  }
+
   private async validarReglasRecintoConManager(
     recinto: RecintoEntity,
-    accesoQR: boolean,
+    idModalidadAcceso: ModalidadAcceso,
     manager: EntityManager,
   ): Promise<void> {
     if (recinto.idEstadoRecinto !== EstadoRecinto.HABILITADO) {
       throw new ConflictException(
-        `El recinto "${recinto.nombre}" no está disponible por encontrarse inhabilitado o en mantenimiento (RN-34).`,
+        `El recinto "${recinto.nombre}" no está disponible por encontrarse inhabilitado o en mantenimiento.`,
       );
     }
 
-    if (recinto.idRecinto === RecintoId.SALA_14 && accesoQR === true) {
-      throw new BadRequestException(
-        'En Sala 14 no se permite acceso con boleto o código QR individual.',
-      );
+    const errorModalidad = validarModalidadEnRecinto(
+      recinto.idRecinto,
+      idModalidadAcceso,
+    );
+    if (errorModalidad) {
+      throw new BadRequestException(errorModalidad);
     }
 
-    if (
-      recinto.idRecinto !== RecintoId.AUDITORIO &&
-      recinto.idRecinto !== RecintoId.SALA_14
-    ) {
-      if (accesoQR === false) {
-        throw new BadRequestException(
-          'En los laboratorios de cómputo es obligatorio el acceso con boleto/código QR.',
-        );
-      }
-
+    if (esLaboratorioRecinto(recinto.idRecinto)) {
       const [{ total }] = await manager.query(
         `SELECT COUNT(*)::int AS total FROM "estadoEquipo" WHERE "idRecinto" = $1 AND estado = true`,
         [recinto.idRecinto],
@@ -295,7 +302,7 @@ export class SolicitudesService {
         const recinto = recintosBloqueados.get(subeventoActual.idRecinto)!;
         await this.validarReglasRecintoConManager(
           recinto,
-          subeventoActual.accesoQR ?? false,
+          this.resolverModalidadPayload(subeventoActual),
           manager,
         );
         await this.consultarColisionBD(
@@ -311,7 +318,7 @@ export class SolicitudesService {
     for (const subeventoActual of subeventos) {
       await this.recintoService.validarRecinto(
         subeventoActual.idRecinto,
-        subeventoActual.accesoQR ?? false,
+        this.resolverModalidadPayload(subeventoActual),
       );
 
       await this.consultarColisionBD(subeventoActual, excluirIdEvento);
@@ -385,7 +392,7 @@ export class SolicitudesService {
           const recinto = recintosBloqueados.get(subeventoActual.idRecinto)!;
           await this.validarReglasRecintoConManager(
             recinto,
-            subeventoActual.accesoQR ?? false,
+            this.resolverModalidadPayload(subeventoActual),
             manager,
           );
           await this.consultarColisionBD(subeventoActual, undefined, manager);
@@ -413,7 +420,7 @@ export class SolicitudesService {
           idEvento: eventoGuardado.idEvento,
           idRecinto: sub.idRecinto,
           idFecha: fechaGuardada.idFecha,
-          accesoQR: sub.accesoQR ?? false,
+          idModalidadAcceso: this.resolverModalidadPayload(sub),
           estado: estadoSubEventoInicial,
         });
 
@@ -604,33 +611,130 @@ export class SolicitudesService {
       },
     });
 
+    const idsSubeventos = (evento.subEventos || []).map((s) => s.idSubEvento);
+    const conteoBoletosPorSub = new Map<number, number>();
+    if (idsSubeventos.length > 0) {
+      const conteos: { idSubEvento: number; total: string }[] =
+        await this.dataSource.query(
+          `SELECT ae."idSubEvento", COUNT(b."idBoleto")::int AS total
+           FROM "asistenteEvento" ae
+           INNER JOIN boleto b ON ae."idBoleto" = b."idBoleto"
+           WHERE ae."idSubEvento" = ANY($1::int[])
+             AND b."idEstadoBoleto" = $2
+           GROUP BY ae."idSubEvento"`,
+          [idsSubeventos, EstadoBoleto.VALIDO],
+        );
+      for (const c of conteos) {
+        conteoBoletosPorSub.set(Number(c.idSubEvento), Number(c.total));
+      }
+    }
+
     const solicitudPendiente =
       await this.solicitudModificacionRepository.findOne({
         where: { idEvento, estado: 'Pendiente' },
       });
 
     let subeventosPropuestosDetallados = null;
+    let actividadesEliminadas: Array<{
+      idSubEvento: number;
+      nombre: string;
+      boletosActivos: number;
+    }> = [];
+
     if (solicitudPendiente) {
-      const recintos = await this.dataSource
-        .getRepository(RecintoEntity)
-        .find();
-      const mapaRecintos = new Map(recintos.map((r) => [r.idRecinto, r]));
+      const recintosConEquipos: Array<{
+        idRecinto: number;
+        nombre: string;
+        aforo: number;
+        idEstadoRecinto: number;
+        equipos: number;
+      }> = await this.dataSource.query(
+        `SELECT r."idRecinto",
+                r.nombre,
+                r.aforo,
+                r."idEstadoRecinto",
+                COALESCE((SELECT COUNT(*)::int FROM "estadoEquipo" eq WHERE eq."idRecinto" = r."idRecinto" AND eq.estado = true), 0) AS equipos
+         FROM recinto r`,
+      );
+      const mapaRecintos = new Map(
+        recintosConEquipos.map((r) => {
+          const idRec = Number(r.idRecinto);
+          const aforoReal = esLaboratorioRecinto(idRec)
+            ? Number(r.equipos)
+            : Number(r.aforo);
+          return [
+            idRec,
+            {
+              idRecinto: idRec,
+              nombre: r.nombre,
+              aforo: aforoReal,
+              idEstadoRecinto: Number(r.idEstadoRecinto),
+            },
+          ];
+        }),
+      );
+      const mapaSubeventosOriginales = new Map(
+        (evento.subEventos || []).map((s) => [s.idSubEvento, s]),
+      );
+      const idsPropuestos = new Set<number>();
+
       subeventosPropuestosDetallados = (
         solicitudPendiente.subeventosPropuestos || []
       ).map((prop) => {
+        if (prop.idSubEvento) {
+          idsPropuestos.add(prop.idSubEvento);
+        }
         const rec = mapaRecintos.get(prop.idRecinto);
+        const anterior = prop.idSubEvento
+          ? mapaSubeventosOriginales.get(prop.idSubEvento)
+          : undefined;
+        const modalidadDestino = this.resolverModalidadPayload(prop);
+        const inscritosActivos = anterior
+          ? (conteoBoletosPorSub.get(anterior.idSubEvento) ?? 0)
+          : 0;
+        const impacto: ImpactoCambioSubevento | null =
+          anterior && rec
+            ? calcularImpactoCambioSubevento({
+                idSubEvento: anterior.idSubEvento,
+                nombreSubEvento: prop.nombre || anterior.nombre,
+                inscritosActivos,
+                aforoDestino: rec.aforo,
+                idRecintoOrigen: anterior.idRecinto,
+                idRecintoDestino: prop.idRecinto,
+                modalidadOrigen: anterior.idModalidadAcceso,
+                modalidadDestino,
+              })
+            : null;
+        const recintoAnteriorInfo = anterior
+          ? mapaRecintos.get(anterior.idRecinto)
+          : undefined;
+
         return {
           ...prop,
-          espacio: rec
-            ? {
-              idRecinto: rec.idRecinto,
-              nombre: rec.nombre,
-              aforo: rec.aforo,
-              idEstadoRecinto: rec.idEstadoRecinto,
-            }
-            : null,
+          idModalidadAcceso: modalidadDestino,
+          esNuevo: !anterior,
+          boletosActivos: inscritosActivos,
+          recintoAnterior: recintoAnteriorInfo ?? null,
+          modalidadAnterior: anterior ? anterior.idModalidadAcceso : null,
+          fechaAnterior: anterior?.fecha?.fecha ?? null,
+          horaInicioAnterior: anterior?.fecha?.horaInicio ?? null,
+          horaFinAnterior: anterior?.fecha?.horaFin ?? null,
+          impacto,
+          espacio: rec ?? null,
         };
       });
+
+      actividadesEliminadas = (evento.subEventos || [])
+        .filter(
+          (s) =>
+            s.estado !== EstadoSubEvento.CANCELADO &&
+            !idsPropuestos.has(s.idSubEvento),
+        )
+        .map((s) => ({
+          idSubEvento: s.idSubEvento,
+          nombre: s.nombre,
+          boletosActivos: conteoBoletosPorSub.get(s.idSubEvento) ?? 0,
+        }));
     }
 
     const posterUrl = this.resolverPosterUrl(evento.poster);
@@ -656,13 +760,15 @@ export class SolicitudesService {
           motivoModificacion: solicitudPendiente.motivoModificacion,
           estado: solicitudPendiente.estado,
           subeventosPropuestos: subeventosPropuestosDetallados,
+          actividadesEliminadas,
         }
         : null,
       subeventos: (evento.subEventos || []).map((sub) => ({
         idSubEvento: sub.idSubEvento,
         nombre: sub.nombre,
         descripcion: sub.descripcion,
-        accesoQR: sub.accesoQR,
+        idModalidadAcceso: sub.idModalidadAcceso,
+        boletosActivos: conteoBoletosPorSub.get(sub.idSubEvento) ?? 0,
         estado: sub.estado,
         idFecha: sub.idFecha,
         fecha: sub.fecha
@@ -755,14 +861,23 @@ export class SolicitudesService {
     this.validarSubeventosEnMemoria(subeventosPropuestos);
     const nuevoEsUrgente = this.calcularEsUrgente(subeventosPropuestos);
 
-    const subeventosConCambioRecinto: {
-      idSubEvento: number;
-      nombreSubEvento: string;
-      idNuevoRecinto: number;
-      fecha: string;
-      horaInicio: string;
-      horaFin: string;
-    }[] = [];
+    const evento = await this.eventoRepository.findOneBy({ idEvento });
+    if (!evento) {
+      throw new NotFoundException('Evento no encontrado.');
+    }
+
+    const colaCorreoA: Parameters<
+      MailService['enviarCorreoACambioRecintoConservado']
+    >[0][] = [];
+    const colaCorreoB: Parameters<
+      MailService['enviarCorreoBCambioModalidadNuevoRegistro']
+    >[0][] = [];
+    const colaCorreoC: Parameters<
+      MailService['enviarCorreoCCambioAccesoLibre']
+    >[0][] = [];
+    const colaCorreoD: Parameters<
+      MailService['enviarCorreoDCancelacionSobrecupoFifo']
+    >[0][] = [];
 
     const subeventosCancelados: {
       idSubEvento: number;
@@ -774,11 +889,6 @@ export class SolicitudesService {
         apellidoPa: string;
       }[];
     }[] = [];
-
-    const evento = await this.eventoRepository.findOneBy({ idEvento });
-    if (!evento) {
-      throw new NotFoundException('Evento no encontrado.');
-    }
 
     await this.dataSource.transaction(async (manager) => {
       const idsRecintoOrdenados = [
@@ -805,7 +915,7 @@ export class SolicitudesService {
         const recinto = recintosBloqueados.get(subeventoActual.idRecinto)!;
         await this.validarReglasRecintoConManager(
           recinto,
-          subeventoActual.accesoQR ?? false,
+          this.resolverModalidadPayload(subeventoActual),
           manager,
         );
         await this.consultarColisionBD(subeventoActual, idEvento, manager);
@@ -827,25 +937,143 @@ export class SolicitudesService {
 
         if (existente) {
           idsConservados.add(existente.idSubEvento);
+          const destinoModalidad =
+            propuesto.idModalidadAcceso ?? existente.idModalidadAcceso;
           const cambioRecinto = existente.idRecinto !== propuesto.idRecinto;
-          if (cambioRecinto) {
-            await manager.query(
-              `UPDATE boleto b
-               SET "idAsiento" = NULL
+          const cambioModalidad =
+            existente.idModalidadAcceso !== destinoModalidad;
+          const recintoDestino = recintosBloqueados.get(propuesto.idRecinto)!;
+
+          if (cambioRecinto || cambioModalidad) {
+            const activos: Array<{
+              idBoleto: number;
+              idUsuario: number;
+              correo: string;
+              nombre: string;
+              apellidoPa: string;
+            }> = await manager.query(
+              `SELECT b."idBoleto", u."idUsuario", u.correo, u.nombre, u."apellidoPa"
                FROM "asistenteEvento" ae
-               WHERE ae."idBoleto" = b."idBoleto"
-                 AND ae."idSubEvento" = $1
-                 AND b."idEstadoBoleto" = $2`,
+               INNER JOIN boleto b ON ae."idBoleto" = b."idBoleto"
+               INNER JOIN usuario u ON ae."idUsuario" = u."idUsuario"
+               WHERE ae."idSubEvento" = $1
+                 AND b."idEstadoBoleto" = $2
+               ORDER BY b."fechaGeneracion" ASC, b."idBoleto" ASC
+               FOR UPDATE OF b`,
               [existente.idSubEvento, EstadoBoleto.VALIDO],
             );
-            subeventosConCambioRecinto.push({
-              idSubEvento: existente.idSubEvento,
-              nombreSubEvento: propuesto.nombre,
-              idNuevoRecinto: propuesto.idRecinto,
-              fecha: propuesto.fecha,
-              horaInicio: propuesto.horaInicio,
-              horaFin: propuesto.horaFin,
-            });
+
+            if (activos.length > 0) {
+              let dentroAforo = activos;
+
+              if (
+                destinoModalidad !== ModalidadAcceso.ACCESO_LIBRE &&
+                recintoDestino.aforo < activos.length
+              ) {
+                const limite = Math.max(0, recintoDestino.aforo);
+                dentroAforo = activos.slice(0, limite);
+                const excedentesFifo = activos.slice(limite);
+
+                if (excedentesFifo.length > 0) {
+                  const idsExcedentes = excedentesFifo.map((r) =>
+                    Number(r.idBoleto),
+                  );
+                  await manager.query(
+                    `UPDATE boleto
+                     SET "idEstadoBoleto" = $1, "idAsiento" = NULL
+                     WHERE "idBoleto" = ANY($2::int[])`,
+                    [EstadoBoleto.CANCELADO, idsExcedentes],
+                  );
+                  for (const exc of excedentesFifo) {
+                    if (!exc.correo) continue;
+                    colaCorreoD.push({
+                      destinatario: exc.correo,
+                      nombreAsistente: `${exc.nombre} ${exc.apellidoPa}`.trim(),
+                      nombreEvento: evento.nombre,
+                    });
+                  }
+                }
+              }
+
+              if (dentroAforo.length > 0) {
+                const transicion = clasificarTransicionModalidad(
+                  existente.idModalidadAcceso,
+                  destinoModalidad,
+                );
+                const idsEnAforo = dentroAforo.map((r) => Number(r.idBoleto));
+
+                if (transicion === 'CONSERVADO') {
+                  const removioAsiento =
+                    existente.idModalidadAcceso === ModalidadAcceso.QR_MAPA &&
+                    destinoModalidad !== ModalidadAcceso.QR_MAPA;
+
+                  if (destinoModalidad === ModalidadAcceso.REGISTRO_SIMPLE) {
+                    await manager.query(
+                      `UPDATE boleto
+                       SET "idAsiento" = NULL, "tokenQR" = ''
+                       WHERE "idBoleto" = ANY($1::int[])`,
+                      [idsEnAforo],
+                    );
+                  } else if (removioAsiento) {
+                    await manager.query(
+                      `UPDATE boleto
+                       SET "idAsiento" = NULL
+                       WHERE "idBoleto" = ANY($1::int[])`,
+                      [idsEnAforo],
+                    );
+                  }
+
+                  for (const asist of dentroAforo) {
+                    if (!asist.correo) continue;
+                    colaCorreoA.push({
+                      destinatario: asist.correo,
+                      nombreAsistente:
+                        `${asist.nombre} ${asist.apellidoPa}`.trim(),
+                      nombreEvento: evento.nombre,
+                      nombreSubEvento: propuesto.nombre,
+                      nuevoRecinto: recintoDestino.nombre,
+                      fecha: propuesto.fecha,
+                      horaInicio: propuesto.horaInicio.slice(0, 5),
+                      idModalidadDestino: destinoModalidad,
+                      removioAsiento,
+                    });
+                  }
+                } else {
+                  await manager.query(
+                    `UPDATE boleto
+                     SET "idEstadoBoleto" = $1, "idAsiento" = NULL
+                     WHERE "idBoleto" = ANY($2::int[])`,
+                    [EstadoBoleto.CANCELADO, idsEnAforo],
+                  );
+
+                  if (transicion === 'CANCELADO_REAUTH') {
+                    for (const asist of dentroAforo) {
+                      if (!asist.correo) continue;
+                      colaCorreoB.push({
+                        destinatario: asist.correo,
+                        nombreAsistente:
+                          `${asist.nombre} ${asist.apellidoPa}`.trim(),
+                        nombreEvento: evento.nombre,
+                        idEvento,
+                        nuevoRecinto: recintoDestino.nombre,
+                      });
+                    }
+                  } else {
+                    for (const asist of dentroAforo) {
+                      if (!asist.correo) continue;
+                      colaCorreoC.push({
+                        destinatario: asist.correo,
+                        nombreAsistente:
+                          `${asist.nombre} ${asist.apellidoPa}`.trim(),
+                        nombreEvento: evento.nombre,
+                        fecha: propuesto.fecha,
+                        nuevoRecinto: recintoDestino.nombre,
+                      });
+                    }
+                  }
+                }
+              }
+            }
           }
 
           if (existente.idFecha) {
@@ -859,7 +1087,7 @@ export class SolicitudesService {
             nombre: propuesto.nombre,
             descripcion: propuesto.descripcion,
             idRecinto: propuesto.idRecinto,
-            accesoQR: propuesto.accesoQR ?? existente.accesoQR,
+            idModalidadAcceso: destinoModalidad,
             estado: EstadoSubEvento.ACEPTADO,
           });
           idSubEventoAfectado = existente.idSubEvento;
@@ -875,7 +1103,7 @@ export class SolicitudesService {
             idEvento,
             idRecinto: propuesto.idRecinto,
             idFecha: nuevaFecha.idFecha,
-            accesoQR: propuesto.accesoQR ?? false,
+            idModalidadAcceso: this.resolverModalidadPayload(propuesto),
             estado: EstadoSubEvento.ACEPTADO,
           });
           idsConservados.add(nuevoSub.idSubEvento);
@@ -941,8 +1169,18 @@ export class SolicitudesService {
       );
     });
 
-    if (subeventosConCambioRecinto.length > 0) {
-      void this.notificarAsistentesCambioRecinto(idEvento, subeventosConCambioRecinto);
+    if (
+      colaCorreoA.length > 0 ||
+      colaCorreoB.length > 0 ||
+      colaCorreoC.length > 0 ||
+      colaCorreoD.length > 0
+    ) {
+      void this.despacharCorreosMatrizCambio(
+        colaCorreoA,
+        colaCorreoB,
+        colaCorreoC,
+        colaCorreoD,
+      );
     }
     if (subeventosCancelados.length > 0) {
       void this.notificarSubeventosCancelados(
@@ -1013,7 +1251,7 @@ export class SolicitudesService {
             horaFin: s.fecha!.horaFin,
             nombre: s.nombre,
             descripcion: s.descripcion,
-            accesoQR: s.accesoQR,
+            idModalidadAcceso: s.idModalidadAcceso,
           }));
         const urgenciaOriginal = this.calcularEsUrgente(payloads);
         await manager.update(EventoEntity, idEvento, {
@@ -1355,47 +1593,32 @@ export class SolicitudesService {
     }
   }
 
-  private async notificarAsistentesCambioRecinto(
-    idEvento: number,
-    cambios: {
-      idSubEvento: number;
-      nombreSubEvento: string;
-      idNuevoRecinto: number;
-      fecha: string;
-      horaInicio: string;
-      horaFin: string;
-    }[],
+  private async despacharCorreosMatrizCambio(
+    colaA: Parameters<MailService['enviarCorreoACambioRecintoConservado']>[0][],
+    colaB: Parameters<
+      MailService['enviarCorreoBCambioModalidadNuevoRegistro']
+    >[0][],
+    colaC: Parameters<MailService['enviarCorreoCCambioAccesoLibre']>[0][],
+    colaD: Parameters<MailService['enviarCorreoDCancelacionSobrecupoFifo']>[0][],
   ): Promise<void> {
     try {
-      const evento = await this.eventoRepository.findOneBy({ idEvento });
-      for (const cambio of cambios) {
-        const recinto = await this.dataSource.query(
-          `SELECT nombre FROM recinto WHERE "idRecinto" = $1 LIMIT 1`,
-          [cambio.idNuevoRecinto],
+      for (const correo of colaD) {
+        await this.mailService.enviarCorreoDCancelacionSobrecupoFifo(correo);
+      }
+      for (const correo of colaA) {
+        await this.mailService.enviarCorreoACambioRecintoConservado(correo);
+      }
+      for (const correo of colaB) {
+        await this.mailService.enviarCorreoBCambioModalidadNuevoRegistro(
+          correo,
         );
-        const nombreRecinto = recinto[0]?.nombre || 'Nuevo Recinto';
-
-        const asistentes = await this.obtenerAsistentesConBoletoValido({
-          idSubEvento: cambio.idSubEvento,
-        });
-
-        for (const asist of asistentes) {
-          const nombreCompleto = `${asist.nombre} ${asist.apellidoPa}`.trim();
-          await this.mailService.enviarNotificacionCambioRecinto({
-            destinatario: asist.correo,
-            nombreAsistente: nombreCompleto,
-            nombreEvento: evento?.nombre || 'Evento Institucional',
-            nombreSubEvento: cambio.nombreSubEvento,
-            nuevoRecinto: nombreRecinto,
-            fecha: cambio.fecha,
-            horaInicio: cambio.horaInicio,
-            horaFin: cambio.horaFin,
-          });
-        }
+      }
+      for (const correo of colaC) {
+        await this.mailService.enviarCorreoCCambioAccesoLibre(correo);
       }
     } catch (err) {
       this.logger.error(
-        'Error al enviar notificaciones de cambio de recinto a asistentes',
+        'Error al despachar notificaciones de matriz y corte FIFO',
         err,
       );
     }

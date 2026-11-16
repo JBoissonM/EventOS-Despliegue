@@ -1,4 +1,4 @@
-import type { AlcanceEvento, EstadoSubEvento } from "@eventos/shared";
+import type { AlcanceEvento, EstadoSubEvento, ModalidadAcceso } from "@eventos/shared";
 
 export interface CatalogDateApi {
   fecha: string;
@@ -22,7 +22,7 @@ export interface CatalogSpeakerApi {
 export interface CatalogActivityApi {
   idSubEvento: number;
   nombre: string;
-  accesoQR: boolean;
+  idModalidadAcceso: ModalidadAcceso;
   fecha: CatalogDateApi | null;
   recinto: CatalogVenueApi | null;
   ponentes: CatalogSpeakerApi[];

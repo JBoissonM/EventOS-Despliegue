@@ -206,7 +206,7 @@ async function runFullAdversarialWorkflowSuite(): Promise<void> {
             horaInicio: "10:00",
             horaFin: "12:00",
             idRecinto: 1,
-            accesoQR: true,
+            idModalidadAcceso: 4,
           },
           {
             nombre: "Sub 2 Traslapado",
@@ -215,7 +215,7 @@ async function runFullAdversarialWorkflowSuite(): Promise<void> {
             horaInicio: "11:00",
             horaFin: "13:00",
             idRecinto: 1,
-            accesoQR: true,
+            idModalidadAcceso: 4,
           },
         ],
       }),
@@ -251,7 +251,7 @@ async function runFullAdversarialWorkflowSuite(): Promise<void> {
         horaInicio: "09:00",
         horaFin: "10:00",
         idRecinto: "1", // Auditorio Principal
-        accesoQR: "true",
+        idModalidadAcceso: "4",
       },
     });
 
@@ -314,7 +314,7 @@ async function runFullAdversarialWorkflowSuite(): Promise<void> {
     );
 
     const subEvsRes = await db.query(
-      `SELECT "idSubEvento", nombre, "idRecinto", "idFecha", "accesoQR"
+      `SELECT "idSubEvento", nombre, "idRecinto", "idFecha", "idModalidadAcceso"
        FROM "subEvento"
        WHERE "idEvento" = $1
        ORDER BY "idSubEvento" ASC`,
@@ -357,7 +357,7 @@ async function runFullAdversarialWorkflowSuite(): Promise<void> {
             horaInicio: "09:00",
             horaFin: "10:00",
             idRecinto: 3, // Laboratorio 1105
-            accesoQR: true,
+            idModalidadAcceso: 3,
           },
         ],
       }),
@@ -387,7 +387,7 @@ async function runFullAdversarialWorkflowSuite(): Promise<void> {
             horaInicio: "13:00",
             horaFin: "14:00",
             idRecinto: 4, // Sala 14
-            accesoQR: false,
+            idModalidadAcceso: 1,
           },
         ],
       }),
@@ -686,7 +686,7 @@ async function runFullAdversarialWorkflowSuite(): Promise<void> {
             horaInicio: "16:00",
             horaFin: "17:00",
             idRecinto: 2,
-            accesoQR: true,
+            idModalidadAcceso: 3,
           },
         ],
       }),
@@ -1013,7 +1013,7 @@ async function runFullAdversarialWorkflowSuite(): Promise<void> {
               horaInicio: "11:00",
               horaFin: "12:00",
               idRecinto: 1,
-              accesoQR: true,
+              idModalidadAcceso: 4,
             },
           ],
         }),
@@ -1186,24 +1186,18 @@ async function runFullAdversarialWorkflowSuite(): Promise<void> {
     await driver.executeScript("arguments[0].scrollIntoView({ block: 'center' });", btnConfirmarCambiosLog);
     await btnConfirmarCambiosLog.click();
 
-    // Primero intentar hacer clic en "Continuar" con el motivo vacío para verificar validación en ModalMotivo
+    // Primero comprobar que el botón "Continuar" está deshabilitado cuando el motivo tiene < 10 chars
     const btnContinuarModLog = await driver.wait(
       until.elementLocated(
         By.xpath("//dialog[@open]//button[normalize-space()='Continuar']"),
       ),
       6000,
     );
-    await btnContinuarModLog.click();
-
-    const errMotivoLogVacio = await driver.wait(
-      until.elementLocated(
-        By.xpath(
-          "//dialog[@open]//*[contains(normalize-space(), 'El motivo de modificación es obligatorio')]",
-        ),
-      ),
-      5000,
+    assert.equal(
+      await btnContinuarModLog.isEnabled(),
+      false,
+      "El botón Continuar debe permanecer deshabilitado con el motivo vacío o menor a 10 caracteres",
     );
-    assert.equal(await errMotivoLogVacio.isDisplayed(), true);
 
     // Ingresar el motivo de modificación logística y confirmar
     const campoMotivoLog = await driver.findElement(
@@ -1212,6 +1206,7 @@ async function runFullAdversarialWorkflowSuite(): Promise<void> {
     await campoMotivoLog.sendKeys(
       "Ajuste de horario de la Conferencia Magistral a las 10:00-11:00 hrs por agenda del ponente invitado.",
     );
+    await driver.wait(until.elementIsEnabled(btnContinuarModLog), 3000);
     await btnContinuarModLog.click();
 
     const btnConfirmarEnvioLog = await driver.wait(

@@ -1,6 +1,8 @@
 import { useMemo, useRef, useState, useEffect } from "react";
 import { useNavigate } from "react-router";
 import { AlertCircle, CalendarDays, ChevronDown, LoaderCircle, Search, User } from "lucide-react";
+import { obtenerEtiquetaModalidad } from "@eventos/shared";
+import { Badge } from "../../components/atoms/Badge/Badge";
 import { Button } from "../../components/atoms/Button/Button";
 import { useMisEventosLogistica } from "../logistics/hook/useMisEventosLogistica";
 
@@ -277,10 +279,13 @@ export function PanelEventosAsignados() {
                       )}
                     </div>
 
-                    <div>
+                    <div className="flex flex-wrap items-center gap-2">
                       <span className="inline-block bg-[#f8e5e8] text-primary text-[16px] font-semibold px-2.5 py-0.5 rounded border border-[#e8c4cb]">
                         {item.alcance ?? "Público"}
                       </span>
+                      <Badge variant="secondary" size="md">
+                        {item.etiquetaModalidad || (item.idModalidadAcceso ? obtenerEtiquetaModalidad(Number(item.idModalidadAcceso)) : "Acceso Libre")}
+                      </Badge>
                     </div>
 
                     <h3 className="text-[20px] font-bold text-gray-900 leading-snug font-merriweather">

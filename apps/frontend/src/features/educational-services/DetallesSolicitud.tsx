@@ -1,6 +1,12 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate, useLocation } from "react-router";
-import { AlcanceEvento, EstadoEvento } from "@eventos/shared";
+import {
+  AlcanceEvento,
+  EstadoEvento,
+  ModalidadAcceso,
+  obtenerEtiquetaModalidad,
+  type ImpactoCambioSubevento,
+} from "@eventos/shared";
 import {
   ArrowLeft,
   AlertTriangle,
@@ -9,8 +15,11 @@ import {
   Clock,
   Users,
 } from "lucide-react";
+import { Badge } from "../../components/atoms/Badge/Badge";
 import Button from "../../components/atoms/Button/Button";
+import { FeedbackNotice } from "../../components/molecules/FeedbackNotice";
 import { Modal } from "../../components/molecules/Modal";
+import { ModalidadAccesoHelp } from "../../components/molecules/ModalidadAccesoHelp";
 import { FormField } from "../../components/molecules/FormField";
 import { TextArea } from "../../components/atoms/TextArea/TextArea";
 import { apiRequest } from "../../lib/apiClient";
@@ -21,12 +30,21 @@ export interface SubeventoDetalleItem {
   id: number;
   nombre: string;
   descripcion: string;
-  accesoQR: boolean;
+  idModalidadAcceso: ModalidadAcceso;
   nombreRecinto: string;
   aforo: number | string;
   fecha: string;
   horaInicio: string;
   horaFin: string;
+  esNuevo?: boolean;
+  boletosActivos?: number;
+  nombreRecintoAnterior?: string | null;
+  aforoAnterior?: number | string | null;
+  modalidadAnterior?: ModalidadAcceso | null;
+  fechaAnterior?: string | null;
+  horaInicioAnterior?: string | null;
+  horaFinAnterior?: string | null;
+  impacto?: ImpactoCambioSubevento | null;
 }
 
 export interface DatosPrellenados {
@@ -43,6 +61,11 @@ export interface DatosPrellenados {
   esModificacion?: boolean;
   motivoModificacion?: string | null;
   subEventos: SubeventoDetalleItem[];
+  actividadesEliminadas?: Array<{
+    idSubEvento: number;
+    nombre: string;
+    boletosActivos: number;
+  }>;
 }
 
 const ALCANCES: Record<string | number, string> = {
@@ -87,7 +110,10 @@ function convertirSubevento(valor: unknown): SubeventoDetalleItem {
   const nombre = typeof valor.nombre === "string" ? valor.nombre : "";
   const descripcion =
     typeof valor.descripcion === "string" ? valor.descripcion : "";
-  const accesoQR = Boolean(valor.accesoQR);
+  const idModalidadAcceso =
+    typeof valor.idModalidadAcceso === "number"
+      ? (valor.idModalidadAcceso as ModalidadAcceso)
+      : ModalidadAcceso.ACCESO_LIBRE;
 
   let fecha = "";
   let horaInicio = "";
@@ -124,16 +150,47 @@ function convertirSubevento(valor: unknown): SubeventoDetalleItem {
     }
   }
 
+  const recintoAnt = esRegistro(valor.recintoAnterior)
+    ? valor.recintoAnterior
+    : null;
+  const impacto = esRegistro(valor.impacto)
+    ? (valor.impacto as unknown as ImpactoCambioSubevento)
+    : null;
+
   return {
     id,
     nombre,
     descripcion,
-    accesoQR,
+    idModalidadAcceso,
     nombreRecinto,
     aforo,
     fecha,
     horaInicio,
     horaFin,
+    esNuevo: Boolean(valor.esNuevo),
+    boletosActivos:
+      typeof valor.boletosActivos === "number" ? valor.boletosActivos : 0,
+    nombreRecintoAnterior:
+      recintoAnt && typeof recintoAnt.nombre === "string"
+        ? recintoAnt.nombre
+        : null,
+    aforoAnterior:
+      recintoAnt && typeof recintoAnt.aforo === "number"
+        ? recintoAnt.aforo
+        : null,
+    modalidadAnterior:
+      typeof valor.modalidadAnterior === "number"
+        ? (valor.modalidadAnterior as ModalidadAcceso)
+        : null,
+    fechaAnterior:
+      typeof valor.fechaAnterior === "string" ? valor.fechaAnterior : null,
+    horaInicioAnterior:
+      typeof valor.horaInicioAnterior === "string"
+        ? valor.horaInicioAnterior
+        : null,
+    horaFinAnterior:
+      typeof valor.horaFinAnterior === "string" ? valor.horaFinAnterior : null,
+    impacto,
   };
 }
 
@@ -191,6 +248,19 @@ function convertirSolicitud(valor: unknown): DatosPrellenados {
         ? valor.poster_url
         : null;
 
+  const actividadesEliminadas =
+    tieneModificacionPendiente &&
+    solMod &&
+    Array.isArray(solMod.actividadesEliminadas)
+      ? solMod.actividadesEliminadas
+          .filter(esRegistro)
+          .map((item) => ({
+            idSubEvento: Number(item.idSubEvento) || 0,
+            nombre: typeof item.nombre === "string" ? item.nombre : "Actividad",
+            boletosActivos: Number(item.boletosActivos) || 0,
+          }))
+      : [];
+
   return {
     nombreSolicitante,
     idAlcance: String(idAlcanceNum),
@@ -211,6 +281,7 @@ function convertirSolicitud(valor: unknown): DatosPrellenados {
         ? solMod.motivoModificacion
         : null,
     subEventos: rawSubeventos.map(convertirSubevento),
+    actividadesEliminadas,
   };
 }
 
@@ -493,85 +564,193 @@ export function DetallesSolicitud() {
       </div>
 
       <div className="space-y-4 pt-2">
-        {datos.subEventos.map((subevento) => (
-          <div
-            key={subevento.id}
-            className="rounded-md bg-eventos-primary-light h-fit p-6 text-gray-900 shadow-sm border border-[#E4C5C6]"
-          >
-            <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-start">
-              <div className="md:col-span-5 space-y-2">
-                <h4 className="font-merriweather font-bold text-gray-900">
-                  {subevento.nombre}
-                </h4>
-                <p className="font-merriweather text-xs sm:text-sm text-gray-700 leading-relaxed text-justify">
-                  {subevento.descripcion}
-                </p>
+        {datos.subEventos.map((subevento) => {
+          const mostrarComparativa = Boolean(
+            datos.esModificacion && !subevento.esNuevo,
+          );
+          const cambioRecinto = Boolean(
+            mostrarComparativa &&
+              subevento.nombreRecintoAnterior &&
+              subevento.nombreRecintoAnterior !== subevento.nombreRecinto,
+          );
+          const cambioModalidad = Boolean(
+            mostrarComparativa &&
+              subevento.modalidadAnterior !== null &&
+              subevento.modalidadAnterior !== undefined &&
+              subevento.modalidadAnterior !== subevento.idModalidadAcceso,
+          );
+          const cambioFecha = Boolean(
+            mostrarComparativa &&
+              subevento.fechaAnterior &&
+              subevento.fechaAnterior.slice(0, 10) !== subevento.fecha.slice(0, 10),
+          );
+          const cambioHoraInicio = Boolean(
+            mostrarComparativa &&
+              subevento.horaInicioAnterior &&
+              subevento.horaInicioAnterior.slice(0, 5) !==
+                subevento.horaInicio.slice(0, 5),
+          );
+          const cambioHoraFin = Boolean(
+            mostrarComparativa &&
+              subevento.horaFinAnterior &&
+              subevento.horaFinAnterior.slice(0, 5) !==
+                subevento.horaFin.slice(0, 5),
+          );
+          const cambioAforo = Boolean(
+            mostrarComparativa &&
+              subevento.aforoAnterior !== null &&
+              subevento.aforoAnterior !== undefined &&
+              String(subevento.aforoAnterior) !== String(subevento.aforo),
+          );
+
+          return (
+            <div
+              key={subevento.id}
+              className="space-y-4 rounded-md bg-eventos-primary-light h-fit p-6 text-gray-900 shadow-sm border border-[#E4C5C6]"
+            >
+              <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-start">
+                <div className="md:col-span-5 space-y-2">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h4 className="font-merriweather font-bold text-gray-900">
+                      {subevento.nombre}
+                    </h4>
+                    {datos.esModificacion && subevento.esNuevo && (
+                      <Badge variant="primary">Nueva actividad</Badge>
+                    )}
+                    {datos.esModificacion &&
+                      (subevento.boletosActivos ?? 0) > 0 && (
+                        <Badge variant="secondary">
+                          {subevento.boletosActivos} inscritos actuales
+                        </Badge>
+                      )}
+                  </div>
+                  <p className="font-merriweather text-xs sm:text-sm text-gray-700 leading-relaxed text-justify">
+                    {subevento.descripcion}
+                  </p>
+                </div>
+
+                <div className="md:col-span-7 grid grid-cols-1 sm:grid-cols-3 gap-y-5 gap-x-4">
+                  <div>
+                    <div className="flex items-center gap-1.5 text-xs font-semibold text-gray-800">
+                      <MapPin className="h-4 w-4 text-gray-700 shrink-0" />
+                      <span>Espacio</span>
+                    </div>
+                    <p className="mt-1 font-merriweather text-xs sm:text-sm text-gray-700">
+                      {subevento.nombreRecinto || "-"}
+                    </p>
+                    {cambioRecinto && (
+                      <p className="mt-0.5 text-xs text-eventos-muted-text">
+                        Antes: {subevento.nombreRecintoAnterior}
+                      </p>
+                    )}
+                  </div>
+
+                  <div>
+                    <div className="flex items-center gap-1.5 text-xs font-semibold text-gray-800">
+                      <CalendarDays className="h-4 w-4 text-gray-700 shrink-0" />
+                      <span>Fecha</span>
+                    </div>
+                    <p className="mt-1 font-merriweather text-xs sm:text-sm text-gray-700">
+                      {formatearFecha(subevento.fecha)}
+                    </p>
+                    {cambioFecha && (
+                      <p className="mt-0.5 text-xs text-eventos-muted-text">
+                        Antes: {formatearFecha(subevento.fechaAnterior)}
+                      </p>
+                    )}
+                  </div>
+
+                  <div>
+                    <div className="text-xs font-semibold text-gray-800">
+                      Modalidad de acceso
+                    </div>
+                    <p className="mt-1 font-merriweather text-xs sm:text-sm text-gray-700">
+                      {obtenerEtiquetaModalidad(subevento.idModalidadAcceso)}
+                    </p>
+                    {cambioModalidad && (
+                      <p className="mt-0.5 text-xs text-eventos-muted-text">
+                        Antes: {obtenerEtiquetaModalidad(subevento.modalidadAnterior)}
+                      </p>
+                    )}
+                  </div>
+
+                  <div>
+                    <div className="flex items-center gap-1.5 text-xs font-semibold text-gray-800">
+                      <Clock className="h-4 w-4 text-gray-700 shrink-0" />
+                      <span>Hora de Inicio</span>
+                    </div>
+                    <p className="mt-1 font-merriweather text-xs sm:text-sm text-gray-700">
+                      {formatearHora(subevento.horaInicio)}
+                    </p>
+                    {cambioHoraInicio && (
+                      <p className="mt-0.5 text-xs text-eventos-muted-text">
+                        Antes: {formatearHora(subevento.horaInicioAnterior)}
+                      </p>
+                    )}
+                  </div>
+
+                  <div>
+                    <div className="flex items-center gap-1.5 text-xs font-semibold text-gray-800">
+                      <Clock className="h-4 w-4 text-gray-700 shrink-0" />
+                      <span>Hora de Finalización</span>
+                    </div>
+                    <p className="mt-1 font-merriweather text-xs sm:text-sm text-gray-700">
+                      {formatearHora(subevento.horaFin)}
+                    </p>
+                    {cambioHoraFin && (
+                      <p className="mt-0.5 text-xs text-eventos-muted-text">
+                        Antes: {formatearHora(subevento.horaFinAnterior)}
+                      </p>
+                    )}
+                  </div>
+
+                  <div>
+                    <div className="flex items-center gap-1.5 text-xs font-semibold text-gray-800">
+                      <Users className="h-4 w-4 text-gray-700 shrink-0" />
+                      <span>Aforo estimado</span>
+                    </div>
+                    <p className="mt-1 font-merriweather text-xs sm:text-sm text-gray-700">
+                      {subevento.aforo ?? "-"}
+                    </p>
+                    {cambioAforo && (
+                      <p className="mt-0.5 text-xs text-eventos-muted-text">
+                        Antes: {subevento.aforoAnterior}
+                      </p>
+                    )}
+                  </div>
+                </div>
               </div>
 
-              <div className="md:col-span-7 grid grid-cols-3 gap-y-5 gap-x-4">
-                <div>
-                  <div className="flex items-center gap-1.5 text-xs font-semibold text-gray-800">
-                    <MapPin className="h-4 w-4 text-gray-700 shrink-0" />
-                    <span>Espacio</span>
-                  </div>
-                  <p className="mt-1 font-merriweather text-xs   sm:text-sm text-gray-700">
-                    {subevento.nombreRecinto || "-"}
-                  </p>
-                </div>
+              <ModalidadAccesoHelp idModalidadAcceso={subevento.idModalidadAcceso} />
 
-                <div>
-                  <div className="flex items-center gap-1.5 text-xs font-semibold text-gray-800">
-                    <CalendarDays className="h-4 w-4 text-gray-700 shrink-0" />
-                    <span>Fecha</span>
-                  </div>
-                  <p className="mt-1 font-merriweather text-xs sm:text-sm text-gray-700">
-                    {formatearFecha(subevento.fecha)}
-                  </p>
-                </div>
-
-                <div>
-                  <div className="text-xs font-semibold text-gray-800">
-                    Modalidad de cupo
-                  </div>
-                  <p className="mt-1 font-merriweather text-xs sm:text-sm text-gray-700">
-                    {subevento.accesoQR ? "Boleto con QR" : "Acceso libre"}
-                  </p>
-                </div>
-
-                <div>
-                  <div className="flex items-center gap-1.5 text-xs font-semibold text-gray-800">
-                    <Clock className="h-4 w-4 text-gray-700 shrink-0" />
-                    <span>Hora de Inicio</span>
-                  </div>
-                  <p className="mt-1 font-merriweather text-xs sm:text-sm text-gray-700">
-                    {formatearHora(subevento.horaInicio)}
-                  </p>
-                </div>
-
-                <div>
-                  <div className="flex items-center gap-1.5 text-xs font-semibold text-gray-800">
-                    <Clock className="h-4 w-4 text-gray-700 shrink-0" />
-                    <span>Hora de Finalización</span>
-                  </div>
-                  <p className="mt-1 font-merriweather text-xs sm:text-sm text-gray-700">
-                    {formatearHora(subevento.horaFin)}
-                  </p>
-                </div>
-
-                <div>
-                  <div className="flex items-center gap-1.5 text-xs font-semibold text-gray-800">
-                    <Users className="h-4 w-4 text-gray-700 shrink-0" />
-                    <span>Aforo estimado</span>
-                  </div>
-                  <p className="mt-1 font-merriweather text-xs sm:text-sm text-gray-700">
-                    {subevento.aforo ?? "-"}
-                  </p>
-                </div>
-              </div>
+              {subevento.impacto?.resumenTexto && (
+                <FeedbackNotice
+                  variant="warning"
+                  title="Impacto en reservas activas de esta actividad"
+                >
+                  {subevento.impacto.resumenTexto}
+                </FeedbackNotice>
+              )}
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
+
+      {datos.esModificacion &&
+        (datos.actividadesEliminadas ?? []).some((a) => a.boletosActivos > 0) && (
+          <FeedbackNotice
+            variant="warning"
+            title="Actividades eliminadas con registros activos"
+          >
+            {(datos.actividadesEliminadas ?? [])
+              .filter((a) => a.boletosActivos > 0)
+              .map(
+                (a) =>
+                  `${a.nombre} (${a.boletosActivos} inscritos activos que serán cancelados al aprobar)`,
+              )
+              .join(" · ")}
+          </FeedbackNotice>
+        )}
 
       {esAprobada ? (
         <div className="flex justify-start gap-4 pt-2 pb-10">
@@ -623,6 +802,25 @@ export function DetallesSolicitud() {
             setErrorAccion(null);
           }}
         >
+          {datos.esModificacion &&
+            datos.subEventos.some((s) => Boolean(s.impacto?.resumenTexto)) && (
+              <div className="mb-4">
+                <FeedbackNotice
+                  variant="warning"
+                  title="Resumen de impacto al aprobar"
+                >
+                  <ul className="list-disc pl-4 space-y-1">
+                    {datos.subEventos
+                      .filter((s) => Boolean(s.impacto?.resumenTexto))
+                      .map((s) => (
+                        <li key={s.id}>
+                          <strong>{s.nombre}:</strong> {s.impacto?.resumenTexto}
+                        </li>
+                      ))}
+                  </ul>
+                </FeedbackNotice>
+              </div>
+            )}
           {errorAccion && (
             <p className="text-sm text-eventos-error mb-4" role="alert">
               {errorAccion}

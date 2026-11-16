@@ -1,6 +1,6 @@
 import {
-  IsBoolean,
   IsDateString,
+  IsEnum,
   IsInt,
   IsNotEmpty,
   IsOptional,
@@ -11,7 +11,7 @@ import {
 } from 'class-validator';
 import { Transform } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import type { SubeventoPayload } from '@eventos/shared';
+import { ModalidadAcceso, type SubeventoPayload } from '@eventos/shared';
 
 export class CrearSubEventoDto implements SubeventoPayload {
   @ApiProperty()
@@ -33,16 +33,15 @@ export class CrearSubEventoDto implements SubeventoPayload {
   @IsPositive({ message: 'El idRecinto debe ser un número positivo mayor a cero.' })
   idRecinto: number;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({ enum: ModalidadAcceso })
   @IsOptional()
-  @Transform(({ value }: { value: unknown }) => {
-    if (typeof value === 'string') {
-      return value === 'true' || value === '1';
-    }
-    return value;
+  @Transform(({ value }: { value: unknown }) =>
+    value !== undefined && value !== null && value !== '' ? Number(value) : value,
+  )
+  @IsEnum(ModalidadAcceso, {
+    message: 'La modalidad de acceso seleccionada no es válida.',
   })
-  @IsBoolean({ message: 'El campo accesoQR debe ser un valor booleano.' })
-  accesoQR?: boolean;
+  idModalidadAcceso?: ModalidadAcceso;
 
   @ApiProperty()
   @IsNotEmpty({ message: 'La fecha del evento es obligatoria.' })

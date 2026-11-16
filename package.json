@@ -37,7 +37,8 @@
     "test:e2e:admin-usuarios": "bun run e2e/tests/adminGestionUsuarios.e2e.spec.ts",
     "test:e2e:admin-perfil": "bun run e2e/tests/adminPerfil.e2e.spec.ts",
     "test:e2e:security": "bun run e2e/tests/securityResilience.e2e.spec.ts",
-    "test:e2e:full-workflow": "bun run e2e/tests/fullAdversarialWorkflow.e2e.spec.ts"
+    "test:e2e:full-workflow": "bun run e2e/tests/fullAdversarialWorkflow.e2e.spec.ts",
+    "test:e2e:modalidades-fifo": "bun run e2e/tests/modalidadesYCambioRecinto.e2e.spec.ts"
   },
   "devDependencies": {
     "@types/nodemailer": "^8.0.2",

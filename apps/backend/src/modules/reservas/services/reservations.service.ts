@@ -5,7 +5,18 @@ import { CreateReservationDto } from '../dto/createReservation.dto';
 import { Repository, In, DataSource } from 'typeorm';
 import { InjectRepository } from '@nestjs/typeorm';
 
-import { DisponibilidadSubEvento, AsientoDisponible, EstadoRecinto, EstadoBoleto, EstadoSubEvento, AlcanceEvento, TipoCuentaUsuario } from '@eventos/shared';
+import {
+  DisponibilidadSubEvento,
+  AsientoDisponible,
+  EstadoRecinto,
+  EstadoBoleto,
+  EstadoSubEvento,
+  AlcanceEvento,
+  TipoCuentaUsuario,
+  esModalidadConQr,
+  esModalidadConRegistro,
+  ModalidadAcceso,
+} from '@eventos/shared';
 
 import { BoletoEntity } from '../entities/boleto.entity';
 import { AsistenteEventoEntity } from '../entities/asistenteEvento.entity';
@@ -113,11 +124,14 @@ export class ReservationsService {
             : true;
         const eventoActivo = evento && evento.idEstadoEvento === 2 && subEvento.estado === EstadoSubEvento.ACEPTADO && !haIniciado;
 
+        const permiteRegistro = esModalidadConRegistro(subEvento.idModalidadAcceso);
+        const requiereSeleccionAsiento =
+            subEvento.idModalidadAcceso === ModalidadAcceso.QR_MAPA;
         const lugaresDisponibles = eventoActivo ? Math.max(0, recinto.aforo - lugaresOcupados) : 0;
 
-        const asientosBD = await this.asientoRepo.find({ 
-            where: { idRecinto: recinto.idRecinto } 
-        });
+        const asientosBD = requiereSeleccionAsiento
+            ? await this.asientoRepo.find({ where: { idRecinto: recinto.idRecinto } })
+            : [];
 
         const asientos: AsientoDisponible[] = asientosBD.map(a => ({
             idAsiento: a.idAsiento,
@@ -128,10 +142,11 @@ export class ReservationsService {
 
         return {
             idSubEvento: subEvento.idSubEvento,
+            idModalidadAcceso: subEvento.idModalidadAcceso,
             recinto: recinto,
             lugaresDisponibles,
-            permiteReservar: Boolean(eventoActivo && lugaresDisponibles > 0),
-            requiereSeleccionAsiento: asientos.length > 0,
+            permiteReservar: Boolean(eventoActivo && permiteRegistro && lugaresDisponibles > 0),
+            requiereSeleccionAsiento,
             asientos,
         };
     }
@@ -163,6 +178,10 @@ export class ReservationsService {
 
             if (subEvento.estado !== EstadoSubEvento.ACEPTADO) {
                 throw new ConflictException('El registro para este evento se encuentra cerrado o cancelado');
+            }
+
+            if (subEvento.idModalidadAcceso === ModalidadAcceso.ACCESO_LIBRE) {
+                throw new BadRequestException('Esta actividad es de acceso libre y no requiere registro previo.');
             }
 
             const eventoPrincipal = await manager.findOne(EventoEntity, {
@@ -247,17 +266,20 @@ export class ReservationsService {
                 throw new ConflictException('El recinto del evento no está disponible.');
             }
             
-            const asientosDelRecinto = await manager.find(AsientoEntity, {
-                where: { idRecinto: recinto.idRecinto }
-            });
-            const requiereAsiento = asientosDelRecinto.length > 0;
+            const requiereAsiento =
+                subEvento.idModalidadAcceso === ModalidadAcceso.QR_MAPA;
+            const asientosDelRecinto = requiereAsiento
+                ? await manager.find(AsientoEntity, {
+                      where: { idRecinto: recinto.idRecinto },
+                  })
+                : [];
 
             if (requiereAsiento && !dto.idAsiento) {
                 throw new BadRequestException('Esta actividad requiere que selecciones un asiento.');
             }
 
             if (!requiereAsiento && dto.idAsiento) {
-                throw new BadRequestException('Esta actividad es de entrada general y no utiliza asientos numerados.');
+                throw new BadRequestException('Esta actividad es de admisión general y no utiliza asientos numerados.');
             }
 
             let asientoSeleccionado = null;
@@ -316,7 +338,7 @@ export class ReservationsService {
 
             let qrBase64Data: string | undefined = undefined;
 
-            if (subEvento.accesoQR) {
+            if (esModalidadConQr(subEvento.idModalidadAcceso)) {
                 const infoBoleto = {
                     idBoleto: boletoGuardado.idBoleto,
                     idEvento: subEvento.idEvento,
@@ -335,6 +357,7 @@ export class ReservationsService {
                 qrBase64: qrBase64Data,
                 datosCorreo: {
                     idBoleto: boletoGuardado.idBoleto,
+                    idModalidadAcceso: subEvento.idModalidadAcceso,
                     nombreEvento: eventoPrincipal.nombre,
                     nombreSubEvento: subEvento.nombre,
                     fecha: String(fechaEvento.fecha),
@@ -415,8 +438,11 @@ export class ReservationsService {
 
             const limiteTerminoEvento = construirFechaEnCdmx(String(fechaEvento.fecha), fechaEvento.horaFin);
 
-            // Si el evento ya terminó y el boleto seguía válido (no asistió), pasa a Cancelado
-            if (haAlcanzadoFechaHoraCdmx(String(fechaEvento.fecha), fechaEvento.horaFin) && boleto.idEstadoBoleto === EstadoBoleto.VALIDO) {
+            if (
+                esModalidadConQr(subEvento.idModalidadAcceso) &&
+                haAlcanzadoFechaHoraCdmx(String(fechaEvento.fecha), fechaEvento.horaFin) &&
+                boleto.idEstadoBoleto === EstadoBoleto.VALIDO
+            ) {
                 boleto.idEstadoBoleto = EstadoBoleto.CANCELADO;
                 await this.boletoRepo.save(boleto);
             }
@@ -451,7 +477,10 @@ export class ReservationsService {
 
             
             let qrImagenBase64: string | null = null;
-            if (subEvento.accesoQR && boleto.idEstadoBoleto === EstadoBoleto.VALIDO) {
+            if (
+                esModalidadConQr(subEvento.idModalidadAcceso) &&
+                boleto.idEstadoBoleto === EstadoBoleto.VALIDO
+            ) {
                 const infoBoleto = {
                     idBoleto: boleto.idBoleto,
                     idEvento: subEvento.idEvento,
@@ -481,7 +510,7 @@ export class ReservationsService {
                 poster: evento ? this.resolverPosterUrl(evento.poster) : null,
                 posterUrl: evento ? this.resolverPosterUrl(evento.poster) : null,
                 alcance: evento?.idAlcance ? mapaAlcance[evento.idAlcance] : 'Público',
-                accesoQR: subEvento.accesoQR,
+                idModalidadAcceso: subEvento.idModalidadAcceso,
                 filaAsiento,
                 numeroAsiento,
                 ponentes,
@@ -539,13 +568,21 @@ export class ReservationsService {
         const recinto = await this.recintoRepo.findOne({ where: { idRecinto: subEvento.idRecinto } });
         if (!recinto) throw new NotFoundException('Recinto no encontrado.'); 
 
-        if (haAlcanzadoFechaHoraCdmx(String(fechaEvento.fecha), fechaEvento.horaFin) && boleto.idEstadoBoleto === EstadoBoleto.VALIDO) {
+        if (
+            esModalidadConQr(subEvento.idModalidadAcceso) &&
+            haAlcanzadoFechaHoraCdmx(String(fechaEvento.fecha), fechaEvento.horaFin) &&
+            boleto.idEstadoBoleto === EstadoBoleto.VALIDO
+        ) {
             boleto.idEstadoBoleto = EstadoBoleto.CANCELADO;
             await this.boletoRepo.save(boleto);
         }
 
         let qrBase64 = null;
-        if (boleto.tokenQr && boleto.tokenQr !== '') {
+        if (
+            esModalidadConQr(subEvento.idModalidadAcceso) &&
+            boleto.tokenQr &&
+            boleto.tokenQr !== ''
+        ) {
             qrBase64 = await this.qrService.generateImageFromToken(boleto.tokenQr);
         }
 
@@ -573,7 +610,7 @@ export class ReservationsService {
                 idEvento: subEvento.idEvento,
                 nombre: subEvento.nombre,
                 descripcion: subEvento.descripcion,
-                accesoQR: subEvento.accesoQR,
+                idModalidadAcceso: subEvento.idModalidadAcceso,
                 fecha: fechaEvento.fecha,
                 horaInicio: fechaEvento.horaInicio,
                 horaFin: fechaEvento.horaFin,

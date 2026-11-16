@@ -10,6 +10,7 @@ import {
   AlcanceEvento,
   EstadoEvento,
   EstadoSubEvento,
+  ModalidadAcceso,
   TipoCuentaUsuario,
   type MovimientoBitacoraItem,
 } from '@eventos/shared';
@@ -141,7 +142,9 @@ export class EventosService {
       );
       const primerSub = subeventosVigentes[0];
 
-      const esAccesoLibre = subeventosVigentes.some((s) => !s.accesoQR);
+      const esAccesoLibre = subeventosVigentes.some(
+        (s) => s.idModalidadAcceso === ModalidadAcceso.ACCESO_LIBRE,
+      );
       const posterUrl = this.resolverPosterUrl(evento.poster);
 
       cartelera.push({
@@ -203,7 +206,9 @@ export class EventosService {
     const esAccesoLibre =
       evento.idAlcance === AlcanceEvento.PUBLICO &&
       subEventos.some(
-        (sub) => sub.estado !== EstadoSubEvento.CANCELADO && !sub.accesoQR,
+        (sub) =>
+          sub.estado !== EstadoSubEvento.CANCELADO &&
+          sub.idModalidadAcceso === ModalidadAcceso.ACCESO_LIBRE,
       );
 
     if (evento.idAlcance === AlcanceEvento.PRIVADO) {
@@ -268,8 +273,10 @@ export class EventosService {
         nombre: sub.nombre,
         descripcion: sub.descripcion,
         estado: sub.estado,
-        accesoQR: sub.accesoQR,
-        requiereSeleccionAsiento: totalAsientosRecinto > 0,
+        idModalidadAcceso: sub.idModalidadAcceso,
+        requiereSeleccionAsiento:
+          totalAsientosRecinto > 0 &&
+          sub.idModalidadAcceso === ModalidadAcceso.QR_MAPA,
         fecha: fecha
           ? {
               idFecha: fecha.idFecha,

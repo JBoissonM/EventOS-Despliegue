@@ -1,3 +1,4 @@
+import { esModalidadConQr, obtenerEtiquetaModalidad } from "@eventos/shared";
 import { formatEventDate } from "../../event-details/utils/formatEventDate";
 import type { TicketItem } from "../pages/MyTicketsPage";
 import type { TicketSummaryResponse } from "../services/tickets.service";
@@ -23,6 +24,8 @@ export function mapTicketToCard(ticket: TicketSummaryResponse): TicketItem {
     speakers: (ticket.ponentes ?? []).map((speaker) => speaker.nombreCompleto),
     status: mapTicketStatus(ticket.estadoBoleto),
     visibility,
+    modalityLabel: obtenerEtiquetaModalidad(ticket.idModalidadAcceso),
+    supportsQr: esModalidadConQr(ticket.idModalidadAcceso),
     posterUrl: (() => {
       const rawPoster = ticket.poster?.trim() ?? "";
       if (!rawPoster) return undefined;

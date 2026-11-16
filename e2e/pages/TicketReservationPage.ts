@@ -11,7 +11,10 @@ export class TicketReservationPage {
     "//h1[normalize-space()='Detalles del Evento']",
   );
   private readonly freeAdmissionBadge = By.xpath(
-    "//*[normalize-space()='Entrada libre']",
+    "//*[normalize-space()='Acceso libre']",
+  );
+  private readonly simpleRegistrationBadge = By.xpath(
+    "//*[normalize-space()='Registro simple sin QR']",
   );
   private readonly freeAdmissionNotice = By.xpath(
     "//*[contains(normalize-space(), 'Acceso libre hasta completar el aforo del recinto')]",
@@ -34,7 +37,7 @@ export class TicketReservationPage {
     "//button[normalize-space()='Reservar asiento']",
   );
   private readonly automaticReservationNotice = By.xpath(
-    "//*[contains(normalize-space(), 'no necesitas seleccionar un asiento numerado')]",
+    "//*[contains(normalize-space(), 'no necesitas seleccionar un asiento numerado') or contains(normalize-space(), 'no genera boleto QR ni requiere seleccionar asiento')]",
   );
   private readonly automaticReserveButton = By.xpath(
     "//main//button[normalize-space()='Reservar lugar']",
@@ -221,13 +224,34 @@ export class TicketReservationPage {
     }
   }
 
+  async isSimpleRegistration(): Promise<boolean> {
+    try {
+      const badge = await this.driver.wait(
+        until.elementLocated(this.simpleRegistrationBadge),
+        3000,
+      );
+      return await badge.isDisplayed();
+    } catch {
+      return false;
+    }
+  }
+
+  async hasViewQrButtonInDialog(): Promise<boolean> {
+    const btns = await this.driver.findElements(
+      By.xpath("//dialog[@open]//button[normalize-space()='Ver código QR']"),
+    );
+    return btns.length > 0;
+  }
+
   async getTicketIdFromSuccessDialog(): Promise<number | null> {
     try {
       const dialogTextEl = await this.driver.findElement(
-        By.xpath("//dialog[@open]//*[contains(normalize-space(), 'Boleto #')]"),
+        By.xpath(
+          "//dialog[@open]//*[contains(normalize-space(), 'Boleto #') or contains(normalize-space(), 'Registro #')]",
+        ),
       );
       const text = await dialogTextEl.getText();
-      const match = text.match(/Boleto\s+#(\d+)/);
+      const match = text.match(/(?:Boleto|Registro)\s+#(\d+)/);
       return match ? Number(match[1]) : null;
     } catch {
       return null;

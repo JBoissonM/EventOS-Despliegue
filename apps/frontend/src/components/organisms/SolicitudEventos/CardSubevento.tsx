@@ -1,5 +1,11 @@
-import { RecintoId } from "@eventos/shared";
+import {
+  esLaboratorioRecinto,
+  ETIQUETAS_MODALIDAD,
+  obtenerModalidadesPermitidasPorRecinto,
+  RecintoId,
+} from "@eventos/shared";
 import { FormField } from "../../molecules/FormField";
+import { ModalidadAccesoHelp } from "../../molecules/ModalidadAccesoHelp";
 import { Select } from "../../atoms/Select/Select";
 import type {
   CamposSubeventoTocados,
@@ -42,11 +48,6 @@ type CardSubeventoProps = CardSubeventoBaseProps &
       canEdit: boolean;
     }
   );
-
-const ACCESOS = [
-  { value: "true", label: "Acceso con QR" },
-  { value: "false", label: "Entrada libre" },
-];
 
 interface EspacioInfo {
   idRecinto: number;
@@ -511,38 +512,63 @@ export function CardSubevento(props: CardSubeventoProps) {
       </FormField>
 
       <FormField
-        label="Acceso con boleto"
+        label="Modalidad de acceso"
         htmlFor={`selectBoleto-${index}`}
         readOnly={readOnly}
-        required={subevento.idRecinto !== RecintoId.SALA_14}
-        errorMessage={touched.accesoQR ? errors.accesoQR : undefined}
+        required
+        errorMessage={
+          touched.idModalidadAcceso ? errors.idModalidadAcceso : undefined
+        }
         mensajeAyuda={
-          subevento.idRecinto === RecintoId.SALA_14
-            ? "Al elegir la sala 14 el acceso es libre"
-            : subevento.idRecinto &&
-              subevento.idRecinto !== RecintoId.AUDITORIO
-              ? "Al elegir un laboratorio el cupo pasa a ser limitado"
-              : ""
+          esLaboratorioRecinto(subevento.idRecinto)
+            ? "Obligatoria en laboratorios"
+            : undefined
         }>
         <Select
           id={`selectBoleto-${index}`}
-          placeholder={"Selecciona una opción"}
-          options={ACCESOS}
+          placeholder={
+            subevento.idRecinto
+              ? "Selecciona una modalidad"
+              : "Primero selecciona un espacio"
+          }
+          options={
+            subevento.idRecinto
+              ? obtenerModalidadesPermitidasPorRecinto(subevento.idRecinto).map(
+                  (modalidad) => ({
+                    value: String(modalidad),
+                    label: ETIQUETAS_MODALIDAD[modalidad],
+                  }),
+                )
+              : []
+          }
           className="disabled:text-gray-500 disabled:cursor-not-allowed"
           value={
-            subevento.accesoQR !== undefined ? String(subevento.accesoQR) : ""
+            subevento.idModalidadAcceso !== undefined
+              ? String(subevento.idModalidadAcceso)
+              : ""
           }
-          disabled={subevento.idRecinto !== RecintoId.AUDITORIO || readOnly}
-          hasError={Boolean(touched.accesoQR && errors.accesoQR)}
+          disabled={
+            !subevento.idRecinto ||
+            esLaboratorioRecinto(subevento.idRecinto) ||
+            readOnly
+          }
+          hasError={Boolean(
+            touched.idModalidadAcceso && errors.idModalidadAcceso,
+          )}
           onChange={
             readOnly
               ? undefined
-              : (e) => props.updateSubevento(index, "accesoQR", e.target.value)
+              : (e) =>
+                  props.updateSubevento(
+                    index,
+                    "idModalidadAcceso",
+                    e.target.value,
+                  )
           }
           onBlur={
             readOnly
               ? undefined
-              : () => props.markSubeventoTouched(index, "accesoQR")
+              : () => props.markSubeventoTouched(index, "idModalidadAcceso")
           }
         />
       </FormField>
@@ -575,6 +601,14 @@ export function CardSubevento(props: CardSubeventoProps) {
           />
         )}
       </FormField>
+
+      {!readOnly && (
+        <ModalidadAccesoHelp
+          idRecinto={subevento.idRecinto || undefined}
+          idModalidadAcceso={subevento.idModalidadAcceso}
+          className="col-span-full"
+        />
+      )}
 
       <SpaceRequerimentsDialog
         mostrar={mostrarModalEspacio}

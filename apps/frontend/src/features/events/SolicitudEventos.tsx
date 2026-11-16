@@ -4,7 +4,12 @@ import { SeccionSubeventos } from "../../components/organisms/SolicitudEventos/S
 import Button from "../../components/atoms/Button/Button";
 import { useNavigate } from "react-router";
 import { Modal } from "../../components/molecules/Modal";
-import { RecintoId, type SubeventoPayload } from "@eventos/shared";
+import {
+  esLaboratorioRecinto,
+  ModalidadAcceso,
+  validarModalidadEnRecinto,
+  type SubeventoPayload,
+} from "@eventos/shared";
 import { ModalMotivoUrgente } from "../../components/organisms/ModalMotivoUrgente/ModalMotivoUrgente";
 import { API_BASE_URL, apiRequest } from "../../lib/apiClient";
 
@@ -197,12 +202,18 @@ function validarSubeventos(
       errors.idRecinto = "Selecciona un espacio para el evento";
     }
 
-    if (
-      subevento.idRecinto &&
-      subevento.idRecinto !== RecintoId.SALA_14 &&
-      subevento.accesoQR === undefined
-    ) {
-      errors.accesoQR = "Indica si el evento requiere boleto";
+    if (subevento.idRecinto) {
+      if (subevento.idModalidadAcceso === undefined) {
+        errors.idModalidadAcceso = "Selecciona una modalidad de acceso";
+      } else {
+        const errorModalidad = validarModalidadEnRecinto(
+          subevento.idRecinto,
+          subevento.idModalidadAcceso,
+        );
+        if (errorModalidad) {
+          errors.idModalidadAcceso = errorModalidad;
+        }
+      }
     }
 
     if (
@@ -407,21 +418,17 @@ export function SolicitudEvento() {
             updated.horaInicio = "";
             updated.horaFin = "";
           }
-          if (
-            idRecinto !== RecintoId.AUDITORIO &&
-            idRecinto !== RecintoId.SALA_14
-          ) {
-            updated.accesoQR = true;
-          } else if (idRecinto === RecintoId.SALA_14) {
-            updated.accesoQR = false;
-          } else {
-            updated.accesoQR = undefined;
-          }
+          updated.idModalidadAcceso = esLaboratorioRecinto(idRecinto)
+            ? ModalidadAcceso.QR_GENERAL
+            : undefined;
           return updated;
         }
 
-        if (field === "accesoQR") {
-          return { ...subevento, accesoQR: value === "true" };
+        if (field === "idModalidadAcceso") {
+          return {
+            ...subevento,
+            idModalidadAcceso: Number(value) as ModalidadAcceso,
+          };
         }
 
         return { ...subevento, [field]: value };
@@ -482,7 +489,7 @@ export function SolicitudEvento() {
         horaInicio: true,
         horaFin: true,
         idRecinto: true,
-        accesoQR: true,
+        idModalidadAcceso: true,
       })),
     );
 
@@ -539,13 +546,9 @@ export function SolicitudEvento() {
             fecha: subevento.fecha,
             horaInicio: subevento.horaInicio,
             horaFin: subevento.horaFin,
-            accesoQR:
-              subevento.idRecinto !== RecintoId.AUDITORIO &&
-              subevento.idRecinto !== RecintoId.SALA_14
-                ? true
-                : subevento.idRecinto === RecintoId.SALA_14
-                  ? false
-                  : subevento.accesoQR === true,
+            idModalidadAcceso: esLaboratorioRecinto(subevento.idRecinto)
+              ? ModalidadAcceso.QR_GENERAL
+              : subevento.idModalidadAcceso ?? ModalidadAcceso.ACCESO_LIBRE,
           }),
         ),
       ),

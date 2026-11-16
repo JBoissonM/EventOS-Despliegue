@@ -6,7 +6,13 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { DataSource } from 'typeorm';
-import { AlcanceEvento, EstadoBoleto, EstadoSubEvento } from '@eventos/shared';
+import {
+  AlcanceEvento,
+  esModalidadConQr,
+  EstadoBoleto,
+  EstadoSubEvento,
+  obtenerEtiquetaModalidad,
+} from '@eventos/shared';
 import { StorageService } from '../../common/storage/storage.service';
 
 @Injectable()
@@ -62,7 +68,7 @@ export class LogisticaService {
          se."idSubEvento",
          se.nombre AS "nombreSubEvento",
          se.descripcion AS "descripcionSubEvento",
-         se."accesoQR",
+         se."idModalidadAcceso",
          se.estado AS "estadoSubEvento",
          e."idEvento",
          e.nombre AS "nombreEvento",
@@ -118,7 +124,9 @@ export class LogisticaService {
         idRecinto: fila.idRecinto,
         espacio: fila.espacio,
         aforoMaximo: fila.aforoMaximo,
-        accesoQR: fila.accesoQR,
+        idModalidadAcceso: Number(fila.idModalidadAcceso),
+        etiquetaModalidad: obtenerEtiquetaModalidad(Number(fila.idModalidadAcceso)),
+        requiereEscaneoQR: esModalidadConQr(Number(fila.idModalidadAcceso)),
         ponentes,
       });
     }
@@ -155,7 +163,7 @@ export class LogisticaService {
       `SELECT 
          se."idSubEvento",
          se.nombre AS "nombreSubEvento",
-         se."accesoQR",
+         se."idModalidadAcceso",
          se."idEvento",
          e.nombre AS "nombreEvento",
          r."idRecinto",
@@ -242,12 +250,16 @@ export class LogisticaService {
 
     const aforoActual = asistentesIngresados.length;
     const aforoMaximo = Number(info.aforoMaximo);
+    const idModalidadAcceso = Number(info.idModalidadAcceso);
 
     return {
       idEvento: info.idEvento,
       idSubEvento: info.idSubEvento,
       nombreEvento: info.nombreEvento,
       nombreSubEvento: info.nombreSubEvento,
+      idModalidadAcceso,
+      etiquetaModalidad: obtenerEtiquetaModalidad(idModalidadAcceso),
+      requiereEscaneoQR: esModalidadConQr(idModalidadAcceso),
       espacio: info.espacio,
       fecha: info.fecha,
       horaInicio: info.horaInicio,
@@ -255,6 +267,8 @@ export class LogisticaService {
       aforoActual,
       aforoMaximo,
       aforoTexto: `${aforoActual}/${aforoMaximo}`,
+      totalInscritos: todosLosReservados.length,
+      totalIngresados: aforoActual,
       totalReservados: todosLosReservados.length,
       listaAsistentes: asistentesIngresados, // Los que ya pasaron por el escáner en puerta
       listaReservados: todosLosReservados,   // Lista completa (Válidos + Utilizados)
@@ -286,6 +300,7 @@ export class LogisticaService {
          ae."idSubEvento",
          ae."idUsuario",
          se."idEvento",
+         se."idModalidadAcceso",
          u.nombre,
          u."apellidoPa",
          u."apellidoMa",
@@ -310,6 +325,12 @@ export class LogisticaService {
 
     // Validar que el usuario de logística tenga permiso sobre este evento
     await this.validarAccesoLogistica(usuarioLogisticaId, registro.idEvento);
+
+    if (!esModalidadConQr(Number(registro.idModalidadAcceso))) {
+      throw new BadRequestException(
+        'Esta actividad no utiliza código QR para validar el acceso.',
+      );
+    }
 
     // Revisar estado del boleto
     if (registro.idEstadoBoleto === EstadoBoleto.UTILIZADO) {

@@ -7,7 +7,7 @@ import {
   type Relation,
 } from 'typeorm';
 import type { SubEvento } from '@eventos/shared';
-import { EstadoSubEvento } from '@eventos/shared';
+import { EstadoSubEvento, ModalidadAcceso } from '@eventos/shared';
 import { EventoEntity } from './evento.entity';
 import { FechaEntity } from './fecha.entity';
 import { RecintoEntity } from '../../recintos/entities/recinto.entity';
@@ -32,8 +32,12 @@ export class SubEventoEntity implements SubEvento {
   @Column({ name: 'idFecha', type: 'int' })
   idFecha: number;
 
-  @Column({ name: 'accesoQR', type: 'boolean', default: false })
-  accesoQR: boolean;
+  @Column({
+    name: 'idModalidadAcceso',
+    type: 'int',
+    default: ModalidadAcceso.ACCESO_LIBRE,
+  })
+  idModalidadAcceso: ModalidadAcceso;
 
   @Column({
       name: 'estado',

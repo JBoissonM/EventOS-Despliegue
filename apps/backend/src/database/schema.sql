@@ -59,6 +59,12 @@ CREATE TABLE "estadoEvento" (
   estado varchar(100) NOT NULL
 );
 
+-- 8. Modalidad de Acceso
+CREATE TABLE "modalidadAcceso" (
+  "idModalidadAcceso" integer GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  modalidad varchar(50) NOT NULL
+);
+
 -- 9. Recinto
 CREATE TABLE recinto (
   "idRecinto" integer GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
@@ -120,7 +126,7 @@ CREATE TABLE boleto (
 -- 16. SubEvento
 CREATE TABLE "subEvento" (
   "idSubEvento" integer GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-  "accesoQR" boolean NOT NULL,
+  "idModalidadAcceso" integer NOT NULL REFERENCES "modalidadAcceso"("idModalidadAcceso"),
   estado varchar(50) NOT NULL,
   nombre varchar(150) NOT NULL,
   descripcion varchar(500) NOT NULL,
@@ -229,6 +235,15 @@ VALUES
   (3, 3)
 ON CONFLICT ("idRol") DO NOTHING;
 
+-- 5.1. Modalidad de Acceso
+INSERT INTO "modalidadAcceso" ("idModalidadAcceso", modalidad) OVERRIDING SYSTEM VALUE
+VALUES
+  (1, 'Acceso libre'),
+  (2, 'Registro simple sin QR'),
+  (3, 'QR Admisión general'),
+  (4, 'QR con mapa de asientos')
+ON CONFLICT ("idModalidadAcceso") DO NOTHING;
+
 -- 6. Recintos Iniciales de ESCOM
 INSERT INTO recinto ("idRecinto", nombre, aforo, "idEstadoRecinto") OVERRIDING SYSTEM VALUE
 VALUES 
@@ -262,4 +277,5 @@ SELECT setval(pg_get_serial_sequence('"estadoRecinto"', 'idEstadoRecinto'), COAL
 SELECT setval(pg_get_serial_sequence('"estadoEvento"', 'idEstadoEvento'), COALESCE(MAX("idEstadoEvento"), 1)) FROM "estadoEvento";
 SELECT setval(pg_get_serial_sequence('"estadoBoleto"', 'idEstadoBoleto'), COALESCE(MAX("idEstadoBoleto"), 1)) FROM "estadoBoleto";
 SELECT setval(pg_get_serial_sequence('"rol"', 'idRol'), COALESCE(MAX("idRol"), 1)) FROM "rol";
+SELECT setval(pg_get_serial_sequence('"modalidadAcceso"', 'idModalidadAcceso'), COALESCE(MAX("idModalidadAcceso"), 1)) FROM "modalidadAcceso";
 SELECT setval(pg_get_serial_sequence('"recinto"', 'idRecinto'), COALESCE(MAX("idRecinto"), 1)) FROM "recinto";

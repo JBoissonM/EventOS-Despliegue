@@ -176,7 +176,7 @@ async function runEventLifecycleSuite(): Promise<void> {
         idRecinto: "1",
         horaInicio: "10:00",
         horaFin: "12:00",
-        accesoQR: "true",
+        idModalidadAcceso: "4",
       },
     });
 

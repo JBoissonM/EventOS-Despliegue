@@ -1,16 +1,23 @@
 import { Pencil } from "lucide-react";
-import { AlcanceEvento, RecintoId, type Recinto } from "@eventos/shared";
+import {
+  AlcanceEvento,
+  ETIQUETAS_MODALIDAD,
+  ModalidadAcceso,
+  esLaboratorioRecinto,
+  modalidadPorDefectoRecinto,
+  obtenerModalidadesPermitidasPorRecinto,
+  RecintoId,
+  validarModalidadEnRecinto,
+  type Recinto,
+} from "@eventos/shared";
 import { Input } from "../../../components/atoms/Input/Input";
 import { DateInput } from "../../../components/atoms/DateInput/DateInput";
 import { Select } from "../../../components/atoms/Select/Select";
 import { TextArea } from "../../../components/atoms/TextArea/TextArea";
 import { InputFile } from "../../../components/atoms/InputFile/InputFile";
+import { FeedbackNotice } from "../../../components/molecules/FeedbackNotice";
 import { FormField } from "../../../components/molecules/FormField";
-
-const ACCESOS = [
-  { value: "true", label: "Acceso con boleto" },
-  { value: "false", label: "Acceso libre" },
-];
+import { ModalidadAccesoHelp } from "../../../components/molecules/ModalidadAccesoHelp";
 
 const ALCANCES = [
   { value: String(AlcanceEvento.PUBLICO), label: "Público" },
@@ -126,7 +133,7 @@ export interface EditLogisticsValues {
   fecha: string;
   horaInicio: string;
   horaFin: string;
-  accesoQR: string;
+  idModalidadAcceso: string;
   motivoModificacion: string;
 }
 
@@ -151,6 +158,7 @@ interface EditLogisticsSectionProps {
   errorAgenda: string | null;
   deshabilitado: boolean;
   mostrarBanner?: boolean;
+  avisoImpacto?: string | null;
   errores?: EditLogisticsErrors;
   intentoGuardar?: boolean;
   onCambioLogistica: <K extends keyof EditLogisticsValues>(
@@ -176,6 +184,7 @@ export function EditLogisticsSection({
   errorAgenda,
   deshabilitado,
   mostrarBanner = true,
+  avisoImpacto = null,
   errores,
   intentoGuardar = false,
   onCambioLogistica,
@@ -210,9 +219,12 @@ export function EditLogisticsSection({
       (recinto) => String(recinto.idRecinto) === valores.idRecinto,
     ) ?? recintoActual;
 
-  const accesoFijo =
-    Boolean(recintoSeleccionado?.idRecinto) &&
-    recintoSeleccionado?.idRecinto !== RecintoId.AUDITORIO;
+  const idRecintoSeleccionado =
+    recintoSeleccionado?.idRecinto ?? RecintoId.AUDITORIO;
+  const modalidadesPermitidas = obtenerModalidadesPermitidasPorRecinto(
+    idRecintoSeleccionado,
+  );
+  const accesoFijo = esLaboratorioRecinto(recintoSeleccionado?.idRecinto);
 
   const horasFinCandidatas = [
     ...new Set([...HORASFIN, valores.horaFin].filter(Boolean)),
@@ -296,13 +308,23 @@ export function EditLogisticsSection({
                   onCambioLogistica("horaFin", "");
                 }
                 onCambioLogistica("idRecinto", String(idRecinto));
+                const permitidas =
+                  obtenerModalidadesPermitidasPorRecinto(idRecinto);
+                const modalidadActual = Number(
+                  valores.idModalidadAcceso,
+                ) as ModalidadAcceso;
                 if (
-                  idRecinto !== RecintoId.AUDITORIO &&
-                  idRecinto !== RecintoId.SALA_14
+                  !permitidas.includes(modalidadActual) ||
+                  validarModalidadEnRecinto(idRecinto, modalidadActual) !== null
                 ) {
-                  onCambioLogistica("accesoQR", "true");
-                } else if (idRecinto === RecintoId.SALA_14) {
-                  onCambioLogistica("accesoQR", "false");
+                  onCambioLogistica(
+                    "idModalidadAcceso",
+                    String(
+                      esLaboratorioRecinto(idRecinto)
+                        ? ModalidadAcceso.QR_GENERAL
+                        : modalidadPorDefectoRecinto(idRecinto, true),
+                    ),
+                  );
                 }
               }}
             />
@@ -432,28 +454,31 @@ export function EditLogisticsSection({
         </div>
         <div className="flex min-w-0 flex-col gap-2">
           <FormField
-            label="Acceso"
+            label="Modalidad de acceso"
             className="!font-bold !text-black"
-            mensajeAyuda={
-              recintoSeleccionado?.idRecinto === RecintoId.SALA_14
-                ? "Al elegir la sala 14 el acceso es libre"
-                : recintoSeleccionado?.idRecinto !== RecintoId.AUDITORIO &&
-                    Boolean(recintoSeleccionado?.idRecinto)
-                  ? "Al elegir un laboratorio el acceso es con boleto"
-                  : ""
-            }
           >
             <Select
               id="campoAcceso"
               placeholder="Selecciona una opción"
-              options={ACCESOS}
-              value={valores.accesoQR}
+              options={modalidadesPermitidas.map((modalidad) => ({
+                value: String(modalidad),
+                label: ETIQUETAS_MODALIDAD[modalidad],
+              }))}
+              value={valores.idModalidadAcceso}
               disabled={deshabilitado || accesoFijo}
               onChange={(event) =>
-                onCambioLogistica("accesoQR", event.currentTarget.value)
+                onCambioLogistica("idModalidadAcceso", event.currentTarget.value)
               }
             />
           </FormField>
+          <ModalidadAccesoHelp
+            idRecinto={recintoSeleccionado?.idRecinto}
+            idModalidadAcceso={
+              valores.idModalidadAcceso
+                ? (Number(valores.idModalidadAcceso) as ModalidadAcceso)
+                : undefined
+            }
+          />
         </div>
         {mostrarBanner && (
           <div className="flex min-w-0 flex-col gap-2">
@@ -494,6 +519,16 @@ export function EditLogisticsSection({
             aria-label="Aforo máximo del espacio seleccionado"
           />
         </div>
+        {avisoImpacto && (
+          <div className="sm:col-span-2">
+            <FeedbackNotice
+              variant="warning"
+              title="Aviso de impacto en registros actuales"
+            >
+              {avisoImpacto}
+            </FeedbackNotice>
+          </div>
+        )}
         {mostrarBanner && (
           <div className="flex min-w-0 flex-col gap-2 sm:col-span-2">
             <label htmlFor="campoJustificacion" className="font-bold">

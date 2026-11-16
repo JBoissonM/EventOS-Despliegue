@@ -10,12 +10,17 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, In, Repository } from 'typeorm';
 import {
   AlcanceEvento,
+  calcularImpactoCambioSubevento,
+  esLaboratorioRecinto,
+  esModalidadConQr,
   EstadoBoleto,
   EstadoEvento,
   EstadoSubEvento,
+  ModalidadAcceso,
   TipoCuentaUsuario,
   type EventoOrganizadorDetalle,
   type EventoOrganizadorDetalleSubevento,
+  type ImpactoCambioSubevento,
   type InvitadoEventoItem,
   type MisEventosItem,
   type Ponente,
@@ -74,28 +79,55 @@ export class OrganizadorService {
       : this.storageService.publicUrl(poster);
   }
 
+  private async obtenerMetricasPorSubevento(
+    subEventoIds: number[],
+  ): Promise<
+    Map<number, { inscritos: number; ingresados: number; activos: number }>
+  > {
+    const metricas = new Map<
+      number,
+      { inscritos: number; ingresados: number; activos: number }
+    >();
+    if (subEventoIds.length === 0) {
+      return metricas;
+    }
+
+    const conteos: Array<{
+      idSubEvento: number;
+      inscritos: number;
+      ingresados: number;
+      activos: number;
+    }> = await this.dataSource.query(
+      `SELECT ae."idSubEvento",
+              COUNT(b."idBoleto") FILTER (WHERE b."idEstadoBoleto" IN ($2, $3))::int AS inscritos,
+              COUNT(b."idBoleto") FILTER (WHERE b."idEstadoBoleto" = $3)::int AS ingresados,
+              COUNT(b."idBoleto") FILTER (WHERE b."idEstadoBoleto" = $2)::int AS activos
+       FROM "asistenteEvento" ae
+       INNER JOIN "boleto" b ON ae."idBoleto" = b."idBoleto"
+       WHERE ae."idSubEvento" = ANY($1)
+       GROUP BY ae."idSubEvento"`,
+      [subEventoIds, EstadoBoleto.VALIDO, EstadoBoleto.UTILIZADO],
+    );
+
+    for (const row of conteos) {
+      metricas.set(Number(row.idSubEvento), {
+        inscritos: Number(row.inscritos),
+        ingresados: Number(row.ingresados),
+        activos: Number(row.activos),
+      });
+    }
+
+    return metricas;
+  }
+
   private async contarBoletosValidosPorSubevento(
     subEventoIds: number[],
   ): Promise<Map<number, number>> {
+    const metricas = await this.obtenerMetricasPorSubevento(subEventoIds);
     const boletosPorSubevento = new Map<number, number>();
-    if (subEventoIds.length === 0) {
-      return boletosPorSubevento;
+    for (const [idSub, m] of metricas) {
+      boletosPorSubevento.set(idSub, m.activos);
     }
-
-    const conteos: { idSubEvento: number; total: string }[] =
-      await this.dataSource.query(
-        `SELECT ae."idSubEvento", COUNT(b."idBoleto") as total
-         FROM "asistenteEvento" ae
-         INNER JOIN "boleto" b ON ae."idBoleto" = b."idBoleto"
-         WHERE ae."idSubEvento" = ANY($1) AND b."idEstadoBoleto" = $2
-         GROUP BY ae."idSubEvento"`,
-        [subEventoIds, EstadoBoleto.VALIDO],
-      );
-
-    for (const row of conteos) {
-      boletosPorSubevento.set(Number(row.idSubEvento), Number(row.total));
-    }
-
     return boletosPorSubevento;
   }
 
@@ -120,8 +152,8 @@ export class OrganizadorService {
       .filter((s) => s.estado !== EstadoSubEvento.CANCELADO)
       .map((s) => s.idSubEvento);
 
-    const boletosPorSubevento =
-      await this.contarBoletosValidosPorSubevento(subEventoIds);
+    const metricasPorSubevento =
+      await this.obtenerMetricasPorSubevento(subEventoIds);
 
     const ahoraCdmx = obtenerAhoraCdmx();
 
@@ -150,9 +182,28 @@ export class OrganizadorService {
       const primerSub = subeventos[0] || null;
       const cupoMaximo = primerSub?.recinto?.aforo ?? 0;
       const boletosEmitidos = subeventos.reduce(
-        (acc, sub) => acc + (boletosPorSubevento.get(sub.idSubEvento) || 0),
+        (acc, sub) =>
+          acc + (metricasPorSubevento.get(sub.idSubEvento)?.activos ?? 0),
         0,
       );
+      const inscritosCount = subeventos.reduce(
+        (acc, sub) =>
+          acc + (metricasPorSubevento.get(sub.idSubEvento)?.inscritos ?? 0),
+        0,
+      );
+      const usaQr = subeventos.some((sub) =>
+        esModalidadConQr(sub.idModalidadAcceso),
+      );
+      const ingresadosCount = usaQr
+        ? subeventos.reduce(
+            (acc, sub) =>
+              esModalidadConQr(sub.idModalidadAcceso)
+                ? acc +
+                  (metricasPorSubevento.get(sub.idSubEvento)?.ingresados ?? 0)
+                : acc,
+            0,
+          )
+        : null;
 
       return {
         claveOrden: calcularClaveOrdenProximo(subeventosMapeados, ahoraCdmx),
@@ -167,6 +218,8 @@ export class OrganizadorService {
           idEstadoEvento: evento.idEstadoEvento,
           cupoMaximo,
           boletosEmitidos,
+          inscritosCount,
+          ingresadosCount,
           subeventos: subeventosMapeados,
         },
       };
@@ -224,8 +277,8 @@ export class OrganizadorService {
     });
 
     const subEventoIds = subeventos.map((s) => s.idSubEvento);
-    const boletosPorSubevento =
-      await this.contarBoletosValidosPorSubevento(subEventoIds);
+    const metricasPorSubevento =
+      await this.obtenerMetricasPorSubevento(subEventoIds);
 
     const ponentesPorSubevento = new Map<number, Ponente[]>();
     if (subEventoIds.length > 0) {
@@ -247,16 +300,30 @@ export class OrganizadorService {
     }
 
     let boletosActivosCount = 0;
+    let totalInscritos = 0;
+    let totalIngresados = 0;
+    let tieneQr = false;
+
     const subEventosDetallados: EventoOrganizadorDetalleSubevento[] =
       subeventos.map((sub) => {
-        const emitidos = boletosPorSubevento.get(sub.idSubEvento) || 0;
-        boletosActivosCount += emitidos;
+        const m = metricasPorSubevento.get(sub.idSubEvento) ?? {
+          inscritos: 0,
+          ingresados: 0,
+          activos: 0,
+        };
+        const usaQr = esModalidadConQr(sub.idModalidadAcceso);
+        boletosActivosCount += m.activos;
+        totalInscritos += m.inscritos;
+        if (usaQr) {
+          tieneQr = true;
+          totalIngresados += m.ingresados;
+        }
 
         return {
           idSubEvento: sub.idSubEvento,
           nombre: sub.nombre,
           descripcion: sub.descripcion,
-          accesoQR: sub.accesoQR,
+          idModalidadAcceso: sub.idModalidadAcceso,
           estado: sub.estado,
           fecha: sub.fecha
             ? {
@@ -275,7 +342,9 @@ export class OrganizadorService {
               }
             : null,
           ponentes: ponentesPorSubevento.get(sub.idSubEvento) || [],
-          boletosEmitidos: emitidos,
+          boletosEmitidos: m.activos,
+          inscritosCount: m.inscritos,
+          ingresadosCount: usaQr ? m.ingresados : null,
         };
       });
 
@@ -359,6 +428,8 @@ export class OrganizadorService {
       idOrganizador: evento.idOrganizador,
       cupoMaximo,
       boletosActivosCount,
+      inscritosCount: totalInscritos,
+      ingresadosCount: tieneQr ? totalIngresados : null,
       subEventos: subEventosDetallados,
       solicitudModificacionPendiente: solicitudPendiente
         ? {
@@ -445,30 +516,60 @@ export class OrganizadorService {
       }
     }
 
-    // Validar que los subeventos existentes que cambian de recinto no superen el aforo con boletos activos
+    const idsExistentes = (evento.subEventos || []).map((s) => s.idSubEvento);
+    const boletosMap =
+      await this.contarBoletosValidosPorSubevento(idsExistentes);
+
+    const idsRecintosDestino = [
+      ...new Set(dto.subeventos.map((s) => s.idRecinto)),
+    ];
+    const recintosDestinoRaw =
+      idsRecintosDestino.length > 0
+        ? await this.dataSource.query(
+            `SELECT r."idRecinto",
+                    r.aforo,
+                    COALESCE((SELECT COUNT(*)::int FROM "estadoEquipo" eq WHERE eq."idRecinto" = r."idRecinto" AND eq.estado = true), 0) AS equipos
+             FROM recinto r
+             WHERE r."idRecinto" = ANY($1::int[])`,
+            [idsRecintosDestino],
+          )
+        : [];
+    const aforoPorRecinto = new Map<number, number>(
+      recintosDestinoRaw.map((row: any) => {
+        const idRec = Number(row.idRecinto);
+        const aforoReal = esLaboratorioRecinto(idRec)
+          ? Number(row.equipos)
+          : Number(row.aforo);
+        return [idRec, aforoReal];
+      }),
+    );
+
+    const advertenciasImpacto: ImpactoCambioSubevento[] = [];
     for (const subPropuesto of dto.subeventos) {
-      if (subPropuesto.idSubEvento) {
-        const existente = (evento.subEventos || []).find(
-          (s) => s.idSubEvento === subPropuesto.idSubEvento,
-        );
-        if (existente && existente.idRecinto !== subPropuesto.idRecinto) {
-          const nuevoRecintoRaw = await this.dataSource.query(
-            `SELECT "idRecinto", nombre, aforo FROM recinto WHERE "idRecinto" = $1 LIMIT 1`,
-            [subPropuesto.idRecinto],
-          );
-          if (nuevoRecintoRaw.length > 0) {
-            const aforoNuevo = Number(nuevoRecintoRaw[0].aforo);
-            const boletosMap = await this.contarBoletosValidosPorSubevento([
-              existente.idSubEvento,
-            ]);
-            const boletosActivos = boletosMap.get(existente.idSubEvento) ?? 0;
-            if (boletosActivos > aforoNuevo) {
-              throw new ConflictException(
-                `La cantidad solicitada excede el aforo máximo de seguridad del recinto. Solo quedan ${aforoNuevo} lugares disponibles.`,
-              );
-            }
-          }
-        }
+      if (!subPropuesto.idSubEvento) continue;
+      const existente = (evento.subEventos || []).find(
+        (s) => s.idSubEvento === subPropuesto.idSubEvento,
+      );
+      if (!existente) continue;
+
+      const inscritosActivos = boletosMap.get(existente.idSubEvento) ?? 0;
+      const aforoDestino = aforoPorRecinto.get(subPropuesto.idRecinto) ?? 0;
+      const modalidadDestino =
+        subPropuesto.idModalidadAcceso ?? existente.idModalidadAcceso;
+
+      const impacto = calcularImpactoCambioSubevento({
+        idSubEvento: existente.idSubEvento,
+        nombreSubEvento: subPropuesto.nombre || existente.nombre,
+        inscritosActivos,
+        aforoDestino,
+        idRecintoOrigen: existente.idRecinto,
+        idRecintoDestino: subPropuesto.idRecinto,
+        modalidadOrigen: existente.idModalidadAcceso as ModalidadAcceso,
+        modalidadDestino: modalidadDestino as ModalidadAcceso,
+      });
+
+      if (impacto && impacto.inscritosActivos > 0) {
+        advertenciasImpacto.push(impacto);
       }
     }
 
@@ -484,6 +585,7 @@ export class OrganizadorService {
         mensaje: 'Modificación aplicada directamente con éxito.',
         idEvento,
         directo: true,
+        advertenciasImpacto,
       };
     }
 
@@ -516,6 +618,7 @@ export class OrganizadorService {
         idEvento,
         estado: guardada.estado,
         inFlightActualizada: true,
+        advertenciasImpacto,
       };
     }
 
@@ -536,6 +639,7 @@ export class OrganizadorService {
       idEvento,
       estado: guardada.estado,
       inFlightActualizada: false,
+      advertenciasImpacto,
     };
   }
 

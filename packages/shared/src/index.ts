@@ -22,7 +22,7 @@ export interface SubEvento {
   idFecha: number;
   nombre: string;
   descripcion: string;
-  accesoQR: boolean;
+  idModalidadAcceso: ModalidadAcceso;
   estado: EstadoSubEvento;
 }
 
@@ -71,6 +71,7 @@ export interface AsientoDisponible {
 
 export interface DisponibilidadSubEvento {
   idSubEvento: number;
+  idModalidadAcceso?: ModalidadAcceso;
   recinto: Recinto;
   lugaresDisponibles: number; //<- calculado por el back
   asientos: AsientoDisponible[]; // <- lista de asientos disponibles
@@ -90,7 +91,7 @@ export interface DetalleBoletoUsuario {
   idSubEvento: number;
   nombreEvento: string;
   poster?: string | null;
-  accesoQR: boolean;
+  idModalidadAcceso: ModalidadAcceso;
   fecha: string;
   horaInicio: string;
   horaFin: string;
@@ -167,7 +168,7 @@ export interface SubeventoPayload {
   nombre: string;
   descripcion: string;
   idRecinto: number;
-  accesoQR?: boolean;
+  idModalidadAcceso?: ModalidadAcceso;
   fecha: string;
   horaInicio: string;
   horaFin: string;
@@ -193,6 +194,8 @@ export interface MisEventosItem {
   idEstadoEvento?: EstadoEvento;
   cupoMaximo: number;
   boletosEmitidos: number;
+  inscritosCount?: number;
+  ingresadosCount?: number | null;
   subeventos: SubEventoResumen[];
 }
 
@@ -200,12 +203,14 @@ export interface EventoOrganizadorDetalleSubevento {
   idSubEvento: number;
   nombre: string;
   descripcion: string;
-  accesoQR: boolean;
+  idModalidadAcceso: ModalidadAcceso;
   estado: EstadoSubEvento;
   fecha: Fecha | null;
   recinto: Recinto | null;
   ponentes: Ponente[];
   boletosEmitidos: number;
+  inscritosCount?: number;
+  ingresadosCount?: number | null;
 }
 
 export interface EventoOrganizadorDetalle {
@@ -223,6 +228,8 @@ export interface EventoOrganizadorDetalle {
   idOrganizador: number;
   cupoMaximo: number;
   boletosActivosCount: number;
+  inscritosCount?: number;
+  ingresadosCount?: number | null;
   subEventos: EventoOrganizadorDetalleSubevento[];
   solicitudModificacionPendiente?: {
     idSolicitudModificacion: number;
@@ -367,6 +374,259 @@ export enum RecintoId {
   LABORATORIO_2105 = 3,
   LABORATORIO_2106 = 5,
   LABORATORIO_2107 = 6,
+}
+
+export enum ModalidadAcceso {
+  ACCESO_LIBRE = 1,
+  REGISTRO_SIMPLE = 2,
+  QR_GENERAL = 3,
+  QR_MAPA = 4,
+}
+
+export const ETIQUETAS_MODALIDAD: Record<ModalidadAcceso, string> = {
+  [ModalidadAcceso.ACCESO_LIBRE]: 'Acceso libre',
+  [ModalidadAcceso.REGISTRO_SIMPLE]: 'Registro simple sin QR',
+  [ModalidadAcceso.QR_GENERAL]: 'QR Admisión general',
+  [ModalidadAcceso.QR_MAPA]: 'QR con mapa de asientos',
+};
+
+export const DESCRIPCIONES_MODALIDAD: Record<ModalidadAcceso, string> = {
+  [ModalidadAcceso.ACCESO_LIBRE]:
+    'Entrada abierta hasta completar el aforo del recinto. No requiere registro previo ni código QR.',
+  [ModalidadAcceso.REGISTRO_SIMPLE]:
+    'El asistente aparta su lugar en línea contra el aforo del recinto, sin generar código QR ni requerir escáner en puerta.',
+  [ModalidadAcceso.QR_GENERAL]:
+    'El asistente realiza registro previo y recibe un boleto digital con código QR sin asiento numerado.',
+  [ModalidadAcceso.QR_MAPA]:
+    'El asistente elige una butaca específica en el mapa del Auditorio y recibe su boleto digital con código QR.',
+};
+
+export function esModalidadConQr(
+  idModalidadAcceso?: ModalidadAcceso | number | null,
+): boolean {
+  return (
+    idModalidadAcceso === ModalidadAcceso.QR_GENERAL ||
+    idModalidadAcceso === ModalidadAcceso.QR_MAPA
+  );
+}
+
+export function esModalidadConRegistro(
+  idModalidadAcceso?: ModalidadAcceso | number | null,
+): boolean {
+  return (
+    idModalidadAcceso === ModalidadAcceso.REGISTRO_SIMPLE ||
+    idModalidadAcceso === ModalidadAcceso.QR_GENERAL ||
+    idModalidadAcceso === ModalidadAcceso.QR_MAPA
+  );
+}
+
+export function esLaboratorioRecinto(idRecinto?: number | null): boolean {
+  return (
+    typeof idRecinto === 'number' &&
+    idRecinto > 0 &&
+    idRecinto !== RecintoId.AUDITORIO &&
+    idRecinto !== RecintoId.SALA_14
+  );
+}
+
+export function obtenerEtiquetaModalidad(
+  idModalidadAcceso?: ModalidadAcceso | number | null,
+): string {
+  if (
+    idModalidadAcceso === ModalidadAcceso.ACCESO_LIBRE ||
+    idModalidadAcceso === ModalidadAcceso.REGISTRO_SIMPLE ||
+    idModalidadAcceso === ModalidadAcceso.QR_GENERAL ||
+    idModalidadAcceso === ModalidadAcceso.QR_MAPA
+  ) {
+    return ETIQUETAS_MODALIDAD[idModalidadAcceso];
+  }
+  return 'No especificado';
+}
+
+export function obtenerModalidadesPermitidasPorRecinto(
+  idRecinto: number,
+): ModalidadAcceso[] {
+  if (idRecinto === RecintoId.AUDITORIO) {
+    return [
+      ModalidadAcceso.ACCESO_LIBRE,
+      ModalidadAcceso.REGISTRO_SIMPLE,
+      ModalidadAcceso.QR_GENERAL,
+      ModalidadAcceso.QR_MAPA,
+    ];
+  }
+  if (idRecinto === RecintoId.SALA_14) {
+    return [
+      ModalidadAcceso.ACCESO_LIBRE,
+      ModalidadAcceso.REGISTRO_SIMPLE,
+      ModalidadAcceso.QR_GENERAL,
+    ];
+  }
+  return [ModalidadAcceso.QR_GENERAL];
+}
+
+export function validarModalidadEnRecinto(
+  idRecinto: number,
+  idModalidadAcceso: ModalidadAcceso,
+): string | null {
+  if (
+    idRecinto === RecintoId.SALA_14 &&
+    idModalidadAcceso === ModalidadAcceso.QR_MAPA
+  ) {
+    return 'En Sala 14 no se permite la modalidad con mapa de asientos.';
+  }
+  if (
+    esLaboratorioRecinto(idRecinto) &&
+    idModalidadAcceso !== ModalidadAcceso.QR_GENERAL
+  ) {
+    return 'En los laboratorios de cómputo la única modalidad válida es QR Admisión general.';
+  }
+  if (!obtenerModalidadesPermitidasPorRecinto(idRecinto).includes(idModalidadAcceso)) {
+    return 'La modalidad de acceso seleccionada no es válida para este recinto.';
+  }
+  return null;
+}
+
+export function modalidadPorDefectoRecinto(
+  idRecinto: number,
+  conQr: boolean,
+): ModalidadAcceso {
+  if (!conQr) {
+    return ModalidadAcceso.ACCESO_LIBRE;
+  }
+  return idRecinto === RecintoId.AUDITORIO
+    ? ModalidadAcceso.QR_MAPA
+    : ModalidadAcceso.QR_GENERAL;
+}
+
+export type TipoTransicionModalidad =
+  | 'CONSERVADO'
+  | 'CANCELADO_REAUTH'
+  | 'CANCELADO_LIBERADO';
+
+export interface ImpactoCambioSubevento {
+  idSubEvento: number;
+  nombreSubEvento: string;
+  inscritosActivos: number;
+  aforoDestino: number;
+  idRecintoOrigen: number;
+  idRecintoDestino: number;
+  modalidadOrigen: ModalidadAcceso;
+  modalidadDestino: ModalidadAcceso;
+  cambioRecinto: boolean;
+  cambioModalidad: boolean;
+  conservadosFifo: number;
+  canceladosSobrecupoFifo: number;
+  canceladosPorTransicion: number;
+  tipoTransicion: TipoTransicionModalidad | null;
+  resumenTexto: string;
+}
+
+/** Clasifica el tratamiento de registros activos ante cambios de recinto o modalidad. */
+export function clasificarTransicionModalidad(
+  origen: ModalidadAcceso,
+  destino: ModalidadAcceso,
+): TipoTransicionModalidad {
+  if (destino === ModalidadAcceso.ACCESO_LIBRE) {
+    return 'CANCELADO_LIBERADO';
+  }
+  if (origen === ModalidadAcceso.ACCESO_LIBRE) {
+    return 'CANCELADO_REAUTH';
+  }
+  if (
+    origen === ModalidadAcceso.REGISTRO_SIMPLE &&
+    destino !== ModalidadAcceso.REGISTRO_SIMPLE
+  ) {
+    return 'CANCELADO_REAUTH';
+  }
+  if (
+    origen === ModalidadAcceso.QR_GENERAL &&
+    destino === ModalidadAcceso.QR_MAPA
+  ) {
+    return 'CANCELADO_REAUTH';
+  }
+  return 'CONSERVADO';
+}
+
+/** Calcula el impacto estimado de corte FIFO y transición sobre reservas activas. */
+export function calcularImpactoCambioSubevento(params: {
+  idSubEvento: number;
+  nombreSubEvento: string;
+  inscritosActivos: number;
+  aforoDestino: number;
+  idRecintoOrigen: number;
+  idRecintoDestino: number;
+  modalidadOrigen: ModalidadAcceso;
+  modalidadDestino: ModalidadAcceso;
+}): ImpactoCambioSubevento | null {
+  const cambioRecinto = params.idRecintoOrigen !== params.idRecintoDestino;
+  const cambioModalidad = params.modalidadOrigen !== params.modalidadDestino;
+
+  if (!cambioRecinto && !cambioModalidad) {
+    return null;
+  }
+
+  const { inscritosActivos, aforoDestino, modalidadOrigen, modalidadDestino } = params;
+  const transicion = clasificarTransicionModalidad(modalidadOrigen, modalidadDestino);
+
+  if (inscritosActivos <= 0) {
+    return {
+      ...params,
+      cambioRecinto,
+      cambioModalidad,
+      conservadosFifo: 0,
+      canceladosSobrecupoFifo: 0,
+      canceladosPorTransicion: 0,
+      tipoTransicion: transicion,
+      resumenTexto: '',
+    };
+  }
+
+  if (modalidadDestino === ModalidadAcceso.ACCESO_LIBRE) {
+    return {
+      ...params,
+      cambioRecinto,
+      cambioModalidad,
+      conservadosFifo: 0,
+      canceladosSobrecupoFifo: 0,
+      canceladosPorTransicion: inscritosActivos,
+      tipoTransicion: 'CANCELADO_LIBERADO',
+      resumenTexto: `Al cambiar a Acceso libre, los ${inscritosActivos} registros activos se cancelarán y liberarán con aviso por correo.`,
+    };
+  }
+
+  const aforoSeguro = Math.max(0, aforoDestino);
+  const canceladosSobrecupoFifo =
+    inscritosActivos > aforoSeguro ? inscritosActivos - aforoSeguro : 0;
+  const enAforo = inscritosActivos - canceladosSobrecupoFifo;
+  const conservadosFifo = transicion === 'CONSERVADO' ? enAforo : 0;
+  const canceladosPorTransicion = transicion === 'CANCELADO_REAUTH' ? enAforo : 0;
+
+  let resumenTexto = '';
+  if (canceladosSobrecupoFifo > 0 && transicion === 'CONSERVADO') {
+    resumenTexto = `El espacio destino tiene capacidad para ${aforoSeguro} personas y actualmente hay ${inscritosActivos} inscritos. Se conservarán los primeros ${enAforo} registros por orden cronológico de inscripción y los ${canceladosSobrecupoFifo} restantes serán cancelados por sobrecupo.`;
+  } else if (canceladosSobrecupoFifo > 0 && transicion === 'CANCELADO_REAUTH') {
+    resumenTexto = `El espacio destino tiene capacidad para ${aforoSeguro} personas y actualmente hay ${inscritosActivos} inscritos. Los ${canceladosSobrecupoFifo} registros más recientes serán cancelados por sobrecupo y los primeros ${enAforo} deberán realizar un nuevo registro por cambio de modalidad.`;
+  } else if (transicion === 'CANCELADO_REAUTH') {
+    resumenTexto = `Por cambio de modalidad, los ${inscritosActivos} registros actuales serán cancelados para que los asistentes realicen un nuevo registro acorde al espacio destino.`;
+  } else {
+    const notaSinAsiento =
+      modalidadOrigen === ModalidadAcceso.QR_MAPA &&
+      modalidadDestino !== ModalidadAcceso.QR_MAPA
+        ? ' (pasarán a admisión general sin asiento numerado asignado)'
+        : '';
+    resumenTexto = `Los ${inscritosActivos} registros actuales conservarán su lugar${notaSinAsiento} y recibirán notificación de actualización.`;
+  }
+
+  return {
+    ...params,
+    cambioRecinto,
+    cambioModalidad,
+    conservadosFifo,
+    canceladosSobrecupoFifo,
+    canceladosPorTransicion,
+    tipoTransicion: transicion,
+    resumenTexto,
+  };
 }
 
 export enum TipoPerfilVerificacion {

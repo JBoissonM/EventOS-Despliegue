@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { Builder, WebDriver } from "selenium-webdriver";
+import { Builder, By, WebDriver, until } from "selenium-webdriver";
 import chrome from "selenium-webdriver/chrome";
 import { LoginPage } from "../pages/LoginPage";
 import { TicketReservationPage } from "../pages/TicketReservationPage";
@@ -16,6 +16,8 @@ interface TestContext {
   noAuditorioEventName: string;
   freeEventId: number;
   freeEventName: string;
+  simpleRegEventId: number;
+  simpleRegEventName: string;
   createdEventIds: number[];
   createdFechaIds: number[];
   createdSubEventoIds: number[];
@@ -89,11 +91,11 @@ async function setupTestData(): Promise<TestContext> {
   createdFechaIds.push(f1Id);
 
   const resSub1 = await client.query(
-    `INSERT INTO "subEvento" ("accesoQR", estado, nombre, descripcion, "idEvento", "idRecinto", "idFecha")
+    `INSERT INTO "subEvento" ("idModalidadAcceso", estado, nombre, descripcion, "idEvento", "idRecinto", "idFecha")
      VALUES ($1, $2, $3, $4, $5, $6, $7)
      RETURNING "idSubEvento";`,
     [
-      true,
+      4,
       "Aceptado",
       `Conferencia Auditorio ${timestamp}`,
       "Actividad con butacas numeradas en Auditorio Principal.",
@@ -132,11 +134,11 @@ async function setupTestData(): Promise<TestContext> {
   createdFechaIds.push(f2Id);
 
   const resSub2 = await client.query(
-    `INSERT INTO "subEvento" ("accesoQR", estado, nombre, descripcion, "idEvento", "idRecinto", "idFecha")
+    `INSERT INTO "subEvento" ("idModalidadAcceso", estado, nombre, descripcion, "idEvento", "idRecinto", "idFecha")
      VALUES ($1, $2, $3, $4, $5, $6, $7)
      RETURNING "idSubEvento";`,
     [
-      true,
+      3,
       "Aceptado",
       `Taller Sala 14 ${timestamp}`,
       "Actividad en espacio sin butacas individuales numeradas.",
@@ -147,7 +149,7 @@ async function setupTestData(): Promise<TestContext> {
   );
   createdSubEventoIds.push(resSub2.rows[0].idSubEvento);
 
-  // 5. Crear Evento 3: Entrada Libre (accesoQR = false, termina en UI05 sin reservación)
+  // 5. Crear Evento 3: Acceso Libre (idModalidadAcceso = 1, termina en UI05 sin reservación)
   const freeEventName = `Feria Entrada Libre E2E ${timestamp}`;
   const resEv3 = await client.query(
     `INSERT INTO evento (nombre, descripcion, poster, justificacion, "esUrgente", "idAlcance", "idEstadoEvento", "idOrganizador")
@@ -175,11 +177,11 @@ async function setupTestData(): Promise<TestContext> {
   createdFechaIds.push(f3Id);
 
   const resSub3 = await client.query(
-    `INSERT INTO "subEvento" ("accesoQR", estado, nombre, descripcion, "idEvento", "idRecinto", "idFecha")
+    `INSERT INTO "subEvento" ("idModalidadAcceso", estado, nombre, descripcion, "idEvento", "idRecinto", "idFecha")
      VALUES ($1, $2, $3, $4, $5, $6, $7)
      RETURNING "idSubEvento";`,
     [
-      false, // Entrada libre (sin boleto QR)
+      1, // Acceso libre
       "Aceptado",
       `Muestra Abierta ${timestamp}`,
       "Actividad de libre acceso sin reserva previa.",
@@ -189,6 +191,49 @@ async function setupTestData(): Promise<TestContext> {
     ],
   );
   createdSubEventoIds.push(resSub3.rows[0].idSubEvento);
+
+  // 6. Crear Evento 4: Registro simple sin QR (idModalidadAcceso = 2 en Sala 14)
+  const simpleRegEventName = `Charla Registro Simple E2E ${timestamp}`;
+  const resEv4 = await client.query(
+    `INSERT INTO evento (nombre, descripcion, poster, justificacion, "esUrgente", "idAlcance", "idEstadoEvento", "idOrganizador")
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+     RETURNING "idEvento";`,
+    [
+      simpleRegEventName,
+      "Charla académica con inscripción nominal en plataforma sin generar código QR.",
+      "https://images.unsplash.com/photo-1511578314322-379afb476865?w=600",
+      "Validación de flujo E2E para Registro simple sin QR.",
+      false,
+      1,
+      2,
+      organizerId,
+    ],
+  );
+  const simpleRegEventId = resEv4.rows[0].idEvento;
+  createdEventIds.push(simpleRegEventId);
+
+  const resF4 = await client.query(
+    `INSERT INTO fecha (fecha, "horaInicio", "horaFin") VALUES ($1, $2, $3) RETURNING "idFecha";`,
+    [tomorrow, "18:30:00", "20:00:00"],
+  );
+  const f4Id = resF4.rows[0].idFecha;
+  createdFechaIds.push(f4Id);
+
+  const resSub4 = await client.query(
+    `INSERT INTO "subEvento" ("idModalidadAcceso", estado, nombre, descripcion, "idEvento", "idRecinto", "idFecha")
+     VALUES ($1, $2, $3, $4, $5, $6, $7)
+     RETURNING "idSubEvento";`,
+    [
+      2, // Registro simple sin QR
+      "Aceptado",
+      `Charla Nominal ${timestamp}`,
+      "Actividad con registro nominal sin código QR.",
+      simpleRegEventId,
+      4, // Sala 14
+      f4Id,
+    ],
+  );
+  createdSubEventoIds.push(resSub4.rows[0].idSubEvento);
 
   await client.end();
 
@@ -201,6 +246,8 @@ async function setupTestData(): Promise<TestContext> {
     noAuditorioEventName,
     freeEventId,
     freeEventName,
+    simpleRegEventId,
+    simpleRegEventName,
     createdEventIds,
     createdFechaIds,
     createdSubEventoIds,
@@ -401,15 +448,90 @@ async function runTicketReservationSuite(): Promise<void> {
 
     console.log("Paso 4: Validando insignias y aviso de entrada libre...");
     const isFree = await reservationPage.isFreeAdmission();
-    assert.equal(isFree, true, "Debe exhibir la etiqueta 'Entrada libre' y el aviso de acceso por orden de llegada.");
+    assert.equal(isFree, true, "Debe exhibir la etiqueta 'Acceso libre' y el aviso de acceso por orden de llegada.");
 
     console.log("Paso 5: Verificando que NO exista botón de reservar...");
     const hasFreeReserveBtn = await reservationPage.hasReserveButton();
     assert.equal(hasFreeReserveBtn, false, "Los eventos de entrada libre no deben permitir reservar lugar (concluye en UI05).");
     console.log("  ✓ Caso 3 superado con éxito.");
 
+    // =========================================================================
+    // CASO 4: FLUJO REGISTRO SIMPLE SIN QR (UI04 -> UI05 -> UI06 -> UI08)
+    // =========================================================================
+    console.log("\n--- CASO 4: Evento con Registro simple sin QR ---");
+    await reservationPage.openCatalog();
+    await reservationPage.selectEventByTitle(ctx.simpleRegEventName);
+    await reservationPage.waitForEventDetails(ctx.simpleRegEventName);
+
+    assert.equal(
+      await reservationPage.isSimpleRegistration(),
+      true,
+      "Debe exhibir la etiqueta 'Registro simple sin QR'.",
+    );
+    assert.equal(
+      await reservationPage.hasReserveButton(),
+      true,
+      "El evento con registro simple sin QR debe habilitar 'Reservar lugar'.",
+    );
+
+    await reservationPage.clickReserve();
+    await reservationPage.waitForReservationPage();
+    assert.equal(
+      await reservationPage.isAutomaticReservationNoticeVisible(),
+      true,
+      "Debe explicar que registro simple no genera QR ni requiere seleccionar asiento.",
+    );
+
+    await reservationPage.clickAutomaticReserve();
+    await reservationPage.confirmReservationInModal();
+    assert.equal(
+      await reservationPage.waitForSuccessDialog(),
+      true,
+      "Debe confirmarse el registro nominal en el modal.",
+    );
+    assert.equal(
+      await reservationPage.isSuccessQrGenerated(),
+      false,
+      "Registro simple sin QR NO debe generar imagen de código QR.",
+    );
+    assert.equal(
+      await reservationPage.hasViewQrButtonInDialog(),
+      false,
+      "Registro simple sin QR NO debe mostrar botón 'Ver código QR'.",
+    );
+
+    await reservationPage.closeSuccessDialog();
+
+    const baseUrl = process.env.E2E_BASE_URL || "http://localhost:5173";
+    await driver.get(`${baseUrl}/asistente/boletos`);
+    const simpleCard = await driver.wait(
+      until.elementLocated(
+        By.xpath(
+          `//article[.//*[contains(normalize-space(), ${JSON.stringify(ctx.simpleRegEventName)})]]`,
+        ),
+      ),
+      8000,
+    );
+    const verQrButtons = await simpleCard.findElements(
+      By.xpath(".//button[normalize-space()='Ver QR']"),
+    );
+    assert.equal(
+      verQrButtons.length,
+      0,
+      "En Mis Boletos no debe mostrarse el botón 'Ver QR' para Registro simple sin QR.",
+    );
+    const cancelBtn = await simpleCard.findElement(
+      By.xpath(".//button[normalize-space()='Cancelar asistencia']"),
+    );
+    assert.equal(
+      await cancelBtn.isDisplayed(),
+      true,
+      "Debe permitir cancelar la asistencia en Registro simple sin QR.",
+    );
+    console.log("  ✓ Caso 4 superado con éxito.");
+
     console.log("\n============================================================");
-    console.log(">>> TODAS LAS PRUEBAS DE RESERVA DE BOLETOS PASARON (3/3) <<<");
+    console.log(">>> TODAS LAS PRUEBAS DE RESERVA DE BOLETOS PASARON (4/4) <<<");
     console.log("============================================================\n");
   } catch (err) {
     console.error("FATAL ERROR en runTicketReservationSuite:", err);
