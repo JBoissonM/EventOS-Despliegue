@@ -8,6 +8,8 @@ import { Button } from "../../components/atoms/Button/Button";
 import { CardMetricas } from "../../components/molecules/CardMetricas";
 import { FeedbackNotice } from "../../components/molecules/FeedbackNotice";
 import { ModalidadAccesoHelp } from "../../components/molecules/ModalidadAccesoHelp";
+import { PageContainer } from "../../components/templates/PageContainer";
+import { PageHeader } from "../../components/organisms/PageHeader/PageHeader";
 
 interface Asistente {
   idBoleto?: number;
@@ -79,20 +81,24 @@ export function ControlAcceso() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center font-merriweather text-gray-600">
-        <LoaderCircle size={36} className="animate-spin text-[#5c1d33]" />
-        <span className="ml-3">Cargando panel de control de acceso...</span>
-      </div>
+      <PageContainer>
+        <div className="flex min-h-72 items-center justify-center font-merriweather text-gray-600">
+          <LoaderCircle size={36} className="animate-spin text-[#5c1d33]" />
+          <span className="ml-3">Cargando panel de control de acceso...</span>
+        </div>
+      </PageContainer>
     );
   }
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-6 font-merriweather text-center">
-        <AlertCircle size={48} className="text-red-600 mb-3" />
-        <p className="text-lg font-semibold text-gray-900 mb-4">{error}</p>
-        <Button text="Regresar a Mis Eventos" variant="primary" onClick={() => navigate("/mis-eventos-asignados")} />
-      </div>
+      <PageContainer>
+        <div className="flex min-h-64 flex-col items-center justify-center p-6 font-merriweather text-center space-y-4">
+          <AlertCircle size={48} className="text-red-600 mb-3" />
+          <p className="text-lg font-semibold text-gray-900">{error}</p>
+          <Button text="Volver a los eventos asignados" variant="primary" onClick={() => navigate("/panel-eventos-asignados")} />
+        </div>
+      </PageContainer>
     );
   }
 
@@ -106,17 +112,17 @@ export function ControlAcceso() {
   const maxCapacity = data?.aforoMaximo ?? 50;
 
   return (
-    <div className="min-h-1 bg-gray-50 font-merriweather text-gray-800">
-      <main className="mx-auto w-full px-10 py-0">
-        <div className="mb-2">
-          <button onClick={() => navigate("/panel-eventos-asignados")} className="flex items-center text-sm font-semibold text-gray-700 hover:text-gray-900 transition-colors">
-            <span className="font-merriweather text-[20px] mr-3">← Volver a los eventos asignados</span>
-          </button>
-        </div>
-        <div className="mb-8 space-y-2">
-          <h1 className="text-[36px] font-bold text-gray-900">Control de Acceso</h1>
+    <PageContainer>
+      <div className="space-y-6 font-merriweather text-gray-800">
+        <PageHeader
+          title="Control de Acceso"
+          description={data?.nombreEvento ? `Evento: ${data.nombreEvento}` : "Monitoreo y validación de entrada de asistentes"}
+          back={{ to: "/panel-eventos-asignados", label: "Volver a los eventos asignados" }}
+        />
+
+        <div className="space-y-2">
           <div className="flex flex-wrap items-center gap-3">
-            <h2 className="text-[28px] text-teal-800">
+            <h2 className="text-2xl font-bold text-teal-800">
               {data?.nombreSubEvento || "Actividad del Evento"}
             </h2>
             {data?.etiquetaModalidad && (
@@ -133,7 +139,7 @@ export function ControlAcceso() {
           )}
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 items-start">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 items-start pt-2">
           <div className="p-8 flex flex-col items-center text-center space-y-6">
             {requiresQr ? (
               <div className="flex flex-wrap justify-center gap-4">
@@ -225,8 +231,8 @@ export function ControlAcceso() {
             </div>
           </div>
         </div>
-      </main>
-    </div>
+      </div>
+    </PageContainer>
   );
 }
 
