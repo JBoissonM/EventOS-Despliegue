@@ -92,7 +92,8 @@ function validarFormulario(form: FormularioSolicitudData): ErroresFormulario {
   }
 
   if (!form.rutaPoster) {
-    errors.rutaPoster = "El póster del evento es obligatorio.";
+    errors.rutaPoster =
+      "El banner del evento es obligatorio. Debe estar en formato .jpg y con una resoluciòn de 2048 x 1152 pìxeles ";
   }
 
   if (!form.descripcion.trim()) {
@@ -134,10 +135,25 @@ export function diferenciaEntreFechas(f1: string, f2: string): number {
   return Math.round((utc2 - utc1) / 86_400_000);
 }
 
+export function sumarDias(fechaStr: string, dias: number): string {
+  if (!fechaStr) return "";
+  const [y, m, d] = fechaStr.split("-").map(Number);
+  const date = new Date(Date.UTC(y, m - 1, d));
+  date.setUTCDate(date.getUTCDate() + dias);
+  return date.toISOString().split("T")[0];
+}
+
 function validarSubeventos(
   subEventos: SubeventoFormData[],
 ): ErroresSubevento[] {
   const fechaInicioEvento = subEventos[0]?.fecha;
+  const fechaHoy = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Mexico_City",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date());
+  const fechaMinima = sumarDias(fechaHoy, 1);
 
   return subEventos.map((subevento, index) => {
     const errors: ErroresSubevento = {};
@@ -148,9 +164,12 @@ function validarSubeventos(
           errors.nombre =
             "El nombre del subevento no debe exceder los 150 caracteres";
         }
-        if (subevento.descripcion.trim().length > 500) {
+        if (
+          subevento.descripcion.trim().length < 10 &&
+          subevento.descripcion.trim().length >= 1
+        ) {
           errors.descripcion =
-            "La descripción del subevento no debe exceder los 500 caracteres";
+            "La descripciòn del subevento debe tener al menos 10 caracteres";
         }
       } else {
         if (!subevento.nombre.trim()) {
@@ -159,8 +178,12 @@ function validarSubeventos(
           errors.nombre =
             "El nombre del subevento no debe exceder los 150 caracteres";
         }
+
         if (!subevento.descripcion.trim()) {
           errors.descripcion = "La descripción del subevento es obligatoria";
+        } else if (subevento.descripcion.trim().length < 10) {
+          errors.descripcion =
+            "La descripción del subevento debe tener al menos 10 caracteres";
         } else if (subevento.descripcion.trim().length > 500) {
           errors.descripcion =
             "La descripción del subevento no debe exceder los 500 caracteres";
@@ -171,7 +194,9 @@ function validarSubeventos(
     if (!subevento.fecha) {
       errors.fecha = "Selecciona la fecha del evento";
     } else {
-      if (subevento.fecha > FECHA_FIN_SEMESTRE) {
+      if (subevento.fecha < fechaMinima) {
+        errors.fecha = "La fecha del evento debe ser a partir de mañana";
+      } else if (subevento.fecha > FECHA_FIN_SEMESTRE) {
         errors.fecha =
           "La fecha no debe exceder el fin de semestre (19 de diciembre)";
       } else if (index > 0 && fechaInicioEvento) {
@@ -548,7 +573,7 @@ export function SolicitudEvento() {
             horaFin: subevento.horaFin,
             idModalidadAcceso: esLaboratorioRecinto(subevento.idRecinto)
               ? ModalidadAcceso.QR_GENERAL
-              : subevento.idModalidadAcceso ?? ModalidadAcceso.ACCESO_LIBRE,
+              : (subevento.idModalidadAcceso ?? ModalidadAcceso.ACCESO_LIBRE),
           }),
         ),
       ),
@@ -621,7 +646,10 @@ export function SolicitudEvento() {
         }
       />
       {estadoVerificacion === "cargando" && (
-        <p role="status" className="rounded-lg bg-gray-50 px-4 py-6 text-gray-600">
+        <p
+          role="status"
+          className="rounded-lg bg-gray-50 px-4 py-6 text-gray-600"
+        >
           Cargando formulario...
         </p>
       )}
@@ -665,11 +693,14 @@ export function SolicitudEvento() {
                 ? mensajeError ||
                   "Por favor, completa todos los campos obligatorios resaltados para continuar"
                 : modal === "exito"
-                  ? "La solicitud se ha procesado éxitosamente y será evaluada por Subdirección de Servicios Académicos"
+                  ? `{La solicitud se ha procesado éxitosamente ${isSubdireccion ? "" : "y será evaluada por Subdirección de Servicios Académicos"}}`
                   : "¿Desea enviar la solicitud de este evento?"
             }
             mostrarModal={modal !== null}
-            cerrarModal={() => setModal(null)}
+            cerrarModal={() => {
+              setModal(null);
+              setMotivoUrgente("");
+            }}
           >
             <div className="flex flex-col-reverse justify-end gap-3 sm:flex-row">
               {modal === "error" || modal === "exito" ? (
@@ -683,7 +714,10 @@ export function SolicitudEvento() {
                   <Button
                     text="Cancelar"
                     variant="danger"
-                    onClick={() => setModal(null)}
+                    onClick={() => {
+                      setModal(null);
+                      setMotivoUrgente("");
+                    }}
                     className="w-full sm:w-auto"
                   />
                   <Button
@@ -702,7 +736,10 @@ export function SolicitudEvento() {
               mostrar={modalUrgente}
               motivo={motivoUrgente}
               onMotivoChange={setMotivoUrgente}
-              cerrar={() => setModalUrgente(false)}
+              cerrar={() => {
+                setModalUrgente(false);
+                setMotivoUrgente("");
+              }}
               continuar={() => {
                 setModalUrgente(false);
                 setModal("confirmacion");

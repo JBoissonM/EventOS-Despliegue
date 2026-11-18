@@ -15,6 +15,7 @@ export interface ModalMotivoProps {
   esUrgente: boolean;
   avisoImpacto?: string | null;
   logistica: EditLogisticsValues;
+  nombre?: string;
   onCerrar: () => void;
   onCerrarAviso: () => void;
   onCambioMotivo: (motivo: string) => void;
@@ -33,18 +34,19 @@ export function ModalMotivo({
   onCambioMotivo,
   onSolicitarConfirmacion,
   onConfirmar,
+  nombre,
 }: ModalMotivoProps) {
   return (
     <>
       <Modal
         mostrarModal={mostrarModal}
-        titulo="Motivo de modificación logística"
-        contenido="Ingresa el motivo de la modificación"
+        titulo="Motivo de modificación"
+        contenido={`Ingresa el motivo de la modificación para el evento: ${nombre}`}
         cerrarModal={onCerrar}
       >
         <FormField label="Motivo de modificación" required>
           <span className="text-xs text-gray-500">
-            Máximo 500 caracteres y mínimo 10
+            Máximo 500 caracteres y mínimo 10 caracteres
           </span>
           <TextArea
             id="contenedorMotivo"
