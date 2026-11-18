@@ -100,6 +100,7 @@ export interface RetencionAsientoActualRespuesta {
 export interface CrearReservaPayload {
   idSubEvento: number;
   idAsiento: number | null;
+  idRetencionAsiento?: number | null;
 }
 
 export interface DetalleBoletoUsuario {

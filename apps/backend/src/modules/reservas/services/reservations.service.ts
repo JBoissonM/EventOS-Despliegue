@@ -614,6 +614,10 @@ export class ReservationsService {
         return { retencion: null };
     }
 
+    private get retencionObligatoria(): boolean {
+        return process.env.RETENCION_ASIENTO_OBLIGATORIA === 'true';
+    }
+
     //logica de negocio para crear reserva
 
     async crearReserva(idUsuario: number, dto: CreateReservationDto): Promise<{ mensaje: string, boleto: any, qr?: string }> {
@@ -628,30 +632,104 @@ export class ReservationsService {
             const ctx = await this.validarElegibilidadReserva(manager, usuario, dto.idSubEvento);
             const { subEvento, eventoPrincipal, fechaEvento, recinto, requiereAsiento } = ctx;
 
-            if (requiereAsiento && !dto.idAsiento) {
-                throw new BadRequestException('Esta actividad requiere que selecciones un asiento.');
+            if (!requiereAsiento) {
+                if (dto.idAsiento) {
+                    throw new BadRequestException('Esta actividad es de admisión general y no utiliza asientos numerados.');
+                }
+                if (dto.idRetencionAsiento) {
+                    throw errorRetencion(
+                        BadRequestException,
+                        'MODALIDAD_SIN_ASIENTOS',
+                        'Esta actividad no utiliza selección de asientos.',
+                    );
+                }
             }
 
-            if (!requiereAsiento && dto.idAsiento) {
-                throw new BadRequestException('Esta actividad es de admisión general y no utiliza asientos numerados.');
+            let idAsientoFinal: number | null = null;
+            if (requiereAsiento) {
+                if (dto.idRetencionAsiento) {
+                    const retencionFilas = await manager.query(
+                        `SELECT "idAsiento", ("venceEn" > LOCALTIMESTAMP) AS vigente
+                         FROM "retencionAsiento"
+                         WHERE "idRetencionAsiento" = $1 AND "idUsuario" = $2 AND "idSubEvento" = $3
+                         FOR UPDATE`,
+                        [dto.idRetencionAsiento, idUsuario, dto.idSubEvento],
+                    );
+
+                    if (retencionFilas.length === 0) {
+                        throw errorRetencion(
+                            NotFoundException,
+                            'RETENCION_NO_ENCONTRADA',
+                            'No se encontró una retención activa a tu nombre.',
+                        );
+                    }
+
+                    if (!retencionFilas[0].vigente) {
+                        throw errorRetencion(
+                            GoneException,
+                            'RETENCION_EXPIRADA',
+                            'Tu tiempo para apartar el asiento terminó. Selecciona un asiento de nuevo.',
+                        );
+                    }
+
+                    const idAsientoRetencion = Number(retencionFilas[0].idAsiento);
+                    if (dto.idAsiento && Number(dto.idAsiento) !== idAsientoRetencion) {
+                        throw errorRetencion(
+                            BadRequestException,
+                            'RETENCION_ASIENTO_NO_COINCIDE',
+                            'El asiento enviado no coincide con el asiento que apartaste.',
+                        );
+                    }
+
+                    idAsientoFinal = idAsientoRetencion;
+                } else {
+                    if (this.retencionObligatoria) {
+                        throw errorRetencion(
+                            BadRequestException,
+                            'RETENCION_REQUERIDA',
+                            'Debes apartar un asiento antes de confirmar tu reservación.',
+                        );
+                    }
+                    if (!dto.idAsiento) {
+                        throw new BadRequestException('Esta actividad requiere que selecciones un asiento.');
+                    }
+                    idAsientoFinal = dto.idAsiento;
+                }
             }
 
             let asientoSeleccionado = null;
-            if (dto.idAsiento) {
-                asientoSeleccionado = ctx.asientosDelRecinto.find(a => a.idAsiento === dto.idAsiento);
+            if (requiereAsiento && idAsientoFinal !== null) {
+                asientoSeleccionado = ctx.asientosDelRecinto.find(a => a.idAsiento === idAsientoFinal);
                 if (!asientoSeleccionado) {
                     throw new BadRequestException('El asiento seleccionado no pertenece al recinto asignado a este subevento.');
                 }
             }
 
             // Verificar Aforo y Ocupación de Butaca solo en este SubEvento
-            const { lugaresOcupados, idsAsientosOcupados } = await this.calcularOcupacionSubEvento(manager, dto.idSubEvento);
+            const ocupacion = await this.calcularOcupacionSubEvento(manager, dto.idSubEvento);
 
-            if (dto.idAsiento && idsAsientosOcupados.has(dto.idAsiento)) {
+            if (requiereAsiento && idAsientoFinal !== null && ocupacion.idsAsientosOcupados.has(idAsientoFinal)) {
                 throw new ConflictException('El asiento seleccionado ya se encuentra ocupado en esta actividad.');
             }
 
-            if (lugaresOcupados >= recinto.aforo) {
+            let retencionesAjenas = 0;
+            if (requiereAsiento) {
+                const retencionesAjenasFilas = await manager.query(
+                    `SELECT "idAsiento" FROM "retencionAsiento"
+                     WHERE "idSubEvento" = $1 AND "idUsuario" <> $2 AND "venceEn" > LOCALTIMESTAMP`,
+                    [dto.idSubEvento, idUsuario],
+                );
+                if (retencionesAjenasFilas.some((r: any) => Number(r.idAsiento) === Number(idAsientoFinal))) {
+                    throw errorRetencion(
+                        ConflictException,
+                        'ASIENTO_RETENIDO',
+                        'El asiento seleccionado está apartado temporalmente por otra persona.',
+                    );
+                }
+                retencionesAjenas = retencionesAjenasFilas.length;
+            }
+
+            if (ocupacion.lugaresOcupados + retencionesAjenas >= recinto.aforo) {
                 throw new ConflictException('El aforo para este evento se ha agotado.');
             }
 
@@ -660,7 +738,7 @@ export class ReservationsService {
 
             const boletoNuevoObj = manager.create(BoletoEntity, {
                 tokenQr: '', 
-                idAsiento: dto.idAsiento || null,
+                idAsiento: ctx.requiereAsiento ? idAsientoFinal : null,
                 idEstadoBoleto: EstadoBoleto.VALIDO
             });
             
@@ -688,6 +766,13 @@ export class ReservationsService {
                 boletoGuardado.tokenQr = token;
                 await manager.save(BoletoEntity, boletoGuardado);
                 qrBase64Data = qrBase64;
+            }
+
+            if (ctx.requiereAsiento) {
+                await manager.query(
+                    `DELETE FROM "retencionAsiento" WHERE "idSubEvento" = $1 AND "idUsuario" = $2`,
+                    [dto.idSubEvento, idUsuario],
+                );
             }
 
             return {
