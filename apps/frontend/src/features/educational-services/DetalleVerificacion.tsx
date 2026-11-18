@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback } from "react";
 import { useParams, useNavigate } from "react-router";
-import { ArrowLeft, Clock, CheckCircle2, FileText, AlertCircle } from "lucide-react";
+import { Clock, CheckCircle2, FileText, AlertCircle } from "lucide-react";
+import { PageContainer } from "../../components/templates/PageContainer";
+import { PageHeader } from "../../components/organisms/PageHeader/PageHeader";
 import { Button } from "../../components/atoms/Button/Button";
 import { Modal } from "../../components/molecules/Modal";
 import { API_BASE_URL } from "../../lib/apiClient";
@@ -171,28 +173,29 @@ export function DetalleVerificacion() {
 
   if (cargando) {
     return (
-      <div className="flex min-h-100 items-center justify-center font-merriweather text-gray-600 gap-3">
-        <Clock className="w-6 h-6 animate-spin text-[#5F1B36]" />
-        <span>Cargando datos de la verificación...</span>
-      </div>
+      <PageContainer>
+        <div className="flex min-h-100 items-center justify-center font-merriweather text-gray-600 gap-3">
+          <Clock className="w-6 h-6 animate-spin text-[#5F1B36]" />
+          <span>Cargando datos de la verificación...</span>
+        </div>
+      </PageContainer>
     );
   }
 
   if (error || !solicitud) {
     return (
-      <div className="max-w-7xl mx-auto px-6 sm:px-10 lg:px-12 space-y-4 font-merriweather pt-6">
-        <button
-          onClick={() => navigate("/subdireccion/verificaciones")}
-          className="flex items-center text-sm font-semibold text-gray-700 hover:text-gray-900 transition-colors"
-        >
-          <ArrowLeft className="w-4 h-4 mr-2" />
-          <span>Volver a solicitudes</span>
-        </button>
-        <div className="bg-red-50 border border-red-200 text-red-700 p-6 rounded-xl">
-          <p className="font-semibold text-lg">Error al cargar la solicitud</p>
-          <p className="text-sm mt-1">{error || "No se encontró la solicitud de verificación especificada."}</p>
+      <PageContainer>
+        <div className="space-y-4 font-merriweather">
+          <PageHeader
+            title="Verificación de usuario"
+            back={{ to: "/subdireccion/verificaciones", label: "Volver a solicitudes" }}
+          />
+          <div className="bg-red-50 border border-red-200 text-red-700 p-6 rounded-xl">
+            <p className="font-semibold text-lg">Error al cargar la solicitud</p>
+            <p className="text-sm mt-1">{error || "No se encontró la solicitud de verificación especificada."}</p>
+          </div>
         </div>
-      </div>
+      </PageContainer>
     );
   }
 
@@ -233,46 +236,36 @@ export function DetalleVerificacion() {
   };
 
   return (
-    <section className="max-w-full sm:px-10 lg:px-12 space-y-4 font-merriweather pb-10 pt-2">
-      <div>
-        <button
-          onClick={() => navigate("/subdireccion/verificaciones")}
-          className="flex items-center text-[20px] font-semibold text-gray-700 hover:text-gray-900 transition-colors cursor-pointer"
-        >
-          <ArrowLeft className="w-4 h-4 mr-2" />
-          <span>Volver a solicitudes</span>
-        </button>
-      </div>
+    <PageContainer>
+      <section className="space-y-6 font-merriweather pb-10">
+        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+          <div className="flex-1">
+            <PageHeader
+              title="Verificación de usuario"
+              description="Evalúa los datos y el documento probatorio para validar la cuenta"
+              back={{ to: "/subdireccion/verificaciones", label: "Volver a solicitudes" }}
+            />
+          </div>
 
-      {mensajeExito && (
-        <div className="bg-green-50 border border-green-200 text-green-800 p-4 rounded-lg flex items-center gap-3">
-          <CheckCircle2 className="w-5 h-5 text-green-600 shrink-0" />
-          <span className="font-semibold">{mensajeExito}</span>
-        </div>
-      )}
-
-      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
-        <div>
-          <h1 className="font-merriweather font-bold text-3xl md:text-[34px] text-gray-900 leading-tight">
-            Verificación de usuario
-          </h1>
-          <p className="font-merriweather text-sm md:text-base text-gray-600 mt-1">
-            Evalúa los datos y el documento probatorio para validar la cuenta
-          </p>
+          <div className="pt-2 sm:pt-4">
+            {esPendiente ? (
+              <span className="inline-flex items-center justify-center rounded-md bg-[#B59A2A] px-6 py-1.5 text-sm font-semibold text-white shadow-sm font-merriweather">
+                Pendiente
+              </span>
+            ) : (
+              <span className="inline-flex items-center justify-center rounded-md bg-[#2D6A28] px-6 py-1.5 text-sm font-semibold text-white shadow-sm font-merriweather">
+                Verificado
+              </span>
+            )}
+          </div>
         </div>
 
-        <div>
-          {esPendiente ? (
-            <span className="inline-flex items-center justify-center rounded-md bg-[#B59A2A] px-6 py-1.5 text-sm font-semibold text-white shadow-sm font-merriweather">
-              Pendiente
-            </span>
-          ) : (
-            <span className="inline-flex items-center justify-center rounded-md bg-[#2D6A28] px-6 py-1.5 text-sm font-semibold text-white shadow-sm font-merriweather">
-              Verificado
-            </span>
-          )}
-        </div>
-      </div>
+        {mensajeExito && (
+          <div className="bg-green-50 border border-green-200 text-green-800 p-4 rounded-lg flex items-center gap-3">
+            <CheckCircle2 className="w-5 h-5 text-green-600 shrink-0" />
+            <span className="font-semibold">{mensajeExito}</span>
+          </div>
+        )}
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start pt-2">
         <div className="lg:col-span-5 space-y-6">
@@ -495,7 +488,8 @@ export function DetalleVerificacion() {
           />
         </div>
       </Modal>
-    </section>
+      </section>
+    </PageContainer>
   );
 }
 

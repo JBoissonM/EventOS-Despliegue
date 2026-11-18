@@ -27,7 +27,6 @@ const linksByRole = {
     { label: "Solicitudes Aprobadas", to: "/subdireccion/solicitudes-aprobadas" },
     { label: "Solicitudes Pendientes", to: "/subdireccion/lista-solicitudes" },
     { label: "Verificación de cuentas", to: "/subdireccion/verificaciones" },
-    { label: "Solicitar evento", to: "/solicitud-evento" },
   ],
 } satisfies Record<NavbarProps["userRole"], { label: string; to: string }[]>;
 
@@ -56,7 +55,7 @@ export function Navbar({ userRole }: NavbarProps) {
           Event-Os
         </span>
 
-        <div className="hidden items-center gap-3 xl:flex 2xl:gap-6">
+        <div className="hidden items-center gap-3 lg:flex 2xl:gap-6">
           <div className="flex items-center gap-1 xl:gap-2">
             {navLinks.map((link) => (
               <NavLink
@@ -89,7 +88,7 @@ export function Navbar({ userRole }: NavbarProps) {
           aria-expanded={mobileMenuOpen}
           aria-controls={mobileMenuId}
           onClick={() => setMobileMenuOpen((open) => !open)}
-          className={`inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-md text-eventos-on-primary transition-colors hover:bg-eventos-action-hover xl:hidden ${keyboardFocus}`}
+          className={`inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-md text-eventos-on-primary transition-colors hover:bg-eventos-action-hover lg:hidden ${keyboardFocus}`}
         >
           {mobileMenuOpen ? (
             <X size={25} aria-hidden="true" />
@@ -101,7 +100,7 @@ export function Navbar({ userRole }: NavbarProps) {
 
       <div
         id={mobileMenuId}
-        className={`${mobileMenuOpen ? "block" : "hidden"} mt-3 border-t border-eventos-navbar-divider pt-3 xl:hidden`}
+        className={`${mobileMenuOpen ? "block" : "hidden"} mt-3 border-t border-eventos-navbar-divider pt-3 lg:hidden`}
       >
         <div className="flex flex-col gap-1">
           {navLinks.map((link) => (

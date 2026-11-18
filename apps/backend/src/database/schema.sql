@@ -189,6 +189,19 @@ CREATE TABLE "invitacionEvento" (
   UNIQUE ("idEvento", "idUsuario")
 );
 
+-- 23. Retención Asiento (Temporal para modalidad QR con mapa de asientos)
+CREATE TABLE "retencionAsiento" (
+  "idRetencionAsiento" integer GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  "idSubEvento" integer NOT NULL REFERENCES "subEvento"("idSubEvento") ON DELETE CASCADE,
+  "idAsiento" integer NOT NULL REFERENCES asiento("idAsiento") ON DELETE CASCADE,
+  "idUsuario" integer NOT NULL REFERENCES usuario("idUsuario") ON DELETE CASCADE,
+  "venceEn" timestamp NOT NULL,
+  "creadaEn" timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  
+  CONSTRAINT "UQ_subevento_asiento" UNIQUE ("idSubEvento", "idAsiento"),
+  CONSTRAINT "UQ_subevento_usuario" UNIQUE ("idSubEvento", "idUsuario")
+);
+
 -- =======================================================
 -- Catálogos y Datos Iniciales
 -- =======================================================

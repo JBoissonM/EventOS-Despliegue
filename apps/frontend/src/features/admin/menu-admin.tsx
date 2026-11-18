@@ -1,4 +1,6 @@
 import { useNavigate } from "react-router";
+import { PageContainer } from "../../components/templates/PageContainer";
+import { PageHeader } from "../../components/organisms/PageHeader/PageHeader";
 import { Button } from "../../components/atoms/Button/Button";
 import { Users, Building2, CalendarDays, UserCheck } from "lucide-react";
 
@@ -6,17 +8,12 @@ export function MenuPrincipalAdministracion() {
   const navigate = useNavigate();
 
   return (
-    <div className="min-h-screen bg-gray-50 font-merriweather text-gray-800">
-
-      <main className="max-w mx-auto p-0 space-y-8">
-        <div>
-          <h1 className="text-[28px] font-bold text-gray-900 font-merriweather mb-3">
-            Menú Principal de Administración
-          </h1>
-          <p className="text-[16px] text-gray-600 max-w leading-relaxed font-merriweather">
-            Bienvenido al panel central de Event-Os. Selecciona un módulo para explorar la bitácora de eventos histórica, administrar cuentas y jefaturas, o actualizar el estado de espacios y laboratorios de ESCOM.
-          </p>
-        </div>
+    <PageContainer>
+      <div className="space-y-8 font-merriweather text-gray-800">
+        <PageHeader
+          title="Menú Principal de Administración"
+          description="Bienvenido al panel central de Event-Os. Selecciona un módulo para explorar la bitácora de eventos histórica, administrar cuentas y jefaturas, o actualizar el estado de espacios y laboratorios de ESCOM."
+        />
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-10 pt-0">
           
@@ -81,8 +78,8 @@ export function MenuPrincipalAdministracion() {
           </div>
 
         </div>
-      </main>
-    </div>
+      </div>
+    </PageContainer>
   );
 }
 
