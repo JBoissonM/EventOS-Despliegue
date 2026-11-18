@@ -8,6 +8,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
 import {
   AlcanceEvento,
+  EstadoBoleto,
   EstadoEvento,
   EstadoSubEvento,
   ModalidadAcceso,
@@ -241,9 +242,28 @@ export class EventosService {
     }
 
     if (evento.idAlcance === AlcanceEvento.INTERNO && !esUsuarioInterno) {
-      throw new ForbiddenException(
-        'Este evento es exclusivo para la comunidad interna del IPN.',
+      const tieneBoletoPrevio = await this.dataSource.query(
+        `SELECT 1
+         FROM "asistenteEvento" ae
+         INNER JOIN "subEvento" se ON ae."idSubEvento" = se."idSubEvento"
+         INNER JOIN "boleto" b ON ae."idBoleto" = b."idBoleto"
+         WHERE se."idEvento" = $1
+           AND ae."idUsuario" = $2
+           AND b."idEstadoBoleto" IN ($3, $4)
+         LIMIT 1`,
+        [
+          evento.idEvento,
+          usuarioActual!.sub,
+          EstadoBoleto.VALIDO,
+          EstadoBoleto.UTILIZADO,
+        ],
       );
+
+      if (tieneBoletoPrevio.length === 0) {
+        throw new ForbiddenException(
+          'Este evento es exclusivo para la comunidad interna del IPN.',
+        );
+      }
     }
 
     const subEventosDetallados = [];
