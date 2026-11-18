@@ -1,7 +1,8 @@
 import { Button } from "../../components/atoms/Button/Button";
-import { Input } from "../../components/atoms/Input/Input";
 import { useJefeDepartamento } from "../admin/hooks/useJefeDepartamento";
-import { Search } from "lucide-react";
+import { PageContainer } from "../../components/templates/PageContainer";
+import { PageHeader } from "../../components/organisms/PageHeader/PageHeader";
+import { SearchField } from "../../components/molecules/SearchField";
 
 export function JefeDepartamento() {
   const {
@@ -15,66 +16,61 @@ export function JefeDepartamento() {
     accionTipo,
     listaActual,
     handleTabChange,
-    handleBuscar,
     abrirModal,
     cerrarModal,
     ejecutarAccion,
-    handleVolverAlMenu,
   } = useJefeDepartamento();
 
   return (
-    <div className="space-y-6 font-merriweather text-gray-800 w-full p-0">
-      <div className="mb-2">
-        <button onClick={handleVolverAlMenu} className="flex items-center text-sm font-semibold text-gray-700 hover:text-gray-900 transition-colors">
-          <span className="font-merriweather text-[16px] mr-3">← Volver al menú</span>
-        </button>
-      </div>
+    <PageContainer>
+      <div className="space-y-6 text-gray-800">
+        <PageHeader
+          title="Asignar Jefe de Departamento"
+          description="Gestiona los permisos y asignaciones de jefaturas departamentales"
+          back={{ to: "/menu-admin", label: "Volver al menú" }}
+        />
 
-      <h1 className="text-[32px] font-bold text-gray-900 font-merriweather">
-        Asignar Jefe de Departamento
-      </h1>
+        {mensajeExito && (
+          <div className="bg-[#38761d] text-white px-4 py-3 rounded-md flex items-center space-x-2 shadow-md max-w-xl">
+            <span>✓</span>
+            <span className="text-sm font-medium">{mensajeExito}</span>
+          </div>
+        )}
 
-      {mensajeExito && (
-        <div className="bg-[#38761d] text-white px-4 py-3 rounded-md flex items-center space-x-2 shadow-md max-w-xl">
-          <span>✓</span>
-          <span className="text-sm font-medium">{mensajeExito}</span>
-        </div>
-      )}
+        <div className="bg-white rounded-lg border border-gray-300 shadow-sm max-w-5xl mx-auto overflow-hidden">
+          
+          <div className="flex border-b border-gray-300 bg-gray-50">
+            <button
+              onClick={() => handleTabChange("asignar")}
+              className={`px-6 py-3 text-sm font-semibold transition-colors border-r border-gray-300 ${
+                activeTab === "asignar"
+                  ? "bg-[#e2d5d8] text-gray-900 border-b-2 border-b-[#5c1d33]"
+                  : "text-gray-600 hover:bg-gray-100"
+              }`}
+            >
+              Asignar Jefe
+            </button>
+            <button
+              onClick={() => handleTabChange("revocar")}
+              className={`px-6 py-3 text-sm font-semibold transition-colors ${
+                activeTab === "revocar"
+                  ? "bg-[#e2d5d8] text-gray-900 border-b-2 border-b-[#5c1d33]"
+                  : "text-gray-600 hover:bg-gray-100"
+              }`}
+            >
+              Revocar Jefe
+            </button>
+          </div>
 
-      <div className="bg-white rounded-lg border border-gray-300 shadow-sm max-w-5xl mx-auto overflow-hidden">
-        
-        <div className="flex border-b border-gray-300 bg-gray-50">
-          <button
-            onClick={() => handleTabChange("asignar")}
-            className={`px-6 py-3 text-sm font-semibold transition-colors border-r border-gray-300 ${
-              activeTab === "asignar"
-                ? "bg-[#e2d5d8] text-gray-900 border-b-2 border-b-[#5c1d33]"
-                : "text-gray-600 hover:bg-gray-100"
-            }`}
-          >
-            Asignar Jefe
-          </button>
-          <button
-            onClick={() => handleTabChange("revocar")}
-            className={`px-6 py-3 text-sm font-semibold transition-colors ${
-              activeTab === "revocar"
-                ? "bg-[#e2d5d8] text-gray-900 border-b-2 border-b-[#5c1d33]"
-                : "text-gray-600 hover:bg-gray-100"
-            }`}
-          >
-            Revocar Jefe
-          </button>
-        </div>
-
-        <div className="p-6 space-y-6">
-          <form onSubmit={handleBuscar} className="max-w-md">
-            <div className="flex items-center border border-gray-300 rounded-md bg-white px-3 py-2 shadow-sm focus-within:ring-1 focus-within:ring-[#5c1d33]">
-              <Input type="text" placeholder="Buscar Correo o nombre..." value={busqueda} onChange={(e) => setBusqueda(e.target.value)} className="border-none p-0 focus:ring-0 text-sm w-full outline-none" />
-              <button type="submit" className="text-gray-600 hover:text-gray-900 ml-2 focus:outline-none shrink-0" aria-label="Buscar">
-                <Search className="w-5 h-5" />
-              </button>
+          <div className="p-6 space-y-6">
+            <div className="max-w-md">
+              <SearchField
+                value={busqueda}
+                onChange={setBusqueda}
+                placeholder="Buscar correo o nombre..."
+                className="w-full"
+              />
             </div>
-          </form>
 
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
@@ -136,6 +132,7 @@ export function JefeDepartamento() {
         </div>
       )}
     </div>
+  </PageContainer>
   );
 }
 

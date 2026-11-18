@@ -14,6 +14,7 @@ export function useGestionEquipos() {
   const { id } = useParams<{ id: string }>();
 
   const [equipos, setEquipos] = useState<Equipo[]>([]);
+  const [nombreLaboratorio, setNombreLaboratorio] = useState<string>("Cargando...");
   const [loading, setLoading] = useState(true);
 
   const [modalAbierto, setModalAbierto] = useState(false);
@@ -24,6 +25,41 @@ export function useGestionEquipos() {
     const usuario = JSON.parse(localStorage.getItem("usuario") || "{}");
     return usuario.token || localStorage.getItem("token") || "";
   };
+
+  const fetchInfoEspacio = useCallback(async () => {
+    if (!id) return;
+    try {
+      const response = await fetch(`${API_BASE_URL}/espacios`, {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${getToken()}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error("No se pudo obtener la información de los espacios.");
+      }
+
+      const data = await response.json();
+    
+      const espacioEncontrado = data.find(
+        (esp: any) => String(esp.idRecinto) === String(id) || String(esp.id) === String(id)
+      );
+
+      if (espacioEncontrado) {
+        setNombreLaboratorio(
+          espacioEncontrado.nombre || 
+          espacioEncontrado.nombreRecinto || 
+          `Laboratorio ${id}`
+        );
+      } else {
+        setNombreLaboratorio(`Laboratorio ${id}`);
+      }
+    } catch (err: any) {
+      console.error(err.message);
+      setNombreLaboratorio(`Laboratorio ${id}`);
+    }
+  }, [id]);
 
   const fetchEquipos = useCallback(async () => {
     if (!id) return;
@@ -50,8 +86,9 @@ export function useGestionEquipos() {
   }, [id]);
 
   useEffect(() => {
+    fetchInfoEspacio();
     fetchEquipos();
-  }, [fetchEquipos]);
+  }, [fetchInfoEspacio, fetchEquipos]);
 
   const totalEquipos = equipos.length;
   const equiposDisponibles = equipos.filter((e) => e.estado).length;
@@ -151,6 +188,7 @@ export function useGestionEquipos() {
 
   return {
     id,
+    nombre: nombreLaboratorio,
     equipos,
     loading,
     totalEquipos,
