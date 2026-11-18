@@ -431,6 +431,31 @@ export class MailService {
     );
   }
 
+  async enviarNotificacionBoletoCanceladoPorRevocacion(datos: {
+    destinatario: string;
+    nombreAsistente: string;
+    nombreEvento: string;
+  }): Promise<void> {
+    const cuerpo = `
+      <p>Hola, <strong>${this.escaparHtml(datos.nombreAsistente || 'Usuario')}</strong>:</p>
+      <p>Te informamos que tu invitación al evento privado <strong>${this.escaparHtml(datos.nombreEvento)}</strong> ha sido revocada por el organizador.</p>
+      <p>Debido a este cambio, tu boleto previo ha quedado <strong>cancelado</strong> y ya no será válido para ingresar al evento, liberando tu lugar automáticamente.</p>
+      <p>Puedes consultar el estado actualizado de tus reservaciones en la sección <strong>Mis Boletos</strong> dentro de EventOS.</p>
+      <p>Atentamente,<br>Equipo de EventOS</p>
+    `;
+
+    const html = this.construirHtmlCorreoInstitucional(
+      'Boleto Cancelado por Cambio en Lista de Invitados - EventOS',
+      cuerpo,
+    );
+    await this.enviarCorreoSeguro(
+      datos.destinatario,
+      `Tu boleto fue cancelado: ${datos.nombreEvento} - EventOS`,
+      html,
+      'Aviso de boleto cancelado por revocación de invitación',
+    );
+  }
+
   async enviarNotificacionCambioRecinto(datos: {
     destinatario: string;
     nombreAsistente: string;

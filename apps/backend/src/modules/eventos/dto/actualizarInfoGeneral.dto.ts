@@ -8,6 +8,7 @@ import {
   IsPositive,
   IsString,
   MaxLength,
+  ValidateIf,
   ValidateNested,
 } from 'class-validator';
 import { plainToInstance, Transform, Type } from 'class-transformer';
@@ -37,11 +38,11 @@ export class PonenteItemDto implements PonentePayload {
   @MaxLength(50, { message: 'El nombre del ponente no puede exceder 50 caracteres.' })
   nombre: string;
 
-  @ApiProperty()
+  @ApiPropertyOptional()
+  @IsOptional()
   @Transform(({ value }: { value: unknown }) =>
     typeof value === 'string' ? value.trim() : value,
   )
-  @IsNotEmpty({ message: 'El apellido paterno del ponente es obligatorio.' })
   @IsString({ message: 'El apellido paterno debe ser una cadena de texto.' })
   @MaxLength(50, { message: 'El apellido paterno no puede exceder 50 caracteres.' })
   apellidoPa: string;
@@ -55,14 +56,15 @@ export class PonenteItemDto implements PonentePayload {
   @MaxLength(50, { message: 'El apellido materno no puede exceder 50 caracteres.' })
   apellidoMa?: string | null;
 
-  @ApiProperty()
+  @ApiPropertyOptional()
+  @IsOptional()
   @Transform(({ value }: { value: unknown }) =>
     typeof value === 'string' ? value.trim() : value,
   )
-  @IsNotEmpty({ message: 'Advertencia: Ingrese un correo válido.' })
+  @ValidateIf((o: PonenteItemDto) => typeof o.correo === 'string' && o.correo.trim().length > 0)
   @IsEmail({}, { message: 'Advertencia: Ingrese un correo válido.' })
   @MaxLength(254, { message: 'El correo no puede exceder 254 caracteres.' })
-  correo: string;
+  correo?: string;
 
   @ApiPropertyOptional()
   @IsOptional()
