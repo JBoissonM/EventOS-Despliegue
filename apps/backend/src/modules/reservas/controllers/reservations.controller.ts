@@ -3,6 +3,7 @@ import { Throttle } from '@nestjs/throttler';
 import { ReservationsService } from '../services/reservations.service';
 import { TicketPdfService } from '../services/ticket-pdf.service';
 import { CreateReservationDto } from '../dto/createReservation.dto';
+import { CrearRetencionDto } from '../dto/crearRetencion.dto';
 import { UnauthorizedException, ForbiddenException } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { RolesGuard } from '../../auth/roles.guard';
@@ -84,6 +85,17 @@ export class ReservationsController {
   async crearReserva(@Req() req: any, @Body() dto: CreateReservationDto) {
     const idUsuario = this.obtenerIdUsuarioAutenticado(req);
     return await this.reservationsService.crearReserva(idUsuario, dto);
+  }
+
+  // Apartar temporalmente un asiento en una actividad con mapa
+  @ApiOperation({ summary: 'Apartar temporalmente un asiento (5 minutos) en una actividad con mapa' })
+  @ApiBearerAuth()
+  @UseGuards(RolesGuard)
+  @Throttle({ default: { limit: 20, ttl: 60000 } })
+  @Post('holds')
+  async adquirirRetencion(@Req() req: any, @Body() dto: CrearRetencionDto) {
+    const idUsuario = this.obtenerIdUsuarioAutenticado(req);
+    return await this.reservationsService.adquirirRetencion(idUsuario, dto);
   }
 
   // Cancelación lógica y liberación de lugar
