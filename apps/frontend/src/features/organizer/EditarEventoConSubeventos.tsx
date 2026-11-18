@@ -50,6 +50,13 @@ import {
   type TablaInvitados as TablaInvitadosModal,
 } from "./organism/ModalInvitados";
 import { PageHeader } from "../../components/organisms/PageHeader/PageHeader";
+import {
+  agregarInvitadosLocales,
+  normalizarCorreo,
+  sincronizarInvitadosYLogistica,
+  tienenCambiosInvitados,
+  tienenCambiosPersonalLogistica,
+} from "./deferredOrganizerSync";
 
 interface ActividadEditable {
   llave: string;
@@ -742,9 +749,14 @@ export function EditarEventoConSubeventos() {
     id: number;
     nombre: string;
   } | null>(null);
+  const [personalLogistica, setPersonalLogistica] = useState<
+    PersonalLogisticaItem[]
+  >([]);
+  const [personalLogisticaInicial, setPersonalLogisticaInicial] = useState<
+    PersonalLogisticaItem[]
+  >([]);
   const [personalAEliminar, setPersonalAEliminar] =
     useState<PersonalLogisticaItem | null>(null);
-  const [eliminandoPersonal, setEliminandoPersonal] = useState(false);
   const [modalInvitados, setModalInvitados] = useState(false);
   const [invitados, setInvitados] = useState<InvitadoEventoItem[]>([]);
   const [invitadosIniciales, setInvitadosIniciales] = useState<
@@ -752,84 +764,23 @@ export function EditarEventoConSubeventos() {
   >([]);
   const [invitadoAEliminar, setInvitadoAEliminar] =
     useState<InvitadoEventoItem | null>(null);
-  const [eliminandoInvitado, setEliminandoInvitado] = useState(false);
 
   const columnasLogistica = useMemo(
     () => crearColumnasLogistica(setPersonalAEliminar),
     [],
   );
 
-  const handleEliminarPersonalLogistica = async () => {
-    if (!personalAEliminar || !idEvento) return;
-    try {
-      setEliminandoPersonal(true);
-      await apiRequest(
-        `eventos/${idEvento}/personal-logistica/${personalAEliminar.idUsuario}`,
-        { method: "DELETE" },
-      );
-      setEvento((prev) =>
-        prev
-          ? {
-              ...prev,
-              personalLogistica: (prev.personalLogistica ?? []).filter(
-                (p) => p.idUsuario !== personalAEliminar.idUsuario,
-              ),
-            }
-          : prev,
-      );
-      setPersonalAEliminar(null);
-    } catch (err) {
-      setError(
-        err instanceof Error
-          ? err.message
-          : "No se pudo eliminar al personal de logística.",
-      );
-    } finally {
-      setEliminandoPersonal(false);
-    }
+  const confirmarEliminarPersonalLogistica = () => {
+    if (!personalAEliminar) return;
+    setPersonalLogistica((prev) =>
+      prev.filter((p) => p.idUsuario !== personalAEliminar.idUsuario),
+    );
+    setPersonalAEliminar(null);
   };
 
-  const handleGuardarInvitados = async (
-    nuevosInvitados: TablaInvitadosModal[],
-  ) => {
-    if (!idEvento) return;
-    const nuevosFormateados: InvitadoEventoItem[] = [];
-    const errores: string[] = [];
+  const handleGuardarInvitados = (nuevosInvitados: TablaInvitadosModal[]) => {
     setError(null);
-
-    for (const inv of nuevosInvitados) {
-      try {
-        const res = await apiRequest<{
-          mensaje: string;
-          invitado: InvitadoEventoItem;
-        }>(`eventos/${idEvento}/invitados`, {
-          method: "POST",
-          body: JSON.stringify({ correo: inv.correo }),
-        });
-        if (res?.invitado) {
-          nuevosFormateados.push(res.invitado);
-        }
-      } catch (err) {
-        errores.push(`${inv.correo}: ${obtenerMensajeError(err)}`);
-      }
-    }
-
-    if (errores.length > 0) {
-      setError(errores.join(". "));
-    }
-
-    if (nuevosFormateados.length > 0) {
-      setInvitados((prev) => [...prev, ...nuevosFormateados]);
-      setEvento((prev) =>
-        prev
-          ? {
-              ...prev,
-              invitados: [...(prev.invitados ?? []), ...nuevosFormateados],
-            }
-          : prev,
-      );
-      setMensaje("Invitación enviada y registrada correctamente.");
-    }
+    setInvitados((prev) => agregarInvitadosLocales(prev, nuevosInvitados));
   };
 
   const handleReenviarInvitado = async (invitado: InvitadoEventoItem) => {
@@ -855,48 +806,13 @@ export function EditarEventoConSubeventos() {
     }
   };
 
-  const confirmarEliminarInvitado = async () => {
-    if (!invitadoAEliminar || !idEvento) return;
-    try {
-      setEliminandoInvitado(true);
-      if (invitadoAEliminar.idInvitacionEvento) {
-        await apiRequest(
-          `eventos/${idEvento}/invitados/${invitadoAEliminar.idInvitacionEvento}`,
-          { method: "DELETE" },
-        );
-      }
-      setInvitados((prev) =>
-        prev.filter(
-          (i) =>
-            (i.idInvitacionEvento ?? i.idUsuario) !==
-              (invitadoAEliminar.idInvitacionEvento ??
-                invitadoAEliminar.idUsuario) &&
-            i.correo !== invitadoAEliminar.correo,
-        ),
-      );
-      setEvento((prev) =>
-        prev
-          ? {
-              ...prev,
-              invitados: (prev.invitados ?? []).filter(
-                (i) =>
-                  (i.idInvitacionEvento ?? i.idUsuario) !==
-                    (invitadoAEliminar.idInvitacionEvento ??
-                      invitadoAEliminar.idUsuario) &&
-                  i.correo !== invitadoAEliminar.correo,
-              ),
-            }
-          : prev,
-      );
-      setMensaje(
-        `Se eliminó la invitación de ${invitadoAEliminar.correo} correctamente.`,
-      );
-      setInvitadoAEliminar(null);
-    } catch (err) {
-      setError(obtenerMensajeError(err));
-    } finally {
-      setEliminandoInvitado(false);
-    }
+  const confirmarEliminarInvitado = () => {
+    if (!invitadoAEliminar) return;
+    const correoObjetivo = normalizarCorreo(invitadoAEliminar.correo);
+    setInvitados((prev) =>
+      prev.filter((i) => normalizarCorreo(i.correo) !== correoObjetivo),
+    );
+    setInvitadoAEliminar(null);
   };
 
   const columnasInvitados: Columna<InvitadoEventoItem>[] = useMemo(
@@ -916,12 +832,18 @@ export function EditarEventoConSubeventos() {
           <div className="flex flex-row items-center justify-center gap-2 sm:flex-nowrap">
             <Button
               text={
-                invitado.puedeReenviar
-                  ? "Reenviar"
-                  : `Reenviar (${invitado.horasRestantesCooldown ?? 8}h)`
+                !invitado.idInvitacionEvento
+                  ? "Pendiente de envío"
+                  : invitado.puedeReenviar
+                    ? "Reenviar"
+                    : `Reenviar (${invitado.horasRestantesCooldown ?? 8}h)`
               }
-              variant={invitado.puedeReenviar ? "primary" : "secondary"}
-              disabled={!invitado.puedeReenviar}
+              variant={
+                invitado.idInvitacionEvento && invitado.puedeReenviar
+                  ? "primary"
+                  : "secondary"
+              }
+              disabled={!invitado.idInvitacionEvento || !invitado.puedeReenviar}
               type="button"
               className="text-xs sm:text-sm"
               onClick={() => handleReenviarInvitado(invitado)}
@@ -976,6 +898,8 @@ export function EditarEventoConSubeventos() {
         setActividadesIniciales(listaActividades);
         setInvitados(detalle.invitados ?? []);
         setInvitadosIniciales(detalle.invitados ?? []);
+        setPersonalLogistica(detalle.personalLogistica ?? []);
+        setPersonalLogisticaInicial(detalle.personalLogistica ?? []);
         setRecintos(listaRecintos);
         setMotivo("");
         setMotivoUrgente("");
@@ -1011,20 +935,30 @@ export function EditarEventoConSubeventos() {
   const maxFecha =
     maxFecha15 < FECHA_FIN_SEMESTRE ? maxFecha15 : FECHA_FIN_SEMESTRE;
 
-  const invitadosModificados = Boolean(
-    invitados.length !== invitadosIniciales.length ||
-    invitados.some((inv, i) => inv.correo !== invitadosIniciales[i]?.correo),
+  const invitadosModificados = tienenCambiosInvitados(
+    invitados,
+    invitadosIniciales,
   );
 
-  const cambiosGenerales = Boolean(
+  const personalLogisticaModificado = tienenCambiosPersonalLogistica(
+    personalLogistica,
+    personalLogisticaInicial,
+  );
+
+  const soloCamposGeneralesModificados = Boolean(
     datosGenerales &&
     datosGeneralesIniciales &&
     (datosGenerales.nombre !== datosGeneralesIniciales.nombre ||
       datosGenerales.descripcion !== datosGeneralesIniciales.descripcion ||
       datosGenerales.justificacion !== datosGeneralesIniciales.justificacion ||
       datosGenerales.idAlcance !== datosGeneralesIniciales.idAlcance ||
-      archivoPoster ||
-      invitadosModificados),
+      Boolean(archivoPoster)),
+  );
+
+  const cambiosGenerales = Boolean(
+    soloCamposGeneralesModificados ||
+    invitadosModificados ||
+    personalLogisticaModificado,
   );
   const payloadActividades = obtenerPayloadActividades(
     actividades,
@@ -1249,9 +1183,11 @@ export function EditarEventoConSubeventos() {
     setGuardando(true);
     let generalesGuardados = false;
     let logisticaEnviada = false;
+    let erroresDiferidos: string[] = [];
+    let invitadosFallidos: InvitadoEventoItem[] = [];
 
     try {
-      if (cambiosGenerales) {
+      if (soloCamposGeneralesModificados) {
         const payload: ActualizarInfoGeneralPayload = {};
         if (datosGenerales.nombre !== datosGeneralesIniciales?.nombre) {
           payload.nombre = datosGenerales.nombre.trim();
@@ -1295,43 +1231,19 @@ export function EditarEventoConSubeventos() {
         setArchivoPoster(null);
       }
 
-      if (invitadosModificados && idEvento) {
-        const invitadosNuevos = invitados.filter(
-          (inv) => !invitadosIniciales.some((ini) => ini.correo === inv.correo),
-        );
-        for (const inv of invitadosNuevos) {
-          try {
-            await apiRequest(`eventos/${idEvento}/invitados`, {
-              method: "POST",
-              body: JSON.stringify({ correo: inv.correo }),
-            });
-          } catch (err) {
-            console.warn(
-              "Error al registrar invitado en el guardado general:",
-              err,
-            );
-          }
+      if (invitadosModificados || personalLogisticaModificado) {
+        const resultadoSync = await sincronizarInvitadosYLogistica({
+          idEvento,
+          invitadosActuales: invitados,
+          invitadosIniciales,
+          personalActual: personalLogistica,
+          personalInicial: personalLogisticaInicial,
+        });
+        if (resultadoSync.huboCambiosAplicados) {
+          generalesGuardados = true;
         }
-
-        const invitadosEliminados = invitadosIniciales.filter(
-          (ini) => !invitados.some((inv) => inv.correo === ini.correo),
-        );
-        for (const inv of invitadosEliminados) {
-          if (inv.idInvitacionEvento) {
-            try {
-              await apiRequest(
-                `eventos/${idEvento}/invitados/${inv.idInvitacionEvento}`,
-                { method: "DELETE" },
-              );
-            } catch (err) {
-              console.warn(
-                "Error al revocar invitado en el guardado general:",
-                err,
-              );
-            }
-          }
-        }
-        generalesGuardados = true;
+        erroresDiferidos = resultadoSync.errores;
+        invitadosFallidos = resultadoSync.invitadosNuevosFallidos;
       }
 
       if (enviarLogistica && cambiosActividades) {
@@ -1357,8 +1269,11 @@ export function EditarEventoConSubeventos() {
         `eventos/${idEvento}/detalle-organizador`,
       );
       setEvento(detalleActualizado);
-      setInvitados(detalleActualizado.invitados ?? []);
-      setInvitadosIniciales(detalleActualizado.invitados ?? []);
+      const invitadosServidor = detalleActualizado.invitados ?? [];
+      setInvitados([...invitadosServidor, ...invitadosFallidos]);
+      setInvitadosIniciales(invitadosServidor);
+      setPersonalLogistica(detalleActualizado.personalLogistica ?? []);
+      setPersonalLogisticaInicial(detalleActualizado.personalLogistica ?? []);
       const listaActividades = obtenerActividades(detalleActualizado);
       setActividades(listaActividades);
       setActividadesIniciales(listaActividades);
@@ -1367,15 +1282,19 @@ export function EditarEventoConSubeventos() {
       setIntentoGuardar(false);
       setIntentoMotivo(false);
 
-      setMensaje(
-        logisticaEnviada
-          ? esSubdireccion
-            ? "Los cambios se aplicaron directamente con éxito."
-            : generalesGuardados
-              ? "La información general se guardó y la modificación de actividades fue enviada a revisión."
-              : "La modificación de actividades fue enviada a revisión de Subdirección."
-          : "Los cambios se guardaron correctamente.",
-      );
+      if (erroresDiferidos.length > 0) {
+        setError(erroresDiferidos.join(". "));
+      } else {
+        setMensaje(
+          logisticaEnviada
+            ? esSubdireccion
+              ? "Los cambios se aplicaron directamente con éxito."
+              : generalesGuardados
+                ? "La información general se guardó y la modificación de actividades fue enviada a revisión."
+                : "La modificación de actividades fue enviada a revisión de Subdirección."
+            : "Los cambios se guardaron correctamente.",
+        );
+      }
       window.scrollTo({ top: 0, behavior: "smooth" });
     } catch (errorGuardado) {
       const detalle = obtenerMensajeError(errorGuardado);
@@ -1717,32 +1636,28 @@ export function EditarEventoConSubeventos() {
               <Modal
                 mostrarModal={Boolean(personalAEliminar)}
                 titulo="Confirmar eliminación"
-                cerrarModal={() => {
-                  if (!eliminandoPersonal) setPersonalAEliminar(null);
-                }}
+                cerrarModal={() => setPersonalAEliminar(null)}
               >
                 <div className="space-y-4">
                   <p className="text-gray-700">
-                    ¿Estás seguro que deseas eliminar al personal
+                    ¿Estás seguro que deseas eliminar al personal{" "}
                     <strong className="text-gray-900">
                       {personalAEliminar.correo}
                     </strong>
-                    ?
+                    ? El cambio se aplicará al guardar los cambios.
                   </p>
                   <div className="flex justify-end gap-3 pt-2">
                     <Button
                       text="Cancelar"
                       variant="secondary"
                       type="button"
-                      disabled={eliminandoPersonal}
                       onClick={() => setPersonalAEliminar(null)}
                     />
                     <Button
-                      text={eliminandoPersonal ? "Eliminando..." : "Eliminar"}
+                      text="Eliminar"
                       variant="danger"
                       type="button"
-                      disabled={eliminandoPersonal}
-                      onClick={() => void handleEliminarPersonalLogistica()}
+                      onClick={confirmarEliminarPersonalLogistica}
                     />
                   </div>
                 </div>
@@ -1753,11 +1668,11 @@ export function EditarEventoConSubeventos() {
               <h3 className="text-lg font-bold sm:text-xl md:text-2xl">
                 Personal de logística del evento
               </h3>
-              {(evento?.personalLogistica ?? []).length > 0 ? (
+              {personalLogistica.length > 0 ? (
                 <div className="w-full max-w-full overflow-x-auto rounded-lg border border-gray-200 shadow-sm lg:w-150">
                   <Table
                     columnas={columnasLogistica}
-                    filas={evento?.personalLogistica ?? []}
+                    filas={personalLogistica}
                     obtenerClave={(personal) => personal.idUsuario}
                     className="w-full min-w-full bg-white text-left text-sm [&_tbody_tr]:h-12 [&_thead_tr]:h-10 [&_th]:py-2 [&_td]:py-2"
                   />
@@ -1834,22 +1749,22 @@ export function EditarEventoConSubeventos() {
                     <strong className="text-gray-900">
                       {invitadoAEliminar.correo}
                     </strong>
-                    ? Se revocará su acceso a este evento privado.
+                    ? Al guardar los cambios se revocará su acceso a este evento
+                    privado y, si ya había reservado boleto, este será
+                    cancelado.
                   </p>
                   <div className="flex justify-end gap-3 pt-2">
                     <Button
                       text="Cancelar"
                       variant="secondary"
                       type="button"
-                      disabled={eliminandoInvitado}
                       onClick={() => setInvitadoAEliminar(null)}
                     />
                     <Button
-                      text={eliminandoInvitado ? "Eliminando..." : "Eliminar"}
+                      text="Eliminar"
                       variant="danger"
                       type="button"
-                      disabled={eliminandoInvitado}
-                      onClick={() => void confirmarEliminarInvitado()}
+                      onClick={confirmarEliminarInvitado}
                     />
                   </div>
                 </div>

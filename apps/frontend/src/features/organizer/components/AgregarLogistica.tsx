@@ -12,10 +12,12 @@ import { TextLink } from "../../../components/atoms/TextLink/TextLink";
 import { Modal } from "../../../components/molecules/Modal";
 import { apiRequest } from "../../../lib/apiClient";
 
+type EstadoTarjeta = "pendiente" | "registrado" | "no_registrado" | "invitado";
+
 interface PersonalLogisticaCard {
   id: number;
   correo: string;
-  estado?: "pendiente" | "registrado" | "no_registrado" | "invitado";
+  estado?: EstadoTarjeta;
   error?: string;
   enviando?: boolean;
 }
@@ -27,6 +29,7 @@ interface RespuestaAgregarLogistica {
 }
 
 const LIMITE_LOGISTICA = 10;
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
 export function AgregarLogistica() {
   const { idEvento } = useParams();
@@ -38,11 +41,8 @@ export function AgregarLogistica() {
     PersonalLogisticaItem[]
   >([]);
 
-  const [modalYaRegistrado, setModalYaRegistrado] = useState(false);
   const [cardParaRegistro, setCardParaRegistro] =
     useState<PersonalLogisticaCard | null>(null);
-  const [enviandoInvitacion, setEnviandoInvitacion] = useState(false);
-  const [modalResgistro, setModalRegistro] = useState(false);
   const [modalAdvertencia, setModalAdvertencia] = useState(false);
   const [cargandoEvento, setCargandoEvento] = useState(true);
   const [errorModal, setErrorModal] = useState<string | null>(null);
@@ -107,6 +107,15 @@ export function AgregarLogistica() {
   const totalPersonalActual = personalRegistrado.length + agregadosEnTarjetas;
   const tarjetasDisponibles = LIMITE_LOGISTICA - personalRegistrado.length;
 
+  const actualizarTarjeta = (
+    id: number,
+    patch: Partial<PersonalLogisticaCard>,
+  ) => {
+    setPersonalList((prev) =>
+      prev.map((item) => (item.id === id ? { ...item, ...patch } : item)),
+    );
+  };
+
   const handleAgregarCard = () => {
     if (personalList.length >= tarjetasDisponibles) {
       setErrorModal(
@@ -121,17 +130,17 @@ export function AgregarLogistica() {
   };
 
   const handleActualizarCorreo = (id: number, correo: string) => {
-    setPersonalList((prev) =>
-      prev.map((item) =>
-        item.id === id
-          ? { ...item, correo, error: undefined, estado: "pendiente" }
-          : item,
-      ),
-    );
+    actualizarTarjeta(id, {
+      correo,
+      error: undefined,
+      estado: "pendiente",
+    });
   };
 
   const handleEliminarCard = (id: number) => {
-    if (deletingId !== null || personalList.length <= 1) return;
+    if (deletingId !== null || personalList.length <= 1 || guardandoTodo) {
+      return;
+    }
     setDeletingId(id);
 
     timeoutRef.current = setTimeout(() => {
@@ -140,30 +149,22 @@ export function AgregarLogistica() {
     }, 350);
   };
 
-  const enviarCorreoLogistica = async (
+  const prevalidarTarjeta = async (
     card: PersonalLogisticaCard,
   ): Promise<"registrado" | "no_registrado" | "error"> => {
     const correoLimpio = card.correo.trim().toLowerCase();
 
     if (!correoLimpio) {
-      setPersonalList((prev) =>
-        prev.map((item) =>
-          item.id === card.id
-            ? { ...item, error: "El correo electrónico es obligatorio." }
-            : item,
-        ),
-      );
+      actualizarTarjeta(card.id, {
+        error: "El correo electrónico es obligatorio.",
+      });
       return "error";
     }
 
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(correoLimpio)) {
-      setPersonalList((prev) =>
-        prev.map((item) =>
-          item.id === card.id
-            ? { ...item, error: "Advertencia: Ingrese un correo válido." }
-            : item,
-        ),
-      );
+    if (!EMAIL_REGEX.test(correoLimpio)) {
+      actualizarTarjeta(card.id, {
+        error: "Advertencia: Ingrese un correo válido.",
+      });
       return "error";
     }
 
@@ -172,27 +173,27 @@ export function AgregarLogistica() {
         (p) => p.correo.trim().toLowerCase() === correoLimpio,
       )
     ) {
-      setPersonalList((prev) =>
-        prev.map((item) =>
-          item.id === card.id
-            ? {
-                ...item,
-                error:
-                  "El personal de logística ya se encuentra asignado al evento seleccionado.",
-              }
-            : item,
-        ),
-      );
+      actualizarTarjeta(card.id, {
+        error:
+          "El personal de logística ya se encuentra asignado al evento seleccionado.",
+      });
       return "error";
     }
 
-    setPersonalList((prev) =>
-      prev.map((item) =>
-        item.id === card.id
-          ? { ...item, enviando: true, error: undefined }
-          : item,
-      ),
-    );
+    if (
+      personalList.some(
+        (item) =>
+          item.id !== card.id &&
+          item.correo.trim().toLowerCase() === correoLimpio,
+      )
+    ) {
+      actualizarTarjeta(card.id, {
+        error: "Este correo ya se encuentra ingresado en otra tarjeta.",
+      });
+      return "error";
+    }
+
+    actualizarTarjeta(card.id, { enviando: true, error: undefined });
 
     try {
       const respuesta = await apiRequest<RespuestaAgregarLogistica>(
@@ -203,122 +204,154 @@ export function AgregarLogistica() {
         },
       );
 
-      setPersonalList((prev) =>
-        prev.map((item) =>
-          item.id === card.id
-            ? {
-                ...item,
-                enviando: false,
-                estado: respuesta.asignadoDirecto
-                  ? "registrado"
-                  : "no_registrado",
-              }
-            : item,
-        ),
-      );
+      const nuevoEstado: EstadoTarjeta = respuesta.asignadoDirecto
+        ? "registrado"
+        : "no_registrado";
 
-      if (respuesta.asignadoDirecto) {
-        setModalYaRegistrado(true);
-        return "registrado";
-      }
+      actualizarTarjeta(card.id, {
+        enviando: false,
+        estado: nuevoEstado,
+      });
 
-      return "no_registrado";
+      return nuevoEstado;
     } catch (err) {
       const mensajeError =
         err instanceof Error
           ? err.message
-          : "No se pudo agregar el personal de logística.";
-      setPersonalList((prev) =>
-        prev.map((item) =>
-          item.id === card.id
-            ? { ...item, enviando: false, error: mensajeError }
-            : item,
-        ),
-      );
+          : "No se pudo verificar el personal de logística.";
+      actualizarTarjeta(card.id, {
+        enviando: false,
+        error: mensajeError,
+      });
       return "error";
     }
   };
 
-  const confirmarInvitacionTemporal = async () => {
+  const confirmarInvitacionTemporal = () => {
     if (!cardParaRegistro) return;
-    const correoLimpio = cardParaRegistro.correo.trim().toLowerCase();
 
-    try {
-      setEnviandoInvitacion(true);
-      await apiRequest<RespuestaAgregarLogistica>(
-        `eventos/${idEvento}/personal-logistica`,
-        {
-          method: "POST",
-          body: JSON.stringify({ correo: correoLimpio }),
-        },
-      );
-
-      setPersonalList((prev) =>
-        prev.map((item) =>
-          item.id === cardParaRegistro.id
-            ? { ...item, estado: "invitado" }
-            : item,
-        ),
-      );
-      setModalAdvertencia(false);
-      setModalRegistro(true);
-    } catch (err) {
-      setModalAdvertencia(false);
-      setErrorModal(
-        err instanceof Error
-          ? err.message
-          : "No se pudo enviar la invitación de logística.",
-      );
-    } finally {
-      setEnviandoInvitacion(false);
-    }
+    actualizarTarjeta(cardParaRegistro.id, {
+      estado: "invitado",
+      error: undefined,
+    });
+    setModalAdvertencia(false);
+    setCardParaRegistro(null);
   };
 
   const handleGuardarTodo = async () => {
-    const pendientes = personalList.filter(
-      (item) =>
-        item.estado !== "registrado" &&
-        item.estado !== "no_registrado" &&
-        item.estado !== "invitado" &&
-        item.correo.trim() !== "",
+    const cardsConCorreo = personalList.filter(
+      (item) => item.correo.trim() !== "",
     );
 
-    if (pendientes.length === 0) {
-      if (agregadosEnTarjetas > 0) {
-        setModalExito(true);
-        return;
-      }
-
-      const primera = personalList[0];
-      if (primera && primera.correo.trim() !== "") {
-        await enviarCorreoLogistica(primera);
-      } else {
-        navigate(rutaRegreso);
-      }
+    if (cardsConCorreo.length === 0) {
+      navigate(rutaRegreso);
       return;
     }
 
-    setGuardandoTodo(true);
-    let todosExitosos = true;
-    let huboRegistrados = agregadosEnTarjetas > 0;
-    let huboNoRegistrados = false;
-
-    for (const card of pendientes) {
-      const resultado = await enviarCorreoLogistica(card);
-      if (resultado === "error") {
-        todosExitosos = false;
-      } else if (resultado === "registrado") {
-        huboRegistrados = true;
+    const correosVistos = new Set<string>();
+    let hayDuplicados = false;
+    for (const card of cardsConCorreo) {
+      const correoLimpio = card.correo.trim().toLowerCase();
+      if (correosVistos.has(correoLimpio)) {
+        actualizarTarjeta(card.id, {
+          error: "Este correo ya se encuentra ingresado en otra tarjeta.",
+        });
+        hayDuplicados = true;
       } else {
-        huboNoRegistrados = true;
+        correosVistos.add(correoLimpio);
+      }
+    }
+    if (hayDuplicados) return;
+
+    setGuardandoTodo(true);
+
+    const estadosResueltos = new Map<number, EstadoTarjeta | "error">();
+    for (const card of cardsConCorreo) {
+      if (
+        !card.error &&
+        (card.estado === "registrado" ||
+          card.estado === "invitado" ||
+          card.estado === "no_registrado")
+      ) {
+        estadosResueltos.set(card.id, card.estado);
+        continue;
+      }
+
+      const resultado = await prevalidarTarjeta(card);
+      estadosResueltos.set(card.id, resultado);
+    }
+
+    const huboErroresPrevalidacion = Array.from(
+      estadosResueltos.values(),
+    ).some((estado) => estado === "error");
+    if (huboErroresPrevalidacion) {
+      setGuardandoTodo(false);
+      return;
+    }
+
+    const primeraSinConfirmar = cardsConCorreo.find(
+      (card) => estadosResueltos.get(card.id) === "no_registrado",
+    );
+    if (primeraSinConfirmar) {
+      setCardParaRegistro(primeraSinConfirmar);
+      setModalAdvertencia(true);
+      setGuardandoTodo(false);
+      return;
+    }
+
+    const idsGuardados: number[] = [];
+    let huboErrorEnvio = false;
+
+    for (const card of cardsConCorreo) {
+      const correoLimpio = card.correo.trim().toLowerCase();
+      actualizarTarjeta(card.id, { enviando: true, error: undefined });
+
+      try {
+        await apiRequest<RespuestaAgregarLogistica>(
+          `eventos/${idEvento}/personal-logistica`,
+          {
+            method: "POST",
+            body: JSON.stringify({
+              correo: correoLimpio,
+              soloVerificar: false,
+            }),
+          },
+        );
+        idsGuardados.push(card.id);
+        actualizarTarjeta(card.id, { enviando: false });
+      } catch (err) {
+        huboErrorEnvio = true;
+        const mensajeError =
+          err instanceof Error
+            ? err.message
+            : "No se pudo guardar el personal de logística.";
+        actualizarTarjeta(card.id, {
+          enviando: false,
+          error: mensajeError,
+        });
       }
     }
 
-    setGuardandoTodo(false);
-
-    if (todosExitosos && huboRegistrados && !huboNoRegistrados) {
-      setModalExito(true);
+    if (huboErrorEnvio) {
+      if (idsGuardados.length > 0) {
+        setPersonalList((prev) =>
+          prev.filter((item) => !idsGuardados.includes(item.id)),
+        );
+        try {
+          const detalle = await apiRequest<EventoOrganizadorDetalle>(
+            `eventos/${idEvento}/detalle-organizador`,
+          );
+          setPersonalRegistrado(detalle.personalLogistica ?? []);
+        } catch {
+          // Si falla la recarga, el usuario conserva en pantalla las tarjetas con error
+        }
+      }
+      setGuardandoTodo(false);
+      return;
     }
+
+    setGuardandoTodo(false);
+    setModalExito(true);
   };
 
   const rutaRegreso = tieneSubeventos
@@ -369,9 +402,11 @@ export function AgregarLogistica() {
         <div className="w-full max-w-2xl space-y-4">
           {personalList.map((personal, index) => {
             const isDeleting = deletingId === personal.id;
-            const yaProcesado =
+            const bloqueadoAgregar =
+              Boolean(personal.enviando) ||
+              guardandoTodo ||
               personal.estado === "registrado" ||
-              personal.estado === "no_registrado";
+              personal.estado === "invitado";
 
             return (
               <div
@@ -397,11 +432,7 @@ export function AgregarLogistica() {
                           id={`campoCorreo-${index}`}
                           type="email"
                           value={personal.correo}
-                          disabled={
-                            yaProcesado ||
-                            personal.enviando ||
-                            personal.estado === "invitado"
-                          }
+                          disabled={Boolean(personal.enviando) || guardandoTodo}
                           hasError={Boolean(personal.error)}
                           onChange={(e) =>
                             handleActualizarCorreo(personal.id, e.target.value)
@@ -413,28 +444,11 @@ export function AgregarLogistica() {
                     </div>
 
                     {personal.estado === "registrado" && (
-                      <div>
-                        <Modal
-                          mostrarModal={modalYaRegistrado}
-                          titulo="Usuario asignado"
-                          contenido="El usuario ha sido agregado éxitosamente como personal de logística"
-                          cerrarModal={() => setModalYaRegistrado(false)}
-                        >
-                          <div>
-                            <Button
-                              text="Aceptar"
-                              variant="primary"
-                              type="button"
-                              onClick={() => setModalYaRegistrado(false)}
-                            />
-                          </div>
-                        </Modal>
-
-                        <p className="border border-green-500 bg-green-200 p-3 rounded-md shadow-md text-sm text-green-950">
-                          El usuario ya se encuentra registrado en el sistema y
-                          fue asignado al evento.
-                        </p>
-                      </div>
+                      <p className="border border-green-500 bg-green-200 p-3 rounded-md shadow-md text-sm text-green-950">
+                        El usuario ya se encuentra registrado en el sistema.
+                        Presiona &ldquo;Guardar&rdquo; para asignarlo y enviar
+                        la notificación.
+                      </p>
                     )}
 
                     {personal.estado === "no_registrado" && (
@@ -459,7 +473,8 @@ export function AgregarLogistica() {
 
                     {personal.estado === "invitado" && (
                       <p className="border border-green-500 bg-green-200 p-3 rounded-md shadow-md text-sm text-green-950">
-                        Invitación temporal enviada por correo electrónico.
+                        Invitación temporal preparada. Se enviará por correo
+                        electrónico al presionar &ldquo;Guardar&rdquo;.
                       </p>
                     )}
 
@@ -472,7 +487,7 @@ export function AgregarLogistica() {
                           text="Eliminar"
                           variant="danger"
                           type="button"
-                          disabled={personal.enviando}
+                          disabled={Boolean(personal.enviando) || guardandoTodo}
                           onClick={() => handleEliminarCard(personal.id)}
                         />
                       )}
@@ -481,10 +496,8 @@ export function AgregarLogistica() {
                         text={personal.enviando ? "Verificando..." : "Agregar"}
                         variant="primary"
                         type="button"
-                        disabled={
-                          personal.enviando || personal.estado === "invitado"
-                        }
-                        onClick={() => void enviarCorreoLogistica(personal)}
+                        disabled={bloqueadoAgregar}
+                        onClick={() => void prevalidarTarjeta(personal)}
                       />
                     </div>
                   </div>
@@ -498,14 +511,18 @@ export function AgregarLogistica() {
               mostrarModal={modalAdvertencia}
               titulo="Enviar invitación de registro"
               contenido=""
-              cerrarModal={() => setModalAdvertencia(false)}
+              cerrarModal={() => {
+                setModalAdvertencia(false);
+                setCardParaRegistro(null);
+              }}
             >
               <p>
                 El correo <strong>{cardParaRegistro?.correo}</strong> aún no
                 tiene una cuenta en EventOS. Se le enviará una invitación por
-                correo (vigente por 48 horas) para que complete su registro y
-                quede asignado como Personal de Logística de este evento. Sus
-                permisos de logística aplicarán únicamente durante este evento.
+                correo (vigente por 48 horas) al guardar los cambios para que
+                complete su registro y quede asignado como Personal de Logística
+                de este evento. Sus permisos de logística aplicarán únicamente
+                durante este evento.
               </p>
               <div
                 id="contenedorBotonesRegistro"
@@ -515,44 +532,16 @@ export function AgregarLogistica() {
                   text="Volver"
                   variant="secondary"
                   type="button"
-                  disabled={enviandoInvitacion}
-                  onClick={() => setModalAdvertencia(false)}
+                  onClick={() => {
+                    setModalAdvertencia(false);
+                    setCardParaRegistro(null);
+                  }}
                 />
-                <Button
-                  text={enviandoInvitacion ? "Enviando..." : "Aceptar"}
-                  variant="success"
-                  type="button"
-                  disabled={enviandoInvitacion}
-                  onClick={() => void confirmarInvitacionTemporal()}
-                />
-              </div>
-            </Modal>
-          )}
-
-          {modalResgistro && (
-            <Modal
-              mostrarModal={modalResgistro}
-              titulo="Invitación enviada"
-              contenido=""
-              cerrarModal={() => setModalRegistro(false)}
-            >
-              <p>
-                Se envió un enlace de registro a{" "}
-                <strong>{cardParaRegistro?.correo}</strong> válido por 48 horas.
-                En cuanto complete su registro, quedará asignado automáticamente
-                al equipo de logística de tu evento.
-              </p>
-              <div
-                id="contenedorBotonesRegistro"
-                className="flex justify-end gap-3"
-              >
                 <Button
                   text="Aceptar"
                   variant="success"
                   type="button"
-                  onClick={() => {
-                    setModalRegistro(false);
-                  }}
+                  onClick={confirmarInvitacionTemporal}
                 />
               </div>
             </Modal>
@@ -565,7 +554,8 @@ export function AgregarLogistica() {
               type="button"
               disabled={
                 personalList.length >= tarjetasDisponibles ||
-                totalPersonalActual >= LIMITE_LOGISTICA
+                totalPersonalActual >= LIMITE_LOGISTICA ||
+                guardandoTodo
               }
               onClick={handleAgregarCard}
             />

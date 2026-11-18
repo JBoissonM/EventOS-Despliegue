@@ -10,6 +10,7 @@ import { useNavigate } from "react-router";
 export interface TablaPonente {
   id: number;
   nombre: string;
+  correo?: string;
 }
 
 interface ModalPonentesProps {
@@ -101,7 +102,7 @@ export function ModalPonentes({
       <Modal
         mostrarModal={mostrarModal && !modalConfirmar}
         titulo="Agregar ponentes"
-        contenido="Agrega el nombre y el correo del ponente"
+        contenido="Agrega el nombre del ponente"
         cerrarModal={handleCerrar}
       >
         <div className="mt-4">

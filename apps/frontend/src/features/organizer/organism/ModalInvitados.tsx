@@ -36,12 +36,19 @@ export function ModalInvitados({
   >([]);
   const handleAgregarInvitadoTemporal = () => {
     let hayError = false;
-    const correoLimpio = correoInvitado.trim();
+    const correoLimpio = correoInvitado.trim().toLowerCase();
     if (!correoLimpio) {
       setErrorCorreo("El correo no puede estar vacío");
       hayError = true;
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(correoLimpio)) {
       setErrorCorreo("El formato del correo electrónico no es válido.");
+      hayError = true;
+    } else if (
+      invitadosTemporales.some(
+        (inv) => inv.correo.trim().toLowerCase() === correoLimpio,
+      )
+    ) {
+      setErrorCorreo("Este correo ya fue agregado a la lista.");
       hayError = true;
     } else {
       setErrorCorreo(null);
@@ -112,7 +119,7 @@ export function ModalInvitados({
       <Modal
         mostrarModal={mostrarModal && !modalConfirmar}
         titulo="Agregar invitados"
-        contenido="Agrega el nombre y el correo del invitado"
+        contenido="Agrega el correo electrónico del invitado"
         cerrarModal={handleCerrar}
       >
         <div className="mt-4">
