@@ -3,7 +3,6 @@ import type { FormEvent } from "react";
 import { useNavigate, useParams } from "react-router";
 import {
   AlcanceEvento,
-  EstadoEvento,
   calcularImpactoCambioSubevento,
   type ModalidadAcceso,
   type ActualizarInfoGeneralPayload,
@@ -38,6 +37,7 @@ import {
   type TablaInvitados as TablaInvitadosModal,
 } from "./organism/ModalInvitados";
 import type { TablaPonente } from "./organism/ModalPonentes";
+import { PageHeader } from "../../components/organisms/PageHeader/PageHeader";
 
 function separarMotivoUrgencia(motivo: string) {
   const indice = motivo.lastIndexOf(MARCADOR_MOTIVO_URGENCIA);
@@ -463,16 +463,13 @@ export function EditarEvento() {
           detalle,
           idSubEventoSeleccionado,
         );
-        const motivos = separarMotivoUrgencia(
-          valoresLogistica.motivoModificacion,
-        );
         const valoresConMotivo = {
           ...valoresLogistica,
-          motivoModificacion: motivos.motivoModificacion,
+          motivoModificacion: "",
         };
         setLogistica(valoresConMotivo);
         setLogisticaInicial(valoresConMotivo);
-        setMotivoUrgente(motivos.motivoUrgente);
+        setMotivoUrgente("");
         setArchivoPoster(null);
 
         const subeventoActual =
@@ -530,8 +527,10 @@ export function EditarEvento() {
         );
         if (!controller.signal.aborted) {
           setAgendaOcupada(
-            respuesta.agenda.filter(
-              (horario) => horario.idEvento !== Number(idEvento),
+            respuesta.agenda.filter((horario) =>
+              idSubEventoSeleccionado !== undefined && horario.idSubEvento
+                ? horario.idSubEvento !== Number(idSubEventoSeleccionado)
+                : horario.idEvento !== Number(idEvento),
             ),
           );
         }
@@ -563,11 +562,7 @@ export function EditarEvento() {
 
   const ponentesModificados = Boolean(
     ponentes.length !== ponentesIniciales.length ||
-    ponentes.some(
-      (p, i) =>
-        p.correo !== ponentesIniciales[i]?.correo ||
-        p.nombre !== ponentesIniciales[i]?.nombre,
-    ),
+    ponentes.some((p, i) => p.nombre !== ponentesIniciales[i]?.nombre),
   );
 
   const invitadosModificados = Boolean(
@@ -582,13 +577,6 @@ export function EditarEvento() {
       render: (ponente) => ponente.nombre,
       className:
         "min-w-[12rem] sm:min-w-[10rem] md:min-w-[7.5rem] md:max-w-[9.5rem] lg:min-w-[11rem] break-all px-3",
-    },
-    {
-      id: "correo",
-      encabezado: "Correo",
-      render: (ponente) => ponente.correo,
-      className:
-        "min-w-[10rem] sm:min-w-[10rem] md:min-w-[7.5rem] md:max-w-[9.5rem] lg:min-w-[11rem] break-all px-3",
     },
     {
       id: "acciones",
@@ -871,7 +859,6 @@ export function EditarEvento() {
               nombre: primerNombre,
               apellidoPa: apellidoPaterno,
               apellidoMa: apellidoMaterno,
-              correo: p.correo.trim().toLowerCase(),
               idSubEvento: subevento.idSubEvento,
             };
           });
@@ -955,7 +942,9 @@ export function EditarEvento() {
                   ? descripcion.trim()
                   : subevento.descripcion,
               idRecinto: Number(logistica.idRecinto),
-              idModalidadAcceso: Number(logistica.idModalidadAcceso) as ModalidadAcceso,
+              idModalidadAcceso: Number(
+                logistica.idModalidadAcceso,
+              ) as ModalidadAcceso,
               fecha: logistica.fecha,
               horaInicio: logistica.horaInicio,
               horaFin: logistica.horaFin,
@@ -1002,13 +991,11 @@ export function EditarEvento() {
         detalleActualizado,
         idSubEventoSeleccionado,
       );
-      const motivosActualizados = separarMotivoUrgencia(
-        valoresLogisticaActualizados.motivoModificacion,
-      );
       const valoresActualizadosConMotivo = {
         ...valoresLogisticaActualizados,
-        motivoModificacion: motivosActualizados.motivoModificacion,
+        motivoModificacion: "",
       };
+      setMotivoUrgente("");
       const subeventoActualizado =
         idSubEventoSeleccionado !== undefined
           ? detalleActualizado.subEventos.find(
@@ -1026,16 +1013,16 @@ export function EditarEvento() {
       setInvitadosIniciales(detalleActualizado.invitados ?? []);
       setNombre(
         idSubEventoSeleccionado !== undefined
-          ? propuestaActualizada?.nombre ??
+          ? (propuestaActualizada?.nombre ??
               subeventoActualizado?.nombre ??
-              detalleActualizado.nombre
+              detalleActualizado.nombre)
           : detalleActualizado.nombre,
       );
       setDescripcion(
         idSubEventoSeleccionado !== undefined
-          ? propuestaActualizada?.descripcion ??
+          ? (propuestaActualizada?.descripcion ??
               subeventoActualizado?.descripcion ??
-              detalleActualizado.descripcion
+              detalleActualizado.descripcion)
           : detalleActualizado.descripcion,
       );
       setJustificacion(detalleActualizado.justificacion ?? "");
@@ -1105,19 +1092,6 @@ export function EditarEvento() {
 
   return (
     <section className="mx-auto w-full max-w-7xl space-y-8 px-4 sm:px-6 lg:space-y-10 lg:px-8">
-      <button
-        type="button"
-        className="flex cursor-pointer items-center gap-2"
-        onClick={
-          logisticaModificada || informacionGeneralModificada
-            ? () => setMostrarModalRegreso(true)
-            : () => navigate(rutaAdministracion)
-        }
-      >
-        <ArrowLeft size={20} aria-hidden="true" />
-        <span>Volver</span>
-      </button>
-
       {mostrarModalRegreso && (
         <Modal
           mostrarModal={mostrarModalRegreso}
@@ -1143,11 +1117,26 @@ export function EditarEvento() {
       )}
 
       <div id="contenedorTituloBanner" className="space-y-4 sm:space-y-5">
-        <h1 className="font-merriweather text-2xl font-semibold leading-tight sm:text-3xl lg:text-4xl">
-          {idSubEventoSeleccionado !== undefined
-            ? "Modificar detalles de la actividad"
-            : "Modificar detalles del evento"}
-        </h1>
+        <PageHeader
+          title={
+            idSubEventoSeleccionado !== undefined
+              ? "Modificar detalles de la actividad"
+              : "Modificar detalles del evento"
+          }
+          back={{
+            to: rutaAdministracion,
+            label:
+              idSubEventoSeleccionado !== undefined
+                ? "Volver a mi evento"
+                : "Volver a mi evento",
+            onClick: (e) => {
+              if (logisticaModificada || informacionGeneralModificada) {
+                e.preventDefault();
+                setMostrarModalRegreso(true);
+              }
+            },
+          }}
+        />
         {evento?.posterUrl && (
           <EventBanner eventName={evento.nombre} posterUrl={evento.posterUrl} />
         )}
@@ -1515,7 +1504,12 @@ export function EditarEvento() {
                 esUrgente={esModificacionUrgente}
                 avisoImpacto={avisoImpacto}
                 logistica={logistica}
-                onCerrar={() => setMostrarModal(false)}
+                nombre={evento.nombre}
+                onCerrar={() => {
+                  setMostrarModal(false);
+                  cambiarLogistica("motivoModificacion", "");
+                  setMotivoUrgente("");
+                }}
                 onCerrarAviso={() => {
                   setMostrarModalAviso(false);
                   if (esModificacionUrgente) {
@@ -1538,6 +1532,7 @@ export function EditarEvento() {
               contenido="La fecha propuesta está dentro de los próximos 7 días. Explica por qué la modificación se solicita con carácter urgente."
               cerrar={() => {
                 setMostrarModalUrgente(false);
+                setMotivoUrgente("");
                 setMostrarModal(true);
               }}
               onMotivoChange={setMotivoUrgente}

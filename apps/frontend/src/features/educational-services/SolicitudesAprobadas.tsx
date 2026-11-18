@@ -8,7 +8,6 @@ import { FormField } from "../../components/molecules/FormField";
 import { useNavigate } from "react-router";
 import { apiRequest } from "../../lib/apiClient";
 import { formatearFechaDdMmAaaa } from "../../utils/fechaHorario";
-
 import { PageHeader } from "../../components/organisms/PageHeader/PageHeader";
 import { SearchField } from "../../components/molecules/SearchField";
 import {
@@ -16,7 +15,6 @@ import {
   type FilterOption,
 } from "../../components/molecules/FilterDropdown";
 import { DateRangeFields } from "../../components/molecules/DateRangeFields";
-
 import { obtenerAhoraCdmx } from "../../utils/fechaHorario";
 
 type SolicitudesAprobadas = {
@@ -392,7 +390,7 @@ export function SolicitudesAprobadas() {
             className="flex gap-2 justify-center"
           >
             <Button
-              text="Detalles"
+              text="Ver detalles"
               variant="primary"
               type="button"
               onClick={() =>
@@ -400,17 +398,6 @@ export function SolicitudesAprobadas() {
                   state: { from: "aprobadas" },
                 })
               }
-            />
-            <Button
-              text="Cancelar"
-              variant="danger"
-              type="button"
-              onClick={() => {
-                setMotivo("");
-                setErrorCancelacion(null);
-                setSolicitudSeleccionada(solicitud);
-                setMostrarModalCancelacion(true);
-              }}
             />
           </div>
         );
@@ -438,7 +425,7 @@ export function SolicitudesAprobadas() {
             <SearchField
               value={busqueda}
               onChange={setBusqueda}
-              placeholder="Buscar por nombre del evento"
+              placeholder="Buscar por nombre del evento o por solicitante"
             />
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
               <div className="min-w-0">
@@ -581,53 +568,6 @@ export function SolicitudesAprobadas() {
             />
           </div>
         </Modal>
-        {mostrarModalConfirmacion && (
-          <Modal
-            titulo="Confirmacion"
-            contenido="¿Desea cancelar el evento?"
-            mostrarModal={mostrarModalConfirmacion}
-            cerrarModal={cerrarModalConfirmacion}
-          >
-            <div
-              id="contendorBotonesConfirmacion"
-              className="flex gap-2 justify-end"
-            >
-              <Button
-                text="Cancelar"
-                variant="danger"
-                disabled={cancelando}
-                onClick={cerrarModalConfirmacion}
-              />
-              <Button
-                text="Aceptar"
-                variant="success"
-                loading={cancelando}
-                loadingText="Cancelando..."
-                onClick={() => {
-                  setModalConfirmacion(false);
-                  void confirmarCancelacion();
-                }}
-              />
-            </div>
-          </Modal>
-        )}
-        {mostrarModalExito && (
-          <Modal
-            titulo="Operación exitosa"
-            contenido="Se ha cancelado exitosamente el evento"
-            mostrarModal={mostrarModalExito}
-            cerrarModal={() => setModalExito(false)}
-          >
-            <div className="flex justify-end">
-              <Button
-                text="Aceptar"
-                variant="primary"
-                type="button"
-                onClick={() => setModalExito(false)}
-              />
-            </div>
-          </Modal>
-        )}
       </section>
     </>
   );

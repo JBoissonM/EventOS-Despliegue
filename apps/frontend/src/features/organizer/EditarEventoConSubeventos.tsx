@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import type { FormEvent } from "react";
 import { useNavigate, useParams } from "react-router";
 import {
+  Evento,
   AlcanceEvento,
   ETIQUETAS_MODALIDAD,
   EstadoSubEvento,
@@ -44,11 +45,11 @@ import { Table, type Columna } from "../../components/organisms/Table/Table";
 import Badge from "../../components/atoms/Badge/Badge";
 import { MARCADOR_MOTIVO_URGENCIA, ModalMotivo } from "./organism/ModalMotivo";
 import { ModalMotivoUrgente } from "../../components/organisms/ModalMotivoUrgente/ModalMotivoUrgente";
-import { AgregarLogistica } from "./components/AgregarLogistica";
 import {
   ModalInvitados,
   type TablaInvitados as TablaInvitadosModal,
 } from "./organism/ModalInvitados";
+import { PageHeader } from "../../components/organisms/PageHeader/PageHeader";
 
 interface ActividadEditable {
   llave: string;
@@ -145,6 +146,31 @@ const HORAS_FIN = [
   "21:30",
   "22:00",
 ].map((h) => ({ value: h, label: h }));
+
+interface HorarioOcupadoAgenda {
+  horaInicio: string;
+  horaFin: string;
+  idEvento?: number;
+  idSubEvento?: number;
+}
+
+function horaEnMinutos(hora: string): number {
+  if (!hora) return 0;
+  const [horas, minutos] = hora.slice(0, 5).split(":").map(Number);
+  return (horas || 0) * 60 + (minutos || 0);
+}
+
+function seTraslapan(
+  horaInicio1: string,
+  horaFin1: string,
+  horaInicio2: string,
+  horaFin2: string,
+): boolean {
+  return (
+    horaEnMinutos(horaInicio1) < horaEnMinutos(horaFin2) &&
+    horaEnMinutos(horaInicio2) < horaEnMinutos(horaFin1)
+  );
+}
 
 function crearColumnasLogistica(
   onEliminar: (personal: PersonalLogisticaItem) => void,
@@ -310,6 +336,374 @@ function obtenerPayloadActividades(
     horaInicio: actividad.horaInicio,
     horaFin: actividad.horaFin,
   }));
+}
+
+interface FilaActividadEditableProps {
+  actividad: ActividadEditable;
+  indice: number;
+  minFecha: string;
+  maxFecha: string;
+  primeraFecha?: string;
+  errorAct?: ErroresActividad;
+  recintos: Recinto[];
+  otrasActividades: ActividadEditable[];
+  actualizarActividad: (
+    llave: string,
+    campo: keyof ActividadEditable,
+    valor: any,
+  ) => void;
+  quitarActividad: (llave: string) => void;
+  setModalEspacio: (info: { id: number; nombre: string }) => void;
+  impactoActividad?: ImpactoCambioSubevento;
+  modalSubeventoAbierto: string | null;
+  setModalSubeventoAbierto: (llave: string | null) => void;
+}
+
+function FilaActividadEditable({
+  actividad,
+  indice,
+  minFecha,
+  maxFecha,
+  primeraFecha,
+  errorAct,
+  recintos,
+  otrasActividades,
+  actualizarActividad,
+  quitarActividad,
+  setModalEspacio,
+  impactoActividad,
+  modalSubeventoAbierto,
+  setModalSubeventoAbierto,
+}: FilaActividadEditableProps) {
+  const [agendaOcupada, setAgendaOcupada] = useState<HorarioOcupadoAgenda[]>(
+    [],
+  );
+
+  useEffect(() => {
+    if (!actividad.idRecinto || !actividad.fecha) {
+      setAgendaOcupada([]);
+      return;
+    }
+
+    const controller = new AbortController();
+
+    const cargarAgenda = async () => {
+      try {
+        const respuesta = await apiRequest<{
+          agenda?: Array<{
+            idSubEvento?: number;
+            horaInicio: string;
+            horaFin: string;
+          }>;
+        }>(
+          `espacios/${actividad.idRecinto}/horarios-disponibles?fecha=${encodeURIComponent(actividad.fecha)}`,
+        );
+
+        if (!controller.signal.aborted) {
+          const agendaFiltrada = (respuesta?.agenda ?? []).filter(
+            (item) => item.idSubEvento !== actividad.idSubEvento,
+          );
+          setAgendaOcupada(agendaFiltrada);
+        }
+      } catch {
+        if (!controller.signal.aborted) {
+          setAgendaOcupada([]);
+        }
+      }
+    };
+
+    void cargarAgenda();
+    return () => controller.abort();
+  }, [actividad.idRecinto, actividad.fecha, actividad.idSubEvento]);
+
+  const otrosMismoRecintoYFecha = otrasActividades.filter(
+    (otra) =>
+      otra.llave !== actividad.llave &&
+      otra.fecha === actividad.fecha &&
+      otra.idRecinto === actividad.idRecinto &&
+      otra.horaInicio &&
+      otra.horaFin,
+  );
+
+  const bloquesOcupados: HorarioOcupadoAgenda[] = [
+    ...agendaOcupada,
+    ...otrosMismoRecintoYFecha.map((otro) => ({
+      horaInicio: otro.horaInicio,
+      horaFin: otro.horaFin,
+    })),
+  ];
+
+  const horaDisponible = (horaInicio: string, horaFin: string) =>
+    !bloquesOcupados.some((bloque) =>
+      seTraslapan(horaInicio, horaFin, bloque.horaInicio, bloque.horaFin),
+    );
+
+  const horasInicioDisponibles = HORAS_INICIO.filter(
+    ({ value: horaInicio }) => {
+      return HORAS_FIN.some(
+        ({ value: horaFin }) =>
+          horaEnMinutos(horaFin) > horaEnMinutos(horaInicio) &&
+          horaDisponible(horaInicio, horaFin),
+      );
+    },
+  );
+
+  const horasFinDisponibles = HORAS_FIN.filter(
+    ({ value: horaFin }) =>
+      actividad.horaInicio &&
+      horaEnMinutos(horaFin) > horaEnMinutos(actividad.horaInicio) &&
+      horaDisponible(actividad.horaInicio, horaFin),
+  );
+
+  const opcionesHoraInicio = horasInicioDisponibles.some(
+    (h) => h.value === actividad.horaInicio,
+  )
+    ? horasInicioDisponibles
+    : actividad.horaInicio
+      ? [
+          { value: actividad.horaInicio, label: actividad.horaInicio },
+          ...horasInicioDisponibles,
+        ]
+      : horasInicioDisponibles;
+
+  const opcionesHoraFin = horasFinDisponibles.some(
+    (h) => h.value === actividad.horaFin,
+  )
+    ? horasFinDisponibles
+    : actividad.horaFin
+      ? [
+          { value: actividad.horaFin, label: actividad.horaFin },
+          ...horasFinDisponibles,
+        ]
+      : horasFinDisponibles;
+
+  const recintoSeleccionado = recintos.find(
+    (r) => String(r.idRecinto) === actividad.idRecinto,
+  );
+
+  return (
+    <div className="grid min-w-0 grid-cols-1 gap-4 rounded-md bg-eventos-primary-light p-4 sm:grid-cols-2 sm:p-6 lg:grid-cols-3 lg:px-10 lg:py-8">
+      <FormField
+        label="Fecha"
+        htmlFor={`selectFecha-${indice}`}
+        required
+        mensajeAyuda={
+          primeraFecha
+            ? "Máximo 15 días a partir de la fecha de inicio"
+            : undefined
+        }
+        errorMessage={errorAct?.fecha}
+      >
+        <DateInput
+          id={`selectFecha-${indice}`}
+          min={minFecha}
+          max={maxFecha}
+          value={actividad.fecha}
+          hasError={Boolean(errorAct?.fecha)}
+          onValueChange={(fecha) => {
+            actualizarActividad(actividad.llave, "fecha", fecha);
+            actualizarActividad(actividad.llave, "horaInicio", "");
+            actualizarActividad(actividad.llave, "horaFin", "");
+          }}
+        />
+      </FormField>
+
+      <FormField
+        label="Espacio deseado"
+        htmlFor={`selectRecinto-${indice}`}
+        required
+        mensajeAyuda={
+          recintoSeleccionado && recintoSeleccionado.aforo > 0
+            ? `Capacidad: ${recintoSeleccionado.aforo} ${
+                recintoSeleccionado.idRecinto !== RecintoId.AUDITORIO &&
+                recintoSeleccionado.idRecinto !== RecintoId.SALA_14
+                  ? "equipos / personas"
+                  : "personas / asientos"
+              }`
+            : undefined
+        }
+        errorMessage={errorAct?.idRecinto}
+      >
+        <Select
+          id={`selectRecinto-${indice}`}
+          placeholder="Selecciona un espacio"
+          options={recintos.map((r) => ({
+            value: String(r.idRecinto),
+            label: r.nombre,
+          }))}
+          value={actividad.idRecinto}
+          hasError={Boolean(errorAct?.idRecinto)}
+          onChange={(e) => {
+            const idRecintoNum = Number(e.target.value);
+            actualizarActividad(actividad.llave, "idRecinto", e.target.value);
+            actualizarActividad(actividad.llave, "horaInicio", "");
+            actualizarActividad(actividad.llave, "horaFin", "");
+            const permitidas =
+              obtenerModalidadesPermitidasPorRecinto(idRecintoNum);
+            if (
+              !permitidas.includes(actividad.idModalidadAcceso) ||
+              validarModalidadEnRecinto(
+                idRecintoNum,
+                actividad.idModalidadAcceso,
+              ) !== null
+            ) {
+              actualizarActividad(
+                actividad.llave,
+                "idModalidadAcceso",
+                esLaboratorioRecinto(idRecintoNum)
+                  ? ModalidadAcceso.QR_GENERAL
+                  : modalidadPorDefectoRecinto(idRecintoNum, true),
+              );
+            }
+          }}
+        />
+      </FormField>
+
+      <FormField
+        label="Hora inicio"
+        htmlFor={`selectHoraInicio-${indice}`}
+        required
+        errorMessage={errorAct?.horaInicio}
+      >
+        <Select
+          id={`selectHoraInicio-${indice}`}
+          placeholder="Selecciona la hora de inicio"
+          options={opcionesHoraInicio}
+          value={actividad.horaInicio}
+          disabled={!actividad.fecha || !actividad.idRecinto}
+          hasError={Boolean(errorAct?.horaInicio)}
+          onChange={(e) => {
+            actualizarActividad(actividad.llave, "horaInicio", e.target.value);
+            actualizarActividad(actividad.llave, "horaFin", "");
+          }}
+        />
+      </FormField>
+
+      <FormField
+        label="Hora Fin"
+        htmlFor={`selectHoraFinal-${indice}`}
+        required
+        errorMessage={errorAct?.horaFin}
+      >
+        <Select
+          id={`selectHoraFinal-${indice}`}
+          placeholder="Selecciona la hora final"
+          options={opcionesHoraFin}
+          value={actividad.horaFin}
+          disabled={
+            !actividad.fecha || !actividad.idRecinto || !actividad.horaInicio
+          }
+          hasError={Boolean(errorAct?.horaFin)}
+          onChange={(e) =>
+            actualizarActividad(actividad.llave, "horaFin", e.target.value)
+          }
+        />
+      </FormField>
+
+      <div className="space-y-2">
+        <FormField
+          label="Modalidad de acceso"
+          htmlFor={`selectBoleto-${indice}`}
+          required={!esLaboratorioRecinto(Number(actividad.idRecinto))}
+        >
+          <Select
+            id={`selectBoleto-${indice}`}
+            placeholder="Selecciona una opción"
+            options={obtenerModalidadesPermitidasPorRecinto(
+              Number(actividad.idRecinto) || RecintoId.AUDITORIO,
+            ).map((modalidad) => ({
+              value: String(modalidad),
+              label: ETIQUETAS_MODALIDAD[modalidad],
+            }))}
+            className="disabled:cursor-not-allowed disabled:text-gray-500"
+            value={
+              actividad.idModalidadAcceso !== undefined
+                ? String(actividad.idModalidadAcceso)
+                : ""
+            }
+            disabled={esLaboratorioRecinto(Number(actividad.idRecinto))}
+            onChange={(e) =>
+              actualizarActividad(
+                actividad.llave,
+                "idModalidadAcceso",
+                Number(e.target.value) as ModalidadAcceso,
+              )
+            }
+          />
+        </FormField>
+        <ModalidadAccesoHelp
+          idRecinto={Number(actividad.idRecinto) || undefined}
+          idModalidadAcceso={actividad.idModalidadAcceso}
+        />
+      </div>
+
+      <FormField label={undefined} htmlFor={`botonEspacio-${indice}`}>
+        <Button
+          id={`botonEspacio-${indice}`}
+          text="Ver detalles del laboratorio"
+          type="button"
+          disabled={
+            Number(actividad.idRecinto) === RecintoId.SALA_14 ||
+            Number(actividad.idRecinto) === RecintoId.AUDITORIO ||
+            !actividad.idRecinto
+          }
+          className="w-full sm:w-auto"
+          onClick={() =>
+            setModalEspacio({
+              id: Number(actividad.idRecinto),
+              nombre: recintoSeleccionado?.nombre ?? "Espacio seleccionado",
+            })
+          }
+        />
+      </FormField>
+
+      {impactoActividad && (
+        <div className="col-span-full">
+          <FeedbackNotice
+            variant="warning"
+            title="Aviso de impacto en registros actuales"
+          >
+            {impactoActividad.resumenTexto}
+          </FeedbackNotice>
+        </div>
+      )}
+
+      <div className="col-span-full flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div id="contenedorBotonesCard" className="w-full sm:w-auto">
+          <Button
+            text="Nombre y descripción del subevento"
+            id={`botonVerInformacion-${actividad.llave}`}
+            type="button"
+            className="w-full sm:w-auto"
+            onClick={() => setModalSubeventoAbierto(actividad.llave)}
+          />
+        </div>
+
+        <ModalSubevento
+          mostrar={modalSubeventoAbierto === actividad.llave}
+          nombre={actividad.nombre}
+          descripcion={actividad.descripcion}
+          errores={{}}
+          cambiarNombre={(valor) =>
+            actualizarActividad(actividad.llave, "nombre", valor)
+          }
+          cambiarDescripcion={(valor) =>
+            actualizarActividad(actividad.llave, "descripcion", valor)
+          }
+          cerrar={() => setModalSubeventoAbierto(null)}
+        />
+
+        <Button
+          text="Eliminar fecha"
+          id={`botonEliminar-${actividad.llave}`}
+          type="button"
+          variant="danger"
+          className="w-full sm:w-auto"
+          onClick={() => quitarActividad(actividad.llave)}
+        />
+      </div>
+    </div>
+  );
 }
 
 export function EditarEventoConSubeventos() {
@@ -583,11 +977,8 @@ export function EditarEventoConSubeventos() {
         setInvitados(detalle.invitados ?? []);
         setInvitadosIniciales(detalle.invitados ?? []);
         setRecintos(listaRecintos);
-        const motivos = separarMotivoUrgencia(
-          detalle.solicitudModificacionPendiente?.motivoModificacion ?? "",
-        );
-        setMotivo(motivos.motivoModificacion);
-        setMotivoUrgente(motivos.motivoUrgente);
+        setMotivo("");
+        setMotivoUrgente("");
       } catch (errorCarga) {
         if (!controller.signal.aborted) {
           setError(obtenerMensajeError(errorCarga));
@@ -610,9 +1001,10 @@ export function EditarEventoConSubeventos() {
     day: "2-digit",
   }).format(new Date());
 
+  const fechaManana = sumarDias(fechaHoy, 1);
   const primeraFecha = actividades[0]?.fecha;
   const minFecha =
-    primeraFecha && primeraFecha > fechaHoy ? primeraFecha : fechaHoy;
+    primeraFecha && primeraFecha > fechaManana ? primeraFecha : fechaManana;
   const maxFecha15 = primeraFecha
     ? sumarDias(primeraFecha, 14)
     : FECHA_FIN_SEMESTRE;
@@ -663,7 +1055,9 @@ export function EditarEventoConSubeventos() {
     actividadesEliminadasConReservas.length > 0
       ? `Se eliminarán actividades con registros activos (${actividadesEliminadasConReservas
           .map((s) => `${s.nombre}: ${s.boletosEmitidos}`)
-          .join(", ")}). Si Subdirección aprueba el cambio, esos boletos se cancelarán y se notificará a los asistentes.`
+          .join(
+            ", ",
+          )}). Si Subdirección aprueba el cambio, esos boletos se cancelarán y se notificará a los asistentes.`
       : null;
 
   const impactosPorActividad = useMemo(() => {
@@ -718,6 +1112,8 @@ export function EditarEventoConSubeventos() {
         const err: ErroresActividad = {};
         if (!act.fecha) {
           err.fecha = "Selecciona la fecha del evento";
+        } else if (act.fecha < fechaManana) {
+          err.fecha = "La fecha debe ser a partir de mañana";
         } else if (act.fecha > FECHA_FIN_SEMESTRE) {
           err.fecha =
             "La fecha no debe exceder el fin de semestre (19 de diciembre)";
@@ -746,6 +1142,27 @@ export function EditarEventoConSubeventos() {
         ) {
           err.horaFin =
             "La hora de finalización debe ser posterior a la de inicio";
+        }
+
+        if (act.fecha && act.idRecinto && act.horaInicio && act.horaFin) {
+          const hayConflicto = listaActividades.some(
+            (otra, oIdx) =>
+              oIdx !== idx &&
+              otra.fecha === act.fecha &&
+              otra.idRecinto === act.idRecinto &&
+              otra.horaInicio &&
+              otra.horaFin &&
+              seTraslapan(
+                act.horaInicio,
+                act.horaFin,
+                otra.horaInicio,
+                otra.horaFin,
+              ),
+          );
+          if (hayConflicto) {
+            err.horaInicio =
+              "El horario se traslapa con otra actividad en el mismo espacio y fecha";
+          }
         }
 
         if (Object.keys(err).length > 0) {
@@ -945,12 +1362,8 @@ export function EditarEventoConSubeventos() {
       const listaActividades = obtenerActividades(detalleActualizado);
       setActividades(listaActividades);
       setActividadesIniciales(listaActividades);
-      const motivos = separarMotivoUrgencia(
-        detalleActualizado.solicitudModificacionPendiente?.motivoModificacion ??
-          "",
-      );
-      setMotivo(motivos.motivoModificacion);
-      setMotivoUrgente(motivos.motivoUrgente);
+      setMotivo("");
+      setMotivoUrgente("");
       setIntentoGuardar(false);
       setIntentoMotivo(false);
 
@@ -1022,6 +1435,8 @@ export function EditarEventoConSubeventos() {
     }
 
     setIntentoMotivo(false);
+    setMotivo("");
+    setMotivoUrgente("");
     setMostrarModalMotivo(true);
   }
 
@@ -1044,26 +1459,21 @@ export function EditarEventoConSubeventos() {
 
   return (
     <section className="mx-auto w-full min-w-0 max-w-7xl space-y-8 px-4 sm:px-6 lg:space-y-10 lg:px-8">
-      <button
-        type="button"
-        className="flex cursor-pointer items-center gap-2"
-        onClick={() =>
-          navigate(`/organizador/administrar-evento-subeventos/${idEvento}`)
-        }
-      >
-        <ArrowLeft size={20} aria-hidden="true" />
-        <span>Volver</span>
-      </button>
-
-      <h1 className="font-merriweather text-2xl font-semibold leading-tight sm:text-3xl">
-        Modificar detalles del evento
-      </h1>
-      {evento?.posterUrl && (
-        <EventBanner
-          eventName={datosGenerales?.nombre ?? evento.nombre}
-          posterUrl={evento.posterUrl}
+      <div id="contenedorTituloBanner" className="space-y-4 sm:space-y-5">
+        <PageHeader
+          title="Modificar detalles de evento"
+          back={{
+            to: `/organizador/administrar-evento-subeventos/${idEvento}`,
+            label: "Volver a mi evento",
+          }}
         />
-      )}
+        {evento?.posterUrl && (
+          <EventBanner
+            eventName={datosGenerales?.nombre ?? evento.nombre}
+            posterUrl={evento.posterUrl}
+          />
+        )}
+      </div>
 
       {error && (
         <Modal
@@ -1491,273 +1901,28 @@ export function EditarEventoConSubeventos() {
                 const errorAct = intentoGuardar
                   ? erroresActividades[actividad.llave]
                   : undefined;
-                const recintoSeleccionado = recintos.find(
-                  (r) => String(r.idRecinto) === actividad.idRecinto,
-                );
                 const impactoActividad = impactosPorActividad.get(
                   actividad.llave,
                 );
 
                 return (
-                  <div
+                  <FilaActividadEditable
                     key={actividad.llave}
-                    className="grid min-w-0 grid-cols-1 gap-4 rounded-md bg-eventos-primary-light p-4 sm:grid-cols-2 sm:p-6 lg:grid-cols-3 lg:px-10 lg:py-8"
-                  >
-                    <FormField
-                      label="Fecha"
-                      htmlFor={`selectFecha-${indice}`}
-                      required
-                      mensajeAyuda={
-                        primeraFecha
-                          ? "Máximo 15 días a partir de la fecha de inicio"
-                          : undefined
-                      }
-                      errorMessage={errorAct?.fecha}
-                    >
-                      <DateInput
-                        id={`selectFecha-${indice}`}
-                        min={minFecha}
-                        max={maxFecha}
-                        value={actividad.fecha}
-                        hasError={Boolean(errorAct?.fecha)}
-                        onValueChange={(fecha) =>
-                          actualizarActividad(actividad.llave, "fecha", fecha)
-                        }
-                      />
-                    </FormField>
-
-                    <FormField
-                      label="Espacio deseado"
-                      htmlFor={`selectRecinto-${indice}`}
-                      required
-                      mensajeAyuda={
-                        recintoSeleccionado && recintoSeleccionado.aforo > 0
-                          ? `Capacidad: ${recintoSeleccionado.aforo} ${
-                              recintoSeleccionado.idRecinto !==
-                                RecintoId.AUDITORIO &&
-                              recintoSeleccionado.idRecinto !==
-                                RecintoId.SALA_14
-                                ? "equipos / personas"
-                                : "personas / asientos"
-                            }`
-                          : undefined
-                      }
-                      errorMessage={errorAct?.idRecinto}
-                    >
-                      <Select
-                        id={`selectRecinto-${indice}`}
-                        placeholder="Selecciona un espacio"
-                        options={recintos.map((r) => ({
-                          value: String(r.idRecinto),
-                          label: r.nombre,
-                        }))}
-                        value={actividad.idRecinto}
-                        hasError={Boolean(errorAct?.idRecinto)}
-                        onChange={(e) => {
-                          const idRecintoNum = Number(e.target.value);
-                          actualizarActividad(
-                            actividad.llave,
-                            "idRecinto",
-                            e.target.value,
-                          );
-                          const permitidas =
-                            obtenerModalidadesPermitidasPorRecinto(idRecintoNum);
-                          if (
-                            !permitidas.includes(actividad.idModalidadAcceso) ||
-                            validarModalidadEnRecinto(
-                              idRecintoNum,
-                              actividad.idModalidadAcceso,
-                            ) !== null
-                          ) {
-                            actualizarActividad(
-                              actividad.llave,
-                              "idModalidadAcceso",
-                              esLaboratorioRecinto(idRecintoNum)
-                                ? ModalidadAcceso.QR_GENERAL
-                                : modalidadPorDefectoRecinto(idRecintoNum, true),
-                            );
-                          }
-                        }}
-                      />
-                    </FormField>
-
-                    <FormField
-                      label="Hora inicio"
-                      htmlFor={`selectHoraInicio-${indice}`}
-                      required
-                      errorMessage={errorAct?.horaInicio}
-                    >
-                      <Select
-                        id={`selectHoraInicio-${indice}`}
-                        placeholder="Selecciona la hora de inicio"
-                        options={HORAS_INICIO}
-                        value={actividad.horaInicio}
-                        disabled={!actividad.fecha || !actividad.idRecinto}
-                        hasError={Boolean(errorAct?.horaInicio)}
-                        onChange={(e) =>
-                          actualizarActividad(
-                            actividad.llave,
-                            "horaInicio",
-                            e.target.value,
-                          )
-                        }
-                      />
-                    </FormField>
-
-                    <FormField
-                      label="Hora Fin"
-                      htmlFor={`selectHoraFinal-${indice}`}
-                      required
-                      errorMessage={errorAct?.horaFin}
-                    >
-                      <Select
-                        id={`selectHoraFinal-${indice}`}
-                        placeholder="Selecciona la hora final"
-                        options={
-                          actividad.horaInicio
-                            ? HORAS_FIN.filter(
-                                (h) => h.value > actividad.horaInicio,
-                              )
-                            : HORAS_FIN
-                        }
-                        value={actividad.horaFin}
-                        disabled={
-                          !actividad.fecha ||
-                          !actividad.idRecinto ||
-                          !actividad.horaInicio
-                        }
-                        hasError={Boolean(errorAct?.horaFin)}
-                        onChange={(e) =>
-                          actualizarActividad(
-                            actividad.llave,
-                            "horaFin",
-                            e.target.value,
-                          )
-                        }
-                      />
-                    </FormField>
-
-                    <div className="space-y-2">
-                      <FormField
-                        label="Modalidad de acceso"
-                        htmlFor={`selectBoleto-${indice}`}
-                        required={!esLaboratorioRecinto(Number(actividad.idRecinto))}
-                      >
-                        <Select
-                          id={`selectBoleto-${indice}`}
-                          placeholder="Selecciona una opción"
-                          options={obtenerModalidadesPermitidasPorRecinto(
-                            Number(actividad.idRecinto) || RecintoId.AUDITORIO,
-                          ).map((modalidad) => ({
-                            value: String(modalidad),
-                            label: ETIQUETAS_MODALIDAD[modalidad],
-                          }))}
-                          className="disabled:cursor-not-allowed disabled:text-gray-500"
-                          value={
-                            actividad.idModalidadAcceso !== undefined
-                              ? String(actividad.idModalidadAcceso)
-                              : ""
-                          }
-                          disabled={esLaboratorioRecinto(
-                            Number(actividad.idRecinto),
-                          )}
-                          onChange={(e) =>
-                            actualizarActividad(
-                              actividad.llave,
-                              "idModalidadAcceso",
-                              Number(e.target.value) as ModalidadAcceso,
-                            )
-                          }
-                        />
-                      </FormField>
-                      <ModalidadAccesoHelp
-                        idRecinto={Number(actividad.idRecinto) || undefined}
-                        idModalidadAcceso={actividad.idModalidadAcceso}
-                      />
-                    </div>
-
-                    <FormField
-                      label={undefined}
-                      htmlFor={`botonEspacio-${indice}`}
-                    >
-                      <Button
-                        id={`botonEspacio-${indice}`}
-                        text="Ver detalles del laboratorio"
-                        type="button"
-                        disabled={
-                          Number(actividad.idRecinto) === RecintoId.SALA_14 ||
-                          Number(actividad.idRecinto) === RecintoId.AUDITORIO ||
-                          !actividad.idRecinto
-                        }
-                        className="w-full sm:w-auto"
-                        onClick={() =>
-                          setModalEspacio({
-                            id: Number(actividad.idRecinto),
-                            nombre:
-                              recintos.find(
-                                (r) =>
-                                  String(r.idRecinto) === actividad.idRecinto,
-                              )?.nombre ?? "Espacio seleccionado",
-                          })
-                        }
-                      />
-                    </FormField>
-
-                    {impactoActividad && (
-                      <div className="col-span-full">
-                        <FeedbackNotice
-                          variant="warning"
-                          title="Aviso de impacto en registros actuales"
-                        >
-                          {impactoActividad.resumenTexto}
-                        </FeedbackNotice>
-                      </div>
-                    )}
-
-                    <div className="col-span-full flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                      <div
-                        id="contenedorBotonesCard"
-                        className="w-full sm:w-auto"
-                      >
-                        <Button
-                          text="Nombre y descripción del subevento"
-                          id={`botonVerInformacion-${actividad.llave}`}
-                          type="button"
-                          className="w-full sm:w-auto"
-                          onClick={() =>
-                            setModalSubeventoAbierto(actividad.llave)
-                          }
-                        />
-                      </div>
-
-                      <ModalSubevento
-                        mostrar={modalSubeventoAbierto === actividad.llave}
-                        nombre={actividad.nombre}
-                        descripcion={actividad.descripcion}
-                        errores={{}}
-                        cambiarNombre={(valor) =>
-                          actualizarActividad(actividad.llave, "nombre", valor)
-                        }
-                        cambiarDescripcion={(valor) =>
-                          actualizarActividad(
-                            actividad.llave,
-                            "descripcion",
-                            valor,
-                          )
-                        }
-                        cerrar={() => setModalSubeventoAbierto(null)}
-                      />
-
-                      <Button
-                        text="Eliminar fecha"
-                        id={`botonEliminar-${actividad.llave}`}
-                        type="button"
-                        variant="danger"
-                        className="w-full sm:w-auto"
-                        onClick={() => quitarActividad(actividad.llave)}
-                      />
-                    </div>
-                  </div>
+                    actividad={actividad}
+                    indice={indice}
+                    minFecha={minFecha}
+                    maxFecha={maxFecha}
+                    primeraFecha={primeraFecha}
+                    errorAct={errorAct}
+                    recintos={recintos}
+                    otrasActividades={actividades}
+                    actualizarActividad={actualizarActividad}
+                    quitarActividad={quitarActividad}
+                    setModalEspacio={setModalEspacio}
+                    impactoActividad={impactoActividad}
+                    modalSubeventoAbierto={modalSubeventoAbierto}
+                    setModalSubeventoAbierto={setModalSubeventoAbierto}
+                  />
                 );
               })}
             </section>
@@ -1802,8 +1967,13 @@ export function EditarEventoConSubeventos() {
           intentoMotivo={intentoMotivo}
           esUrgente={esModificacionUrgente}
           avisoImpacto={avisoImpactoTotal}
+          nombre={evento?.nombre}
           logistica={{ motivoModificacion: motivo } as any}
-          onCerrar={() => setMostrarModalMotivo(false)}
+          onCerrar={() => {
+            setMostrarModalMotivo(false);
+            setMotivo("");
+            setMotivoUrgente("");
+          }}
           onCerrarAviso={() => {
             setMostrarModalAviso(false);
             if (esModificacionUrgente) {
@@ -1825,6 +1995,7 @@ export function EditarEventoConSubeventos() {
         contenido="La fecha propuesta está dentro de los próximos 7 días. Explica por qué la modificación se solicita con carácter urgente."
         cerrar={() => {
           setMostrarModalUrgente(false);
+          setMotivoUrgente("");
           setMostrarModalMotivo(true);
         }}
         onMotivoChange={setMotivoUrgente}

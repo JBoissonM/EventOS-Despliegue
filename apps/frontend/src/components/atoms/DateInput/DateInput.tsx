@@ -198,7 +198,7 @@ export function DateInput({
         max={max}
         value={isoNormalizado}
         onChange={(e) => onValueChange(e.target.value)}
-        className="pointer-events-none absolute right-2 top-1/2 h-6 w-6 -translate-y-1/2 opacity-0"
+        className="pointer-events-none absolute inset-0 h-full w-full opacity-0"
       />
 
       <button

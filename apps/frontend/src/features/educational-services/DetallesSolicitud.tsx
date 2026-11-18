@@ -24,7 +24,8 @@ import { FormField } from "../../components/molecules/FormField";
 import { TextArea } from "../../components/atoms/TextArea/TextArea";
 import { apiRequest } from "../../lib/apiClient";
 import { EventBanner } from "../event-details/components/molecules/EventBanner";
-import Input from "../../components/atoms/Input/Input";
+import { Info } from "lucide-react";
+import { PageHeader } from "../../components/organisms/PageHeader/PageHeader";
 
 export interface SubeventoDetalleItem {
   id: number;
@@ -252,13 +253,11 @@ function convertirSolicitud(valor: unknown): DatosPrellenados {
     tieneModificacionPendiente &&
     solMod &&
     Array.isArray(solMod.actividadesEliminadas)
-      ? solMod.actividadesEliminadas
-          .filter(esRegistro)
-          .map((item) => ({
-            idSubEvento: Number(item.idSubEvento) || 0,
-            nombre: typeof item.nombre === "string" ? item.nombre : "Actividad",
-            boletosActivos: Number(item.boletosActivos) || 0,
-          }))
+      ? solMod.actividadesEliminadas.filter(esRegistro).map((item) => ({
+          idSubEvento: Number(item.idSubEvento) || 0,
+          nombre: typeof item.nombre === "string" ? item.nombre : "Actividad",
+          boletosActivos: Number(item.boletosActivos) || 0,
+        }))
       : [];
 
   return {
@@ -270,7 +269,9 @@ function convertirSolicitud(valor: unknown): DatosPrellenados {
     justificacion:
       typeof valor.justificacion === "string" ? valor.justificacion : "",
     idEstadoEvento:
-      typeof valor.idEstadoEvento === "number" ? valor.idEstadoEvento : undefined,
+      typeof valor.idEstadoEvento === "number"
+        ? valor.idEstadoEvento
+        : undefined,
     esUrgente: Boolean(valor.esUrgente),
     motivoUrgencia:
       typeof valor.motivoUrgencia === "string" ? valor.motivoUrgencia : null,
@@ -300,6 +301,7 @@ export function DetallesSolicitud() {
 
   const [mostrarModalCancelar, setMostrarModalCancelar] = useState(false);
   const [motivoCancelacion, setMotivoCancelacion] = useState("");
+  const [Tooltip, setTooltip] = useState(false);
 
   const [procesando, setProcesando] = useState(false);
   const [errorAccion, setErrorAccion] = useState<string | null>(null);
@@ -359,16 +361,18 @@ export function DetallesSolicitud() {
     return false;
   })();
 
+  const rutaRetorno =
+    location.state?.from === "aprobadas" || esAprobada
+      ? "/subdireccion/solicitudes-aprobadas"
+      : "/subdireccion/lista-solicitudes";
+
+  const etiquetaRetorno =
+    location.state?.from === "aprobadas" || esAprobada
+      ? "Volver a solicitudes aprobadas"
+      : "Volver a lista de solicitudes";
+
   const handleVolver = () => {
-    if (location.state?.from === "pendientes") {
-      navigate("/subdireccion/lista-solicitudes");
-    } else if (location.state?.from === "aprobadas") {
-      navigate("/subdireccion/solicitudes-aprobadas");
-    } else if (esAprobada) {
-      navigate("/subdireccion/solicitudes-aprobadas");
-    } else {
-      navigate("/subdireccion/lista-solicitudes");
-    }
+    navigate(rutaRetorno);
   };
 
   const handleConfirmarAprobar = async () => {
@@ -428,7 +432,9 @@ export function DetallesSolicitud() {
     if (!id) return;
     const motivoLimpio = motivoCancelacion.trim();
     if (motivoLimpio.length < 10) {
-      setErrorAccion("El motivo de cancelación debe tener al menos 10 caracteres.");
+      setErrorAccion(
+        "El motivo de cancelación debe tener al menos 10 caracteres.",
+      );
       return;
     }
 
@@ -480,25 +486,21 @@ export function DetallesSolicitud() {
   }
 
   return (
-    <section className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-6 space-y-6">
-      <div>
-        <button
-          type="button"
-          onClick={handleVolver}
-          className="inline-flex items-center gap-2 text-sm font-medium text-gray-900 hover:text-eventos-primary cursor-pointer transition-colors"
-        >
-          <ArrowLeft size={20} />
-          <span>Volver</span>
-        </button>
+    <section className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 space-y-6">
+      <div id="contenedorTituloBanner" className="space-y-4 sm:space-y-5">
+        <PageHeader
+          title="Detalles de la solicitud"
+          description="Consulta los detalles de la solicitud enviada"
+          back={{
+            to: rutaRetorno,
+            label: etiquetaRetorno,
+          }}
+        />
+        <EventBanner
+          posterUrl={datos.posterUrl ?? ""}
+          eventName={datos.nombre}
+        />
       </div>
-
-      <h1 className="font-merriweather text-2xl sm:text-3xl font-bold text-gray-900">
-        Detalles del evento
-      </h1>
-
-      <EventBanner posterUrl={datos.posterUrl ?? ""} eventName={datos.nombre} />
-
-
 
       <div className="bg-white rounded-md shadow-md p-4 space-y-5 ">
         <h2 className="font-merriweather text-xl font-bold text-secondary sm:text-2xl">
@@ -506,7 +508,9 @@ export function DetallesSolicitud() {
         </h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
-            <h3 className="font-merriweather text-base font-bold">Solicitante</h3>
+            <h3 className="font-merriweather text-base font-bold">
+              Solicitante
+            </h3>
             <span>{datos.nombreSolicitante}</span>
           </div>
           <div>
@@ -570,43 +574,44 @@ export function DetallesSolicitud() {
           );
           const cambioRecinto = Boolean(
             mostrarComparativa &&
-              subevento.nombreRecintoAnterior &&
-              subevento.nombreRecintoAnterior !== subevento.nombreRecinto,
+            subevento.nombreRecintoAnterior &&
+            subevento.nombreRecintoAnterior !== subevento.nombreRecinto,
           );
           const cambioModalidad = Boolean(
             mostrarComparativa &&
-              subevento.modalidadAnterior !== null &&
-              subevento.modalidadAnterior !== undefined &&
-              subevento.modalidadAnterior !== subevento.idModalidadAcceso,
+            subevento.modalidadAnterior !== null &&
+            subevento.modalidadAnterior !== undefined &&
+            subevento.modalidadAnterior !== subevento.idModalidadAcceso,
           );
           const cambioFecha = Boolean(
             mostrarComparativa &&
-              subevento.fechaAnterior &&
-              subevento.fechaAnterior.slice(0, 10) !== subevento.fecha.slice(0, 10),
+            subevento.fechaAnterior &&
+            subevento.fechaAnterior.slice(0, 10) !==
+              subevento.fecha.slice(0, 10),
           );
           const cambioHoraInicio = Boolean(
             mostrarComparativa &&
-              subevento.horaInicioAnterior &&
-              subevento.horaInicioAnterior.slice(0, 5) !==
-                subevento.horaInicio.slice(0, 5),
+            subevento.horaInicioAnterior &&
+            subevento.horaInicioAnterior.slice(0, 5) !==
+              subevento.horaInicio.slice(0, 5),
           );
           const cambioHoraFin = Boolean(
             mostrarComparativa &&
-              subevento.horaFinAnterior &&
-              subevento.horaFinAnterior.slice(0, 5) !==
-                subevento.horaFin.slice(0, 5),
+            subevento.horaFinAnterior &&
+            subevento.horaFinAnterior.slice(0, 5) !==
+              subevento.horaFin.slice(0, 5),
           );
           const cambioAforo = Boolean(
             mostrarComparativa &&
-              subevento.aforoAnterior !== null &&
-              subevento.aforoAnterior !== undefined &&
-              String(subevento.aforoAnterior) !== String(subevento.aforo),
+            subevento.aforoAnterior !== null &&
+            subevento.aforoAnterior !== undefined &&
+            String(subevento.aforoAnterior) !== String(subevento.aforo),
           );
 
           return (
             <div
               key={subevento.id}
-              className="space-y-4 rounded-md bg-eventos-primary-light h-fit p-6 text-gray-900 shadow-sm border border-[#E4C5C6]"
+              className="space-y-4 rounded-md bg-white h-fit p-6 text-gray-900 shadow-sm border border-gray-200"
             >
               <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-start">
                 <div className="md:col-span-5 space-y-2">
@@ -619,12 +624,12 @@ export function DetallesSolicitud() {
                     )}
                     {datos.esModificacion &&
                       (subevento.boletosActivos ?? 0) > 0 && (
-                        <Badge variant="secondary">
-                          {subevento.boletosActivos} inscritos actuales
+                        <Badge variant="secondary" size="sm">
+                          {subevento.boletosActivos} asistente registrados
                         </Badge>
                       )}
                   </div>
-                  <p className="font-merriweather text-xs sm:text-sm text-gray-700 leading-relaxed text-justify">
+                  <p className="font-merriweather text-xs sm:text-sm text-gray-700 leading-relaxed">
                     {subevento.descripcion}
                   </p>
                 </div>
@@ -664,12 +669,31 @@ export function DetallesSolicitud() {
                     <div className="text-xs font-semibold text-gray-800">
                       Modalidad de acceso
                     </div>
-                    <p className="mt-1 font-merriweather text-xs sm:text-sm text-gray-700">
-                      {obtenerEtiquetaModalidad(subevento.idModalidadAcceso)}
-                    </p>
+
+                    <div className="flex items-center gap-1.5 mt-1">
+                      <span className="mt-1 font-merriweather text-xs sm:text-sm text-gray-700">
+                        {obtenerEtiquetaModalidad(subevento.idModalidadAcceso)}
+                      </span>
+                      <div className="relative inline-flex items-center group">
+                        <button
+                          type="button"
+                          aria-label="Información de modalidad de acceso"
+                          className="text-secondary hover:text-[#134045] transition-colors p-0.5 rounded-full hover:bg-secondary/10 focus:outline-none focus:ring-secondary/30 focus:ring-blue-300"
+                        >
+                          <Info size={15} />
+                        </button>
+                        <div className="absolute top-full right-0 mb-2 w-72 sm:w-80 opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-all duration-200 ease-out z-50">
+                          <ModalidadAccesoHelp
+                            idModalidadAcceso={subevento.idModalidadAcceso}
+                            className="shadow-xl bg-white border border-gray-200"
+                          />
+                        </div>
+                      </div>{" "}
+                    </div>
                     {cambioModalidad && (
                       <p className="mt-0.5 text-xs text-eventos-muted-text">
-                        Antes: {obtenerEtiquetaModalidad(subevento.modalidadAnterior)}
+                        Antes:{" "}
+                        {obtenerEtiquetaModalidad(subevento.modalidadAnterior)}
                       </p>
                     )}
                   </div>
@@ -720,9 +744,6 @@ export function DetallesSolicitud() {
                   </div>
                 </div>
               </div>
-
-              <ModalidadAccesoHelp idModalidadAcceso={subevento.idModalidadAcceso} />
-
               {subevento.impacto?.resumenTexto && (
                 <FeedbackNotice
                   variant="warning"
@@ -737,7 +758,9 @@ export function DetallesSolicitud() {
       </div>
 
       {datos.esModificacion &&
-        (datos.actividadesEliminadas ?? []).some((a) => a.boletosActivos > 0) && (
+        (datos.actividadesEliminadas ?? []).some(
+          (a) => a.boletosActivos > 0,
+        ) && (
           <FeedbackNotice
             variant="warning"
             title="Actividades eliminadas con registros activos"
@@ -855,9 +878,7 @@ export function DetallesSolicitud() {
           }}
         >
           <div className="space-y-4">
-            <FormField
-              label="Motivo de rechazo"
-              htmlFor="campoMotivoRechazo"            >
+            <FormField label="Motivo de rechazo" htmlFor="campoMotivoRechazo">
               <TextArea
                 id="campoMotivoRechazo"
                 placeholder="Ingresa el motivo del rechazo"
@@ -887,7 +908,11 @@ export function DetallesSolicitud() {
               <Button
                 text="Rechazar"
                 variant="danger"
-                disabled={motivoRechazo.trim().length === 0 || motivoRechazo.length > 500 || procesando}
+                disabled={
+                  motivoRechazo.trim().length === 0 ||
+                  motivoRechazo.length > 500 ||
+                  procesando
+                }
                 loading={procesando}
                 loadingText="Rechazando..."
                 onClick={handleConfirmarRechazo}

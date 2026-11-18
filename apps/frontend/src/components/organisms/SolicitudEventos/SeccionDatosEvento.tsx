@@ -43,16 +43,19 @@ export function SeccionDatosEvento({
       </div>
       <div
         id="camposEvento"
-        className="grid min-w-0 grid-cols-1 gap-6 md:grid-cols-3 xl:grid-cols-3">
+        className="grid min-w-0 grid-cols-1 gap-6 md:grid-cols-3 xl:grid-cols-3"
+      >
         <div
           id="camposIzquierda"
-          className="flex min-w-0 flex-1 flex-col gap-1">
+          className="flex min-w-0 flex-1 flex-col gap-1"
+        >
           <FormField
             label="Nombre del evento"
             htmlFor="campoNombreEvento"
             //mensajeAyuda="Nombre del solicitante"
             required
-            errorMessage={touched.nombre ? errors.nombre : undefined}>
+            errorMessage={touched.nombre ? errors.nombre : undefined}
+          >
             <Input
               id="campoNombreEvento"
               type="text"
@@ -69,7 +72,8 @@ export function SeccionDatosEvento({
             label="Alcance del evento"
             htmlFor="selectCategoria"
             required
-            errorMessage={touched.idAlcance ? errors.idAlcance : undefined}>
+            errorMessage={touched.idAlcance ? errors.idAlcance : undefined}
+          >
             <Select
               id="selectCategoria"
               placeholder="Ingresa el alcance del evento"
@@ -86,7 +90,8 @@ export function SeccionDatosEvento({
             htmlFor="campoPoster"
             required
             mensajeAyuda="El banner debe estar en formato jpg y con una resolución de 2048 x 1152 píxeles"
-            errorMessage={touched.rutaPoster ? errors.rutaPoster : undefined}>
+            errorMessage={touched.rutaPoster ? errors.rutaPoster : undefined}
+          >
             <InputFile
               id="campoPoster"
               accept=".jpg"
@@ -99,16 +104,19 @@ export function SeccionDatosEvento({
 
         <div
           id="apartadoDescripcion"
-          className="flex h-full min-w-0 flex-col gap-[15px] [&>div]:flex-1 ">
-          <p className="text-justify text-xs  font-merriweather">
+          className="flex h-full min-w-0 flex-col gap-[15px] [&>div]:flex-1 "
+        >
+          <p className="text-justify text-xs font-merriweather">
             La descripción del evento debe mencionar brevemente las actividades
             que se vayan a realizar a lo largo del evento. Máximo 500 caracteres
+            y minimo 10 caracteres
           </p>
           <FormField
             label="Descripcion del evento"
             htmlFor="campoDescripcion"
             required
-            errorMessage={touched.descripcion ? errors.descripcion : undefined}>
+            errorMessage={touched.descripcion ? errors.descripcion : undefined}
+          >
             <TextArea
               id="campoDescripcion"
               placeholder="Ingresa la descripción del evento"
@@ -124,11 +132,12 @@ export function SeccionDatosEvento({
 
         <div
           id="apartadoJustificacion"
-          className="flex h-full min-w-0 flex-col gap-[15px] [&>div]:flex-1">
+          className="flex h-full min-w-0 flex-col gap-[15px] [&>div]:flex-1"
+        >
           <p className="text-justify text-xs font-merriweather">
             La justificación debe destacar los beneficios que el evento traerá a
             la comunidad politécnica y al publico en general. Máximo 500
-            caracteres
+            caracteres y minimo 10 caracteres
           </p>
           <FormField
             label="Justificación"
@@ -136,7 +145,8 @@ export function SeccionDatosEvento({
             required
             errorMessage={
               touched.justificacion ? errors.justificacion : undefined
-            }>
+            }
+          >
             <TextArea
               id="campoJustificacion"
               placeholder="Ingresa la justificación"

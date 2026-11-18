@@ -1,3 +1,4 @@
+import type { MouseEvent } from "react";
 import { PageBackLink } from "../../molecules/PageBackLink";
 
 type PageHeaderProps = {
@@ -6,6 +7,7 @@ type PageHeaderProps = {
   back?: {
     to: string;
     label: string;
+    onClick?: (e: MouseEvent<HTMLAnchorElement>) => void;
   };
 };
 
@@ -20,6 +22,7 @@ export function PageHeader({
         <PageBackLink
           to={back.to}
           label={back.label}
+          onClick={back.onClick}
         />
       )}
 
