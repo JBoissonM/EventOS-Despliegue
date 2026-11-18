@@ -1,9 +1,10 @@
-import { Controller, Post, Body, Get, Param, ParseIntPipe, Patch, UseGuards, Req, Header, StreamableFile } from '@nestjs/common';
+import { Controller, Post, Body, Get, Param, ParseIntPipe, Patch, UseGuards, Req, Header, StreamableFile, Query, Delete, HttpCode } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import { ReservationsService } from '../services/reservations.service';
 import { TicketPdfService } from '../services/ticket-pdf.service';
 import { CreateReservationDto } from '../dto/createReservation.dto';
 import { CrearRetencionDto } from '../dto/crearRetencion.dto';
+import { CambiarAsientoRetencionDto } from '../dto/cambiarAsientoRetencion.dto';
 import { UnauthorizedException, ForbiddenException } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { RolesGuard } from '../../auth/roles.guard';
@@ -96,6 +97,51 @@ export class ReservationsController {
   async adquirirRetencion(@Req() req: any, @Body() dto: CrearRetencionDto) {
     const idUsuario = this.obtenerIdUsuarioAutenticado(req);
     return await this.reservationsService.adquirirRetencion(idUsuario, dto);
+  }
+
+  @ApiOperation({ summary: 'Consultar la retención de asiento vigente del usuario en un subevento' })
+  @ApiBearerAuth()
+  @UseGuards(RolesGuard)
+  @Throttle({ default: { limit: 60, ttl: 60000 } })
+  @Get('holds/actual')
+  async obtenerRetencionActual(
+    @Req() req: any,
+    @Query('idSubEvento', ParseIntPipe) idSubEvento: number,
+  ) {
+    const idUsuario = this.obtenerIdUsuarioAutenticado(req);
+    return await this.reservationsService.obtenerRetencionActual(idUsuario, idSubEvento);
+  }
+
+  @ApiOperation({ summary: 'Cambiar el asiento de una retención vigente sin renovar su tiempo' })
+  @ApiBearerAuth()
+  @UseGuards(RolesGuard)
+  @Throttle({ default: { limit: 30, ttl: 60000 } })
+  @Patch('holds/:idRetencionAsiento')
+  async cambiarAsientoRetencion(
+    @Req() req: any,
+    @Param('idRetencionAsiento', ParseIntPipe) idRetencionAsiento: number,
+    @Body() dto: CambiarAsientoRetencionDto,
+  ) {
+    const idUsuario = this.obtenerIdUsuarioAutenticado(req);
+    return await this.reservationsService.cambiarAsientoRetencion(
+      idUsuario,
+      idRetencionAsiento,
+      dto,
+    );
+  }
+
+  @ApiOperation({ summary: 'Liberar voluntariamente una retención de asiento' })
+  @ApiBearerAuth()
+  @UseGuards(RolesGuard)
+  @Throttle({ default: { limit: 20, ttl: 60000 } })
+  @Delete('holds/:idRetencionAsiento')
+  @HttpCode(204)
+  async liberarRetencion(
+    @Req() req: any,
+    @Param('idRetencionAsiento', ParseIntPipe) idRetencionAsiento: number,
+  ): Promise<void> {
+    const idUsuario = this.obtenerIdUsuarioAutenticado(req);
+    await this.reservationsService.liberarRetencion(idUsuario, idRetencionAsiento);
   }
 
   // Cancelación lógica y liberación de lugar

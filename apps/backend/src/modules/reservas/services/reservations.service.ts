@@ -1,8 +1,9 @@
-import { Injectable, NotFoundException, ConflictException, ForbiddenException, BadRequestException, HttpException, Logger } from '@nestjs/common';
+import { Injectable, NotFoundException, ConflictException, ForbiddenException, BadRequestException, GoneException, HttpException, Logger } from '@nestjs/common';
 import { QrService } from './qr.service';
 import { MailService } from './mail.service';
 import { CreateReservationDto } from '../dto/createReservation.dto';
 import { CrearRetencionDto } from '../dto/crearRetencion.dto';
+import { CambiarAsientoRetencionDto } from '../dto/cambiarAsientoRetencion.dto';
 import { Repository, In, DataSource, EntityManager } from 'typeorm';
 import { InjectRepository } from '@nestjs/typeorm';
 
@@ -19,6 +20,7 @@ import {
   ModalidadAcceso,
   DURACION_RETENCION_ASIENTO_MINUTOS,
   RetencionAsientoActiva,
+  RetencionAsientoActualRespuesta,
 } from '@eventos/shared';
 
 import { BoletoEntity } from '../entities/boleto.entity';
@@ -470,6 +472,142 @@ export class ReservationsService {
 
             return await this.mapearRetencionActiva(manager, idNuevo);
         });
+    }
+
+    async cambiarAsientoRetencion(
+        idUsuario: number,
+        idRetencionAsiento: number,
+        dto: CambiarAsientoRetencionDto,
+    ): Promise<RetencionAsientoActiva> {
+        const usuario = await this.usuarioRepo.findOne({ where: { idUsuario } });
+        if (!usuario) {
+            throw new NotFoundException('El usuario especificado no existe.');
+        }
+
+        return await this.dataSource.transaction(async (manager) => {
+            const retencionInicial = await manager.query(
+                `SELECT "idSubEvento" FROM "retencionAsiento" WHERE "idRetencionAsiento" = $1 AND "idUsuario" = $2`,
+                [idRetencionAsiento, idUsuario],
+            );
+
+            if (retencionInicial.length === 0) {
+                throw errorRetencion(
+                    NotFoundException,
+                    'RETENCION_NO_ENCONTRADA',
+                    'No se encontró una retención activa a tu nombre.',
+                );
+            }
+
+            const idSubEvento = Number(retencionInicial[0].idSubEvento);
+            const ctx = await this.validarElegibilidadReserva(manager, usuario, idSubEvento);
+
+            const retencionReleida = await manager.query(
+                `SELECT "idAsiento", ("venceEn" > LOCALTIMESTAMP) AS vigente FROM "retencionAsiento" WHERE "idRetencionAsiento" = $1 AND "idUsuario" = $2`,
+                [idRetencionAsiento, idUsuario],
+            );
+
+            if (retencionReleida.length === 0) {
+                throw errorRetencion(
+                    NotFoundException,
+                    'RETENCION_NO_ENCONTRADA',
+                    'No se encontró una retención activa a tu nombre.',
+                );
+            }
+
+            if (!retencionReleida[0].vigente) {
+                throw errorRetencion(
+                    GoneException,
+                    'RETENCION_EXPIRADA',
+                    'Tu tiempo para apartar el asiento terminó. Selecciona un asiento de nuevo.',
+                );
+            }
+
+            const idAsientoActual = Number(retencionReleida[0].idAsiento);
+            if (Number(dto.idAsiento) === idAsientoActual) {
+                return await this.mapearRetencionActiva(manager, idRetencionAsiento);
+            }
+
+            const asientoValido = ctx.asientosDelRecinto.some(a => a.idAsiento === dto.idAsiento);
+            if (!asientoValido) {
+                throw errorRetencion(
+                    BadRequestException,
+                    'ASIENTO_INVALIDO',
+                    'El asiento seleccionado no pertenece al recinto asignado a este subevento.',
+                );
+            }
+
+            await manager.query(
+                `DELETE FROM "retencionAsiento" WHERE "idSubEvento" = $1 AND "venceEn" <= LOCALTIMESTAMP`,
+                [idSubEvento],
+            );
+
+            const ocupacion = await this.calcularOcupacionSubEvento(manager, idSubEvento);
+            if (ocupacion.idsAsientosOcupados.has(dto.idAsiento)) {
+                throw errorRetencion(
+                    ConflictException,
+                    'ASIENTO_OCUPADO',
+                    'El asiento seleccionado ya se encuentra ocupado en esta actividad.',
+                );
+            }
+
+            const retencionAjena = await manager.query(
+                `SELECT 1 FROM "retencionAsiento" WHERE "idSubEvento" = $1 AND "idAsiento" = $2 AND "idUsuario" <> $3 LIMIT 1`,
+                [idSubEvento, dto.idAsiento, idUsuario],
+            );
+            if (retencionAjena.length > 0) {
+                throw errorRetencion(
+                    ConflictException,
+                    'ASIENTO_RETENIDO',
+                    'El asiento seleccionado está apartado temporalmente por otra persona.',
+                );
+            }
+
+            try {
+                await manager.query(
+                    `UPDATE "retencionAsiento" SET "idAsiento" = $1 WHERE "idRetencionAsiento" = $2 AND "idUsuario" = $3`,
+                    [dto.idAsiento, idRetencionAsiento, idUsuario],
+                );
+            } catch (error: any) {
+                if (error?.code === '23505') {
+                    throw errorRetencion(
+                        ConflictException,
+                        'ASIENTO_RETENIDO',
+                        'El asiento seleccionado está apartado temporalmente por otra persona.',
+                    );
+                }
+                throw error;
+            }
+
+            return await this.mapearRetencionActiva(manager, idRetencionAsiento);
+        });
+    }
+
+    async liberarRetencion(idUsuario: number, idRetencionAsiento: number): Promise<void> {
+        await this.dataSource.query(
+            `DELETE FROM "retencionAsiento" WHERE "idRetencionAsiento" = $1 AND "idUsuario" = $2`,
+            [idRetencionAsiento, idUsuario],
+        );
+    }
+
+    async obtenerRetencionActual(
+        idUsuario: number,
+        idSubEvento: number,
+    ): Promise<RetencionAsientoActualRespuesta> {
+        const filas = await this.dataSource.manager.query(
+            `SELECT "idRetencionAsiento" FROM "retencionAsiento" WHERE "idSubEvento" = $1 AND "idUsuario" = $2 AND "venceEn" > LOCALTIMESTAMP`,
+            [idSubEvento, idUsuario],
+        );
+
+        if (filas.length > 0) {
+            return {
+                retencion: await this.mapearRetencionActiva(
+                    this.dataSource.manager,
+                    Number(filas[0].idRetencionAsiento),
+                ),
+            };
+        }
+
+        return { retencion: null };
     }
 
     //logica de negocio para crear reserva

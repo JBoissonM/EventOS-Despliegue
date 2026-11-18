@@ -90,6 +90,10 @@ export interface RetencionAsientoActiva {
   segundosRestantes: number;
 }
 
+export interface RetencionAsientoActualRespuesta {
+  retencion: RetencionAsientoActiva | null;
+}
+
 export interface CrearReservaPayload {
   idSubEvento: number;
   idAsiento: number | null;
