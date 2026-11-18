@@ -62,11 +62,14 @@ export interface AsistenteEvento {
   idBoleto?: number | null;
 }
 
+export type EstadoAsientoMapa = 'DISPONIBLE' | 'RETENIDO' | 'OCUPADO';
+
 export interface AsientoDisponible {
   idAsiento: number;
   fila: string;
   numero: number;
-  ocupado: boolean; // <- calculado por el back
+  ocupado: boolean; // true si NO se puede seleccionar (boleto válido/utilizado, retención vigente o actividad no reservable)
+  estado?: EstadoAsientoMapa;
 }
 
 export interface DisponibilidadSubEvento {
@@ -77,9 +80,27 @@ export interface DisponibilidadSubEvento {
   asientos: AsientoDisponible[]; // <- lista de asientos disponibles
 }
 
+export const DURACION_RETENCION_ASIENTO_MINUTOS = 5;
+
+export interface RetencionAsientoActiva {
+  idRetencionAsiento: number;
+  idSubEvento: number;
+  idAsiento: number;
+  fila: string;
+  numero: number;
+  venceEn: string;          // ISO 8601 en UTC, calculado por el servidor
+  serverNow: string;        // ISO 8601 en UTC, hora del servidor/BD al responder
+  segundosRestantes: number;
+}
+
+export interface RetencionAsientoActualRespuesta {
+  retencion: RetencionAsientoActiva | null;
+}
+
 export interface CrearReservaPayload {
   idSubEvento: number;
   idAsiento: number | null;
+  idRetencionAsiento?: number | null;
 }
 
 export interface DetalleBoletoUsuario {

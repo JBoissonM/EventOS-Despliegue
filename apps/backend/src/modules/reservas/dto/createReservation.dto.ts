@@ -10,4 +10,9 @@ export class CreateReservationDto {
     @IsInt({ message: 'El idAsiento debe ser un número entero' })
     @IsPositive({ message: 'El idAsiento debe ser un número positivo mayor a cero' })
     idAsiento?: number;
+
+    @IsOptional()
+    @IsInt({ message: 'El idRetencionAsiento debe ser un número entero' })
+    @IsPositive({ message: 'El idRetencionAsiento debe ser un número positivo mayor a cero' })
+    idRetencionAsiento?: number;
 }

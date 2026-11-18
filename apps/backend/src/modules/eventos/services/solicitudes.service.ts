@@ -915,9 +915,10 @@ export class SolicitudesService {
         await this.consultarColisionBD(subeventoActual, idEvento, manager);
       }
 
-      const subeventosExistentes = await manager.find(SubEventoEntity, {
-        where: { idEvento },
-      });
+      const subeventosExistentes = await this.bloquearSubeventosEInvalidarRetenciones(
+        manager,
+        idEvento,
+      );
       const idsConservados = new Set<number>();
       const usuariosExcedentesFifo = new Set<number>();
 
@@ -1434,6 +1435,8 @@ export class SolicitudesService {
     }[] = [];
 
     await this.dataSource.transaction(async (manager) => {
+      await this.bloquearSubeventosEInvalidarRetenciones(manager, idEvento);
+
       asistentesAfectados = await this.obtenerAsistentesConBoletoValido(
         { idEvento },
         manager,
@@ -1526,6 +1529,29 @@ export class SolicitudesService {
     }
 
     return await this.crearEvento(nuevoEvento, dto.subeventos);
+  }
+
+  /**
+   * Orden de bloqueos: recinto (si aplica, ordenado por id) -> subEvento (ordenado por id) -> filas de boleto/evento.
+   * Las reservas y retenciones bloquean subEvento y nunca recinto ni evento, por lo que no hay ciclos.
+   */
+  private async bloquearSubeventosEInvalidarRetenciones(
+    manager: EntityManager,
+    idEvento: number,
+  ): Promise<SubEventoEntity[]> {
+    const subeventos = await manager.find(SubEventoEntity, {
+      where: { idEvento },
+      order: { idSubEvento: 'ASC' },
+      lock: { mode: 'pessimistic_write' },
+    });
+
+    await manager.query(
+      `DELETE FROM "retencionAsiento"
+       WHERE "idSubEvento" IN (SELECT "idSubEvento" FROM "subEvento" WHERE "idEvento" = $1)`,
+      [idEvento],
+    );
+
+    return subeventos;
   }
 
   /** Obtiene usuarios distintos con boleto válido para un evento o subevento. */
