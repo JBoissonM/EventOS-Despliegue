@@ -24,7 +24,7 @@ export function EventDetailsRequestState({ status, error, onRetry }: EventDetail
   const message = status === "not-found"
     ? "No encontramos el evento o la actividad solicitada."
     : status === "forbidden"
-      ? "No tienes permiso para consultar este evento. Si corresponde, inicia sesión."
+      ? error?.trim() || "No tienes permiso para consultar este evento. Si corresponde, inicia sesión."
       : status === "invalid"
         ? "El enlace del evento no es válido."
         : "No fue posible cargar los detalles del evento.";
