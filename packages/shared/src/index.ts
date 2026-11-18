@@ -62,11 +62,14 @@ export interface AsistenteEvento {
   idBoleto?: number | null;
 }
 
+export type EstadoAsientoMapa = 'DISPONIBLE' | 'RETENIDO' | 'OCUPADO';
+
 export interface AsientoDisponible {
   idAsiento: number;
   fila: string;
   numero: number;
-  ocupado: boolean; // <- calculado por el back
+  ocupado: boolean; // true si NO se puede seleccionar (boleto válido/utilizado, retención vigente o actividad no reservable)
+  estado?: EstadoAsientoMapa;
 }
 
 export interface DisponibilidadSubEvento {

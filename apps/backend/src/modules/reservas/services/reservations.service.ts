@@ -10,6 +10,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import {
   DisponibilidadSubEvento,
   AsientoDisponible,
+  EstadoAsientoMapa,
   EstadoRecinto,
   EstadoBoleto,
   EstadoSubEvento,
@@ -124,27 +125,7 @@ export class ReservationsService {
             throw new ConflictException('El recinto asignado a este evento no se encuentra habilitado.');
         }
 
-        const asistentes = await this.asistenteRepo.find({ 
-            where: { idSubEvento: idSubEvento } 
-        });
-        
-        const idsBoleto = asistentes.map(a => a.idBoleto).filter(id => id !== null);
-
-        let lugaresOcupados = 0;
-        const idsAsientosOcupados = new Set<number>();
-
-        if (idsBoleto.length > 0) {
-            const boletos = await this.boletoRepo.findBy({ idBoleto: In(idsBoleto) });
-
-            for (const boleto of boletos) {
-                if (boleto.idEstadoBoleto === EstadoBoleto.VALIDO || boleto.idEstadoBoleto === EstadoBoleto.UTILIZADO) {
-                    lugaresOcupados++;
-                    if (boleto.idAsiento !== null) {
-                        idsAsientosOcupados.add(boleto.idAsiento);
-                    }
-                }
-            }
-        }
+        const { lugaresOcupados, idsAsientosOcupados } = await this.calcularOcupacionSubEvento(this.dataSource.manager, idSubEvento);
 
         // Verificar si la actividad permite reservaciones (Evento Aceptado = 2, SubEvento Aceptado y Fecha futura en America/Mexico_City)
         const haIniciado = fechaEvento
@@ -155,18 +136,41 @@ export class ReservationsService {
         const permiteRegistro = esModalidadConRegistro(subEvento.idModalidadAcceso);
         const requiereSeleccionAsiento =
             subEvento.idModalidadAcceso === ModalidadAcceso.QR_MAPA;
-        const lugaresDisponibles = eventoActivo ? Math.max(0, recinto.aforo - lugaresOcupados) : 0;
+
+        const retencionesVigentesRaw = requiereSeleccionAsiento
+            ? await this.dataSource.manager.query(
+                  `SELECT "idAsiento" FROM "retencionAsiento" WHERE "idSubEvento" = $1 AND "venceEn" > LOCALTIMESTAMP`,
+                  [idSubEvento],
+              )
+            : [];
+        const idsAsientosRetenidos = new Set<number>(
+            retencionesVigentesRaw.map((r: any) => Number(r.idAsiento)),
+        );
+
+        const lugaresDisponibles = eventoActivo
+            ? Math.max(0, recinto.aforo - lugaresOcupados - idsAsientosRetenidos.size)
+            : 0;
 
         const asientosBD = requiereSeleccionAsiento
             ? await this.asientoRepo.find({ where: { idRecinto: recinto.idRecinto } })
             : [];
 
-        const asientos: AsientoDisponible[] = asientosBD.map(a => ({
-            idAsiento: a.idAsiento,
-            fila: a.fila,
-            numero: a.numero,
-            ocupado: !eventoActivo ? true : idsAsientosOcupados.has(a.idAsiento),
-        }));
+        const asientos: AsientoDisponible[] = asientosBD.map(a => {
+            const estado: EstadoAsientoMapa = !eventoActivo
+                ? 'OCUPADO'
+                : idsAsientosOcupados.has(a.idAsiento)
+                ? 'OCUPADO'
+                : idsAsientosRetenidos.has(a.idAsiento)
+                ? 'RETENIDO'
+                : 'DISPONIBLE';
+            return {
+                idAsiento: a.idAsiento,
+                fila: a.fila,
+                numero: a.numero,
+                ocupado: estado !== 'DISPONIBLE',
+                estado,
+            };
+        });
 
         return {
             idSubEvento: subEvento.idSubEvento,
