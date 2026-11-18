@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Modal } from "../../molecules/Modal";
 import { FormField } from "../../molecules/FormField";
 import { TextArea } from "../../atoms/TextArea/TextArea";
@@ -24,7 +24,19 @@ export function ModalMotivoUrgente({
   continuar,
 }: ModalMotivoUrgenteProps) {
   const [intentoContinuar, setIntentoContinuar] = useState(false);
+
+  useEffect(() => {
+    if (mostrar) {
+      setIntentoContinuar(false);
+    }
+  }, [mostrar]);
+
   const motivoInvalido = !motivo.trim() || motivo.length > maxLength;
+
+  const handleCerrar = () => {
+    setIntentoContinuar(false);
+    cerrar();
+  };
 
   const handleContinuar = () => {
     setIntentoContinuar(true);
@@ -40,11 +52,12 @@ export function ModalMotivoUrgente({
       titulo="Aviso"
       contenido={contenido}
       mostrarModal={mostrar}
-      cerrarModal={cerrar}>
+      cerrarModal={handleCerrar}
+    >
       <div className="space-y-4">
         <FormField label="Motivo de la urgencia" required>
           <span id="ayudaMotivoUrgente" className="text-xs text-gray-600">
-            Máximo {maxLength} caracteres.
+            Máximo {maxLength} caracteres y minimo 10 caracteres.
           </span>
           <TextArea
             id="campoMotivoUrgente"
@@ -69,12 +82,13 @@ export function ModalMotivoUrgente({
           <Button
             text="Cancelar"
             variant="danger"
-            onClick={cerrar}
+            onClick={handleCerrar}
             className="w-full sm:w-auto"
           />
           <Button
             text="Continuar"
             onClick={handleContinuar}
+            disabled={motivo.trim().length < 10}
             className="w-full sm:w-auto"
           />
         </div>

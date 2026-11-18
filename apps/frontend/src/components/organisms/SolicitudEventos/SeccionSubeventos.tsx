@@ -41,11 +41,8 @@ export function SeccionSubeventos({
     <section className="space-y-5 sm:space-y-6 rounded-xl border border-gray-200 shadow-md p-5 bg-white">
       <FormHeader
         titulo="Fecha y lugar del evento"
-        descripcion={`Selecciona el recinto, la fecha, el horario y la modalidad de acceso. El sistema validará que el espacio no esté ocupado en ese horario. Si tu evento dura varios días o tiene varias sesiones, usa el botón [Agregar nueva fecha] para registrar cada bloque. ${
-          subEventos.length === 1
-            ? "Con una sola fecha, el nombre y la descripción del subevento serán los mismos que los del evento."
-            : "Con varias fechas, cada subevento debe tener su propio nombre y descripción."
-        }`}
+        descripcion={`Selecciona el recinto, la fecha, el horario y la modalidad de acceso. El sistema validará que el espacio no esté ocupado en ese horario. Si tu evento dura varios días o tiene varias sesiones, usa el botón [Agregar nueva fecha] para registrar cada bloque. Con varias fechas, cada subevento debe tener su propio nombre y descripción.
+        `}
       />
 
       {subEventos.map((subevento, index) => {
@@ -57,7 +54,8 @@ export function SeccionSubeventos({
               isDeleting
                 ? "grid-rows-[0fr] opacity-0 scale-[0.98] -translate-y-2 pointer-events-none !mt-0"
                 : "grid-rows-[1fr] opacity-100 scale-100 translate-y-0"
-            }`}>
+            }`}
+          >
             <div className="min-h-0">
               <CardSubevento
                 subevento={subevento}
@@ -74,7 +72,7 @@ export function SeccionSubeventos({
                 canEdit={subEventos.length > 1}
                 isDeleting={isDeleting}
                 onRemove={() => handleRemove(subevento.id)}
-              />              
+              />
             </div>
           </div>
         );
