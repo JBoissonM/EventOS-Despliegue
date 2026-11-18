@@ -40,11 +40,11 @@ tags:
 ### Trayectoria Principal
 
 1. El Organizador selecciona un evento privado aprobado desde CU-24 "Consultar mis eventos" en **UI14** "Panel de Consulta de Mis Eventos" y abre la administración del evento (**UI15** / **UI16**).
-2. El actor captura el correo electrónico del invitado en la sección de asistentes / invitados y presiona [Agregar invitado].
-3. El sistema verifica que el evento tenga alcance Privado, siga vigente y esté bajo responsabilidad del Organizador. [Trayectoria D]
-4. El sistema valida el formato del correo y comprueba la existencia de una cuenta activa para el destinatario. [Trayectoria A]
-5. El sistema comprueba que el usuario no se encuentre ya invitado ni cuente con un boleto activo para ese evento, y que el total de invitados no supere el aforo nominal del recinto. [Trayectoria B] [Trayectoria C]
-6. El sistema registra la asociación en el padrón de invitados y envía un correo electrónico de invitación al destinatario con los datos del evento privado y el enlace a la plataforma. [Trayectoria E]
+2. El actor captura los correos electrónicos en el modal de invitados y/o marca bajas en `UI16` (*Modificar evento*). Los cambios quedan preparados en la tabla local hasta que presiona **[Confirmar cambios]** / **[Guardar cambios]**.
+3. Al confirmar los cambios, el sistema verifica que el evento tenga alcance Privado, siga vigente y esté bajo responsabilidad del Organizador. [Trayectoria D]
+4. El sistema valida el formato del correo y comprueba si corresponde a una cuenta activa o requiere envío de invitación de registro temporal por token de 48 horas. [Trayectoria A]
+5. El sistema comprueba que el usuario no se encuentre ya invitado ni cuente con un boleto activo para ese evento, y que el total de invitados no supere el aforo nominal máximo entre los subeventos vigentes del evento. [Trayectoria B] [Trayectoria C]
+6. El sistema registra la asociación en el padrón de invitados y envía un correo electrónico de invitación al destinatario con los datos del evento privado y el enlace directo (si el usuario accede sin sesión activa, la vista `UI05` solicitará iniciar sesión con retorno automático al evento). Cuando se revoque un invitado existente al guardar cambios, el sistema cancelará sus boletos activos y retenciones de asiento, enviándole un correo de aviso únicamente si tenía un boleto previo cancelado. [Trayectoria E]
 7. Muestra **MSG-I-08** "Operación realizada con éxito." y habilita la visualización del evento en la cartelera (**UI04**) del destinatario para que pueda consultar sus detalles (**UI05**) y reservar su lugar (**CU-15**).
 8. El Organizador puede repetir la operación para otros destinatarios mientras existan cupos disponibles.
 
