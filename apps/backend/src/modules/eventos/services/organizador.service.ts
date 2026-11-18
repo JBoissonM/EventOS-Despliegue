@@ -1196,6 +1196,14 @@ export class OrganizadorService {
         );
       }
 
+      if (dto.soloVerificar) {
+        return {
+          asignadoDirecto: true,
+          invitacionEnviada: false,
+          mensaje: 'Usuario verificado.',
+        };
+      }
+
       await this.dataSource.query(
         `INSERT INTO "eventoPersonalLogistica" ("idEvento", "idUsuario") VALUES ($1, $2)`,
         [idEvento, usuarioExistente.idUsuario],
@@ -1213,6 +1221,8 @@ export class OrganizadorService {
       };
     }
 
+    await verificarDominioCorreoValido(correo);
+
     if (dto.soloVerificar) {
       return {
         asignadoDirecto: false,
@@ -1220,8 +1230,6 @@ export class OrganizadorService {
         mensaje: 'El usuario aún no está registrado.',
       };
     }
-
-    await verificarDominioCorreoValido(correo);
 
     const payload = {
       correo,
