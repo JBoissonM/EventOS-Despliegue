@@ -77,6 +77,19 @@ export interface DisponibilidadSubEvento {
   asientos: AsientoDisponible[]; // <- lista de asientos disponibles
 }
 
+export const DURACION_RETENCION_ASIENTO_MINUTOS = 5;
+
+export interface RetencionAsientoActiva {
+  idRetencionAsiento: number;
+  idSubEvento: number;
+  idAsiento: number;
+  fila: string;
+  numero: number;
+  venceEn: string;          // ISO 8601 en UTC, calculado por el servidor
+  serverNow: string;        // ISO 8601 en UTC, hora del servidor/BD al responder
+  segundosRestantes: number;
+}
+
 export interface CrearReservaPayload {
   idSubEvento: number;
   idAsiento: number | null;

@@ -10,6 +10,7 @@ import { MailService } from './services/mail.service';
 import { BoletoEntity } from './entities/boleto.entity';
 import { EstadoBoletoEntity } from './entities/estadoBoleto.entity';
 import { AsistenteEventoEntity } from './entities/asistenteEvento.entity';
+import { RetencionAsientoEntity } from './entities/retencionAsiento.entity';
 
 import { EventoEntity } from '../eventos/entities/evento.entity';
 import { SubEventoEntity } from '../eventos/entities/subevento.entity';
@@ -26,6 +27,7 @@ import { UsuarioEntity } from '../auth/entities/usuario.entity';
       BoletoEntity,
       EstadoBoletoEntity,
       AsistenteEventoEntity,
+      RetencionAsientoEntity,
       EventoEntity,
       SubEventoEntity,
       FechaEntity,
