@@ -1,4 +1,5 @@
 import type { CatalogEventApi } from "../types/eventCatalog.types";
+import { EstadoSubEvento } from "@eventos/shared";
 
 export type DateFilter =
   | "todas"
@@ -52,12 +53,12 @@ function dateRange(
   filter: DateFilter,
   customStart: string,
   customEnd: string,
+  now: Date,
 ): DateRange | null {
   if (filter === "todas") {
     return null;
   }
 
-  const now = new Date();
   const nowMexico = mexicoDateTime(now);
   const today = nowMexico.slice(0, 10);
   const year = Number(today.slice(0, 4));
@@ -117,9 +118,11 @@ export function visibleEvents(
   venue: string,
   customStart = "",
   customEnd = "",
+  now: Date = new Date(),
 ): CatalogEventApi[] {
   const query = normalizeText(search);
-  const range = dateRange(selectedDate, customStart, customEnd);
+  const range = dateRange(selectedDate, customStart, customEnd, now);
+  const currentMexico = mexicoDateTime(now);
 
   return events
     .flatMap((event) => {
@@ -128,8 +131,14 @@ export function visibleEvents(
 
       const subEventos = (event.subEventos ?? []).filter((activity) => {
         const date = dateValue(activity.fecha?.fecha);
+        const endTime = activity.fecha?.horaFin?.slice(0, 8);
 
-        if (!date) {
+        if (
+          activity.estado !== EstadoSubEvento.ACEPTADO ||
+          !date ||
+          !endTime ||
+          `${date}T${endTime}` <= currentMexico
+        ) {
           return false;
         }
 
@@ -190,4 +199,45 @@ export function formatCatalogDate(value: string): string {
 
 export function formatCatalogTime(value: string): string {
   return value.slice(0, 5);
+}
+
+export function nextCatalogRefreshDelay(
+  events: CatalogEventApi[],
+  now: Date,
+): number {
+  const currentMexico = mexicoDateTime(now);
+
+  const currentComparable =
+    Date.parse(`${currentMexico}Z`) + now.getMilliseconds();
+
+  let delay = 60000 - (now.getTime() % 60000) + 50;
+
+  for (const event of events) {
+    for (const activity of event.subEventos ?? []) {
+      if (activity.estado !== EstadoSubEvento.ACEPTADO) {
+        continue;
+      }
+
+      const date = dateValue(activity.fecha?.fecha);
+      const endTime = activity.fecha?.horaFin?.slice(0, 8);
+
+      if (!date || !endTime) {
+        continue;
+      }
+
+      const endComparable = Date.parse(`${date}T${endTime}Z`);
+
+      if (!Number.isFinite(endComparable)) {
+        continue;
+      }
+
+      const remaining = endComparable - currentComparable;
+
+      if (remaining > 0) {
+        delay = Math.min(delay, remaining + 50);
+      }
+    }
+  }
+
+  return Math.max(50, delay);
 }

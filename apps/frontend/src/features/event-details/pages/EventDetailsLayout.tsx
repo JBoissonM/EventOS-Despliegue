@@ -1,7 +1,11 @@
 import { useEffect, useState } from "react";
 import { DashboardLayout } from "../../../components/templates/DashboardLayout";
 import { MainLayout } from "../../../components/templates/MainLayout";
-import { ApiError, apiRequest } from "../../../lib/apiClient";
+import {
+  ApiError,
+  apiRequest,
+  SESSION_REVALIDATION_EVENT,
+} from "../../../lib/apiClient";
 import type { PerfilAutenticado } from "../../../app/ProtectedRoutes";
 
 type EstadoLayout =
@@ -43,6 +47,25 @@ export function EventDetailsLayout() {
   const [estado, setEstado] = useState<EstadoLayout>(() =>
     token ? { tipo: "verificando" } : { tipo: "publico" },
   );
+  const [revalidacion, setRevalidacion] = useState(0);
+
+  useEffect(() => {
+    const solicitarRevalidacion = () => {
+      setRevalidacion((actual) => actual + 1);
+    };
+
+    window.addEventListener(
+      SESSION_REVALIDATION_EVENT,
+      solicitarRevalidacion,
+    );
+
+    return () => {
+      window.removeEventListener(
+        SESSION_REVALIDATION_EVENT,
+        solicitarRevalidacion,
+      );
+    };
+  }, []);
 
   useEffect(() => {
     if (!token) {
@@ -52,7 +75,11 @@ export function EventDetailsLayout() {
 
     const controller = new AbortController();
 
-    setEstado({ tipo: "verificando" });
+    setEstado((actual) =>
+      actual.tipo === "autenticado" && actual.token === token
+        ? actual
+        : { tipo: "verificando" },
+    );
 
     const validarSesion = async () => {
       try {
@@ -99,7 +126,7 @@ export function EventDetailsLayout() {
     void validarSesion();
 
     return () => controller.abort();
-  }, [token]);
+  }, [token, revalidacion]);
 
   if (
     estado.tipo === "verificando" ||

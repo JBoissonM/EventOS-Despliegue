@@ -52,10 +52,14 @@ export function ActivityInformationCard({ activity, returnPath }: ActivityInform
       />
       <dl className="space-y-5 text-eventos-body-text">
         {data.map(({ label, value, Icon }) => (
-          <div key={label} className="flex items-start gap-3">
-            <Icon size={22} className="shrink-0 text-eventos-secondary" aria-hidden="true" />
-            <dt className="font-semibold">{label}:</dt>
-            <dd className="min-w-0 wrap-break-word">{value}</dd>
+          <div key={label} className="relative min-w-0 pl-9 text-pretty">
+            <Icon
+              size={22}
+              className="absolute left-0 top-0 text-eventos-secondary"
+              aria-hidden="true"
+            />
+            <dt className="inline font-semibold">{label}:</dt>{" "}
+            <dd className="inline break-words">{value}</dd>
           </div>
         ))}
       </dl>
@@ -70,12 +74,14 @@ export function ActivityInformationCard({ activity, returnPath }: ActivityInform
         {!esModalidadConRegistro(activity.idModalidadAcceso) || activity.idModalidadAcceso === ModalidadAcceso.ACCESO_LIBRE ? (
           <p className="rounded-md bg-eventos-secondary-light p-4 text-sm text-eventos-secondary">Acceso libre hasta completar el aforo del recinto.</p>
         ) : (
-          <div className="rounded-md border border-eventos-warning bg-eventos-warning/20 p-4">
+          <div className="rounded-md border border-eventos-panel-border bg-eventos-surface p-4">
             <p className="font-semibold text-eventos-ink">Requiere reservación previa</p>
             <p className="mt-2 text-sm text-eventos-body-text">
-              {esModalidadConQr(activity.idModalidadAcceso)
-                ? "Esta actividad puede consultarse públicamente, pero para ingresar necesitas una reservación y un boleto QR válido."
-                : "Esta actividad puede consultarse públicamente. Necesitas reservar tu lugar en el sistema; tu registro queda confirmado sin generar código QR."}
+              {activity.idModalidadAcceso === ModalidadAcceso.QR_MAPA
+                ? "Para ingresar necesitas reservar un asiento y presentar un boleto con código QR válido."
+                : esModalidadConQr(activity.idModalidadAcceso)
+                  ? "Para ingresar necesitas una reservación y un boleto con código QR válido."
+                  : "Para ingresar necesitas registrar tu lugar. Esta modalidad no utiliza código QR."}
             </p>
             {noAvailability && <p role="status" className="mt-3 text-sm font-semibold text-eventos-error-strong">No es posible realizar reservaciones para esta actividad en este momento.</p>}
             {canReserve && !hasSession && (

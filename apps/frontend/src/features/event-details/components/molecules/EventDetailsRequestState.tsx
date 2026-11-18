@@ -2,6 +2,7 @@ import { AlertCircle, LoaderCircle } from "lucide-react";
 import { Link, useLocation } from "react-router";
 import { getAuthPathWithReturnUrl } from "../../utils/eventReturnUrl";
 import type { EventDetailsLoadStatus } from "../../hooks/useEventDetails";
+import { getCatalogOrigin } from "../../../event-catalog/utils/catalogNavigation";
 
 interface EventDetailsRequestStateProps {
   status: EventDetailsLoadStatus;
@@ -12,6 +13,8 @@ interface EventDetailsRequestStateProps {
 export function EventDetailsRequestState({ status, error, onRetry }: EventDetailsRequestStateProps) {
   const location = useLocation();
   const loginPath = getAuthPathWithReturnUrl("/login", location.pathname);
+  const catalogOrigin = getCatalogOrigin(location.state);
+  const returnPath = catalogOrigin ?? "/cartelera";
   if (status === "loading") {
     return (
       <section role="status" aria-live="polite" className="mx-auto flex min-h-80 max-w-5xl flex-col items-center justify-center gap-4">
@@ -39,7 +42,13 @@ export function EventDetailsRequestState({ status, error, onRetry }: EventDetail
           <button type="button" onClick={onRetry} className="rounded-md bg-eventos-primary px-5 py-2 font-semibold text-eventos-on-primary hover:bg-eventos-action-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-eventos-primary">Reintentar</button>
         )}
         {status === "forbidden" && <Link to={loginPath} className="rounded-md bg-eventos-primary px-5 py-2 font-semibold text-eventos-on-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-eventos-primary">Iniciar sesión</Link>}
-        <Link to="/cartelera" className="rounded-md border border-eventos-panel-border px-5 py-2 font-semibold text-eventos-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-eventos-primary">Volver a la cartelera</Link>
+        <Link
+          to={returnPath}
+          state={catalogOrigin ? { restoreCatalogScroll: true } : undefined}
+          className="rounded-md border border-eventos-panel-border px-5 py-2 font-semibold text-eventos-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-eventos-primary"
+        >
+          Volver a la cartelera
+        </Link>
       </div>
     </section>
   );

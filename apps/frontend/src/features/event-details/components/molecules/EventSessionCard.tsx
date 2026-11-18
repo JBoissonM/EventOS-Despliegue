@@ -16,16 +16,20 @@ interface EventSessionCardProps {
   actionLabel?: string;
   actionVariant?: "primary" | "secondary" | "outline" | "danger" | "success";
   onAction?: () => void;
+  catalogReturnTo?: string;
+  onOpenDetails?: () => void;
 }
 
 export function EventSessionCard({
-  activity,
-  detailsPath,
-  detailsLabel = "Ver detalles",
-  actionLabel,
-  actionVariant = "danger",
-  onAction,
-}: EventSessionCardProps) {
+                                   activity,
+                                   detailsPath,
+                                   detailsLabel = "Ver detalles",
+                                   actionLabel,
+                                   actionVariant = "danger",
+                                   onAction,
+                                   catalogReturnTo,
+                                   onOpenDetails,
+                                 }: EventSessionCardProps) {
   const { availability, isLoading, error } = useReservationAvailability(
     activity.idSubEvento,
   );
@@ -56,7 +60,17 @@ export function EventSessionCard({
               detailsPath ??
               `/eventos/${activity.idEvento}/actividades/${activity.idSubEvento}`
             }
-            className="whitespace-nowrap rounded-md bg-eventos-primary px-5 py-3 text-sm font-semibold text-eventos-on-primary hover:bg-eventos-action-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-eventos-primary">
+            state={
+              catalogReturnTo || onOpenDetails
+                ? {
+                  ...(catalogReturnTo ? { catalogReturnTo } : {}),
+                  ...(onOpenDetails ? { restoreEventScroll: true } : {}),
+                }
+                : undefined
+            }
+            className="whitespace-nowrap rounded-md bg-eventos-primary px-5 py-3 text-sm font-semibold text-eventos-on-primary hover:bg-eventos-action-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-eventos-primary"
+            onClick={onOpenDetails}
+          >
             {detailsLabel}
           </Link>
         )}

@@ -43,7 +43,6 @@ const selectStyle = "min-h-11 w-full min-w-0 rounded-lg border border-eventos-pa
 
 export function MyTicketsPage({ tickets, onCancelTicket, onViewQr }: MyTicketsPageProps) {
   const [search, setSearch] = useState("");
-  const [filtersOpen, setFiltersOpen] = useState(false);
   const [period, setPeriod] = useState("");
   const [rangeStart, setRangeStart] = useState("");
   const [rangeEnd, setRangeEnd] = useState("");
@@ -154,23 +153,11 @@ export function MyTicketsPage({ tickets, onCancelTicket, onViewQr }: MyTicketsPa
           </div>
 
           <div className="w-full space-y-3 xl:max-w-5xl">
-            <div className="flex gap-2">
-              <SearchField
-                value={search}
-                onChange={setSearch}
-                className="flex-1"
-              />
-              <button
-                type="button"
-                onClick={() => setFiltersOpen((value) => !value)}
-                aria-expanded={filtersOpen}
-                aria-controls="ticket-filter-controls"
-                className="shrink-0 rounded-lg border border-eventos-primary px-3 text-sm font-semibold text-eventos-primary md:hidden"
-              >
-                Filtros{hasFilters ? " •" : ""}
-              </button>
-            </div>
-            <div id="ticket-filter-controls" className={`${filtersOpen ? "grid" : "hidden"} grid-cols-2 gap-2 md:grid md:grid-cols-3`}>
+            <SearchField
+              value={search}
+              onChange={setSearch}
+            />
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-3 md:gap-2">
               <div className="min-w-0">
                 <FilterDropdown
                   label="Fecha"
@@ -213,7 +200,7 @@ export function MyTicketsPage({ tickets, onCancelTicket, onViewQr }: MyTicketsPa
                   endDate={rangeEnd}
                   onStartDateChange={setRangeStart}
                   onEndDateChange={setRangeEnd}
-                  className="col-span-2 md:col-span-3"
+                  className="md:col-span-3"
                 />
               )}
             </div>

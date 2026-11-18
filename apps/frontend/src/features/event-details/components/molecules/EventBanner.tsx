@@ -28,7 +28,7 @@ export function EventBanner({
     relative isolate flex w-full items-center justify-center
     overflow-hidden rounded-xl
     border border-eventos-panel-border bg-eventos-surface
-    aspect-video max-h-[400px]
+    aspect-video max-h-[400px] lg:max-h-[320px]
     ${className}
   `}
     >
