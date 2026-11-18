@@ -9,6 +9,7 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, EntityManager, In, Repository } from 'typeorm';
 import {
+  AlcanceEvento,
   calcularImpactoCambioSubevento,
   clasificarTransicionModalidad,
   esLaboratorioRecinto,
@@ -918,6 +919,7 @@ export class SolicitudesService {
         where: { idEvento },
       });
       const idsConservados = new Set<number>();
+      const usuariosExcedentesFifo = new Set<number>();
 
       for (const propuesto of subeventosPropuestos) {
         const existente = propuesto.idSubEvento
@@ -978,6 +980,7 @@ export class SolicitudesService {
                     [EstadoBoleto.CANCELADO, idsExcedentes],
                   );
                   for (const exc of excedentesFifo) {
+                    usuariosExcedentesFifo.add(Number(exc.idUsuario));
                     if (!exc.correo) continue;
                     colaCorreoD.push({
                       destinatario: exc.correo,
@@ -1147,6 +1150,72 @@ export class SolicitudesService {
             idUsuarioActor: idUsuarioActor ?? evento.idOrganizador,
             idEstadoEvento: EstadoEvento.CANCELADO,
           });
+        }
+      }
+
+      if (evento.idAlcance === AlcanceEvento.PRIVADO) {
+        const idsExcedentesUsuarios = Array.from(usuariosExcedentesFifo);
+        if (idsExcedentesUsuarios.length > 0) {
+          await manager.query(
+            `DELETE FROM "invitacionEvento" ie
+             WHERE ie."idEvento" = $1
+               AND ie."idUsuario" = ANY($2::int[])
+               AND NOT EXISTS (
+                 SELECT 1
+                 FROM "asistenteEvento" ae
+                 INNER JOIN "subEvento" se ON ae."idSubEvento" = se."idSubEvento"
+                 INNER JOIN "boleto" b ON ae."idBoleto" = b."idBoleto"
+                 WHERE se."idEvento" = $1
+                   AND se."estado" <> $3
+                   AND ae."idUsuario" = ie."idUsuario"
+                   AND b."idEstadoBoleto" IN ($4, $5)
+               )`,
+            [
+              idEvento,
+              idsExcedentesUsuarios,
+              EstadoSubEvento.CANCELADO,
+              EstadoBoleto.VALIDO,
+              EstadoBoleto.UTILIZADO,
+            ],
+          );
+        }
+
+        const aforoMaximoPrivado = subeventosPropuestos.reduce(
+          (max, prop) =>
+            Math.max(max, recintosBloqueados.get(prop.idRecinto)?.aforo ?? 0),
+          0,
+        );
+
+        if (aforoMaximoPrivado > 0) {
+          await manager.query(
+            `DELETE FROM "invitacionEvento"
+             WHERE "idInvitacionEvento" IN (
+               SELECT ie."idInvitacionEvento"
+               FROM "invitacionEvento" ie
+               WHERE ie."idEvento" = $1
+               ORDER BY (
+                 EXISTS (
+                   SELECT 1
+                   FROM "asistenteEvento" ae
+                   INNER JOIN "subEvento" se ON ae."idSubEvento" = se."idSubEvento"
+                   INNER JOIN "boleto" b ON ae."idBoleto" = b."idBoleto"
+                   WHERE se."idEvento" = $1
+                     AND se."estado" <> $2
+                     AND ae."idUsuario" = ie."idUsuario"
+                     AND b."idEstadoBoleto" IN ($3, $4)
+                 )
+               ) DESC,
+               ie."idInvitacionEvento" ASC
+               OFFSET $5
+             )`,
+            [
+              idEvento,
+              EstadoSubEvento.CANCELADO,
+              EstadoBoleto.VALIDO,
+              EstadoBoleto.UTILIZADO,
+              aforoMaximoPrivado,
+            ],
+          );
         }
       }
 

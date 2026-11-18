@@ -836,11 +836,18 @@ export function EditarEvento() {
         informacionGuardada = true;
       }
 
-      if (invitadosModificados || personalLogisticaModificado) {
+      const alcanceFinal =
+        idSubEventoSeleccionado === undefined && alcance !== ""
+          ? alcance
+          : evento.idAlcance;
+      const sincronizarInvitados =
+        invitadosModificados && alcanceFinal === AlcanceEvento.PRIVADO;
+
+      if (sincronizarInvitados || personalLogisticaModificado) {
         const resultadoSync = await sincronizarInvitadosYLogistica({
           idEvento,
-          invitadosActuales: invitados,
-          invitadosIniciales,
+          invitadosActuales: sincronizarInvitados ? invitados : [],
+          invitadosIniciales: sincronizarInvitados ? invitadosIniciales : [],
           personalActual: personalLogistica,
           personalInicial: personalLogisticaInicial,
         });

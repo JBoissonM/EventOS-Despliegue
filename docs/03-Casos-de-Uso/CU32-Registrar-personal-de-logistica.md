@@ -41,11 +41,11 @@ tags:
 2. Selecciona la opción [Agregar personal de logística].
 3. Verifica la sesión del Organizador, que sea responsable del evento, que el evento esté aprobado y que no se haya superado el límite de 10 colaboradores. [Trayectoria D]
 4. Muestra UI27 "Agregar Personal de Logística" desde el panel del evento, con el campo para ingresar el correo electrónico del colaborador y el contador de 10 lugares permitidos.
-5. El Organizador ingresa el correo electrónico del colaborador y selecciona [Agregar personal].
-6. Verifica que todos los campos obligatorios estén completos y que el correo electrónico tenga un formato válido. [Trayectoria A] [Trayectoria B]
-7. Consulta en la base de datos si el correo electrónico ya corresponde a una cuenta activa. [Trayectoria C] [Trayectoria F] [Trayectoria E]
-8. Si la cuenta está registrada y activa, valida que no exista una asignación previa ni se supere el límite de 10 personas y otorga permisos de logística exclusivos para ese evento. [Trayectoria C] [Trayectoria E]
-9. Actualiza la relación de personal de logística del evento y envía al colaborador registrado un correo de confirmación con la información del evento. [Trayectoria E]
+5. El Organizador ingresa el correo electrónico del colaborador en la tarjeta y selecciona [Agregar] para pre-validar en modo lectura (sin guardar en base de datos ni enviar correos todavía), repitiendo para otros colaboradores hasta completar su lista y presionando **[Guardar]** cuando desee confirmar.
+6. Verifica que todos los campos obligatorios estén completos, que no existan correos duplicados en las tarjetas del panel y que cada correo electrónico tenga un formato válido. [Trayectoria A] [Trayectoria B]
+7. Consulta en la base de datos si cada correo electrónico corresponde a una cuenta activa o requiere invitación temporal por token (validando su dominio MX y solicitando confirmación modal antes de preparar la invitación). [Trayectoria C] [Trayectoria F] [Trayectoria E]
+8. Al pulsar **[Guardar]**, si las tarjetas vigentes siguen en la lista, valida que no exista una asignación previa ni se supere el límite de 10 personas y otorga permisos de logística exclusivos para ese evento (cualquier tarjeta eliminada o reemplazada antes de guardar no genera cambios ni correos). [Trayectoria C] [Trayectoria E]
+9. Actualiza la relación de personal de logística del evento y envía únicamente en ese instante los correos de confirmación o las invitaciones por token correspondientes. [Trayectoria E]
 10. Muestra MSG-I-08 "Operación realizada con éxito." cuando se confirma la asignación o se envía la invitación por token.
 11. Visualiza la confirmación del registro y finaliza la operación.
 

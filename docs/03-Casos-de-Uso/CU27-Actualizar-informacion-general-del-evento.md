@@ -95,8 +95,8 @@ tags:
 
 ### Trayectoria alternativa F: El alcance seleccionado y actualizado es "Privado"
 
-- **F-1.** En la pantalla "Modificar detalles de un evento" (`UI16`) habilita la sección de "Asistentes (Tus invitados)", permitiendo al Organizador agregar correos de destinatarios con cuenta activa, reenviar la invitación por correo respetando el *cooldown* de 8 horas o revocar invitaciones eliminando al usuario del padrón.
-- **F-2.** Al agregar un invitado o reenviar su invitación, el sistema notifica de inmediato por correo electrónico al usuario con los detalles del evento privado, habilitando su visualización en la cartelera para que pueda reservar su lugar.
+- **F-1.** En la pantalla "Modificar detalles de un evento" (`UI16`) habilita la sección de "Tus invitados", permitiendo al Organizador preparar altas de correos de destinatarios, reenviar invitaciones respetando el *cooldown* de 8 horas o revocar invitaciones eliminando al usuario de la tabla. Si el evento provenía de alcance `Público` o `Interno`, el sistema incorpora automáticamente en `"invitacionEvento"` a los asistentes que ya tenían un boleto activo (`VALIDO` o `UTILIZADO`) para que conserven su acceso y aparezcan en el padrón.
+- **F-2.** Las altas y eliminaciones de invitados (así como bajas de personal de logística) realizadas en `UI16` permanecen en estado pendiente dentro del formulario hasta pulsar **[Guardar cambios]** / **[Confirmar cambios]**: en ese momento se envían los correos a los nuevos invitados, se revocan las invitaciones eliminadas, se cancelan automáticamente los boletos activos previos de los invitados removidos (notificándoles por correo solo si tenían boleto activo) y se persisten las modificaciones de ponentes (admitiendo captura de nombre sin exigir correo en `UI16`).
 - **F-3.** Retoma el flujo en el paso 8 de la trayectoria principal.
 
 *Fin de la trayectoria.*
@@ -104,7 +104,7 @@ tags:
 
 ### Trayectoria alternativa G: El alcance seleccionado y actualizado es "Público"
 
-- **G-1.** En la pantalla "Actualizar información general” conserva intactos los registros y lugares de los asistentes que ya se encontraban inscritos previamente en el evento, independientemente del alcance anterior.
+- **G-1.** En la pantalla "Actualizar información general” conserva intactos los registros y lugares de los asistentes que ya se encontraban inscritos previamente en el evento, independientemente del alcance anterior. Si el evento provenía de alcance `Privado`, limpia el padrón de invitaciones previas (`"invitacionEvento"`) sin afectar los boletos emitidos.
 - **G-2.** Configura el evento para que la visualización y la solicitud de los lugares que aún se encuentran vacíos esté habilitada para el público en general en la cartelera.
 - **G-3.** Retoma el flujo en el paso 7 de la trayectoria principal (donde se muestra el mensaje de éxito).
 
@@ -113,8 +113,8 @@ tags:
 
 ### Trayectoria alternativa H: El alcance seleccionado y actualizado es "Interno"
 
-- **H-1.** En la pantalla "Actualizar información general" conserva intactos los registros y lugares de los asistentes que ya se encontraban inscritos previamente en el evento, garantizando que no pierdan su lugar.
-- **H-2.** Configura el evento para que la visualización y la solicitud de los lugares que aún se encuentran vacíos esté restringida, permitiendo el registro únicamente a los usuarios pertenecientes a la comunidad interna.
+- **H-1.** En la pantalla "Actualizar información general" conserva intactos los registros y lugares de los asistentes que ya se encontraban inscritos previamente en el evento (incluidos usuarios externos con boleto emitido antes del cambio, quienes conservan acceso de consulta en `UI05`), garantizando que no pierdan su lugar. Si el evento provenía de alcance `Privado`, limpia el padrón de invitaciones previas (`"invitacionEvento"`).
+- **H-2.** Configura el evento para que la visualización general en cartelera y la solicitud de los lugares que aún se encuentran vacíos queden restringidas únicamente a los usuarios pertenecientes a la comunidad interna.
 - **H-3.** Retoma el flujo en el paso 7 de la trayectoria principal (donde se muestra el mensaje de éxito).
 
 *Fin de la trayectoria.*

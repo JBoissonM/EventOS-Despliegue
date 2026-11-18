@@ -683,6 +683,8 @@ export class OrganizadorService {
       evento.poster = dto.poster.trim();
     }
 
+    const alcanceAnterior = evento.idAlcance;
+
     if (dto.idSubEvento !== undefined) {
       const subevento = await this.subEventoRepository.findOne({
         where: { idSubEvento: dto.idSubEvento, idEvento },
@@ -837,7 +839,55 @@ export class OrganizadorService {
       }
     }
 
-    const eventoGuardado = await this.eventoRepository.save(evento);
+    const alcanceCambio =
+      dto.idSubEvento === undefined &&
+      dto.idAlcance !== undefined &&
+      dto.idAlcance !== alcanceAnterior;
+
+    let eventoGuardado: EventoEntity;
+    if (alcanceCambio) {
+      const queryRunner = this.dataSource.createQueryRunner();
+      await queryRunner.connect();
+      await queryRunner.startTransaction();
+
+      try {
+        eventoGuardado = await queryRunner.manager.save(EventoEntity, evento);
+
+        if (dto.idAlcance === AlcanceEvento.PRIVADO) {
+          await queryRunner.manager.query(
+            `INSERT INTO "invitacionEvento" ("idEvento", "idUsuario")
+             SELECT DISTINCT $1::int, ae."idUsuario"
+             FROM "asistenteEvento" ae
+             INNER JOIN "subEvento" se ON ae."idSubEvento" = se."idSubEvento"
+             INNER JOIN "boleto" b ON ae."idBoleto" = b."idBoleto"
+             WHERE se."idEvento" = $1
+               AND b."idEstadoBoleto" IN ($2, $3)
+               AND ae."idUsuario" <> $4
+             ON CONFLICT ("idEvento", "idUsuario") DO NOTHING`,
+            [
+              idEvento,
+              EstadoBoleto.VALIDO,
+              EstadoBoleto.UTILIZADO,
+              evento.idOrganizador,
+            ],
+          );
+        } else if (alcanceAnterior === AlcanceEvento.PRIVADO) {
+          await queryRunner.manager.query(
+            `DELETE FROM "invitacionEvento" WHERE "idEvento" = $1`,
+            [idEvento],
+          );
+        }
+
+        await queryRunner.commitTransaction();
+      } catch (error) {
+        await queryRunner.rollbackTransaction();
+        throw error;
+      } finally {
+        await queryRunner.release();
+      }
+    } else {
+      eventoGuardado = await this.eventoRepository.save(evento);
+    }
 
     return {
       mensaje: 'Operación realizada con éxito.',
@@ -894,7 +944,13 @@ export class OrganizadorService {
       );
     }
 
-    const cupoMaximo = evento.subEventos?.[0]?.recinto?.aforo ?? 0;
+    const subeventosVigentes = (evento.subEventos ?? []).filter(
+      (s) => s.estado !== EstadoSubEvento.CANCELADO,
+    );
+    const cupoMaximo = subeventosVigentes.reduce(
+      (max, sub) => Math.max(max, sub.recinto?.aforo ?? 0),
+      0,
+    );
     if (cupoMaximo > 0) {
       const totalInvitadosActivos = await this.invitacionRepository.count({
         where: { idEvento },
