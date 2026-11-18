@@ -13,11 +13,15 @@ import {
 interface CatalogEventCardProps {
   event: CatalogEventApi;
   headingLevel?: "h2" | "h3";
+  catalogReturnTo?: string;
+  onOpenDetails?: () => void;
 }
 
 export function CatalogEventCard({
                                    event,
                                    headingLevel: Heading = "h2",
+                                   catalogReturnTo,
+                                   onOpenDetails,
                                  }: CatalogEventCardProps) {
   const [failedPoster, setFailedPoster] = useState<string | null>(null);
 
@@ -66,7 +70,7 @@ export function CatalogEventCard({
         )}
       </div>
 
-      <div className="flex flex-1 flex-col gap-2">
+      <div className="flex min-w-0 flex-1 flex-col gap-2">
         <span className="w-fit rounded bg-eventos-primary-light px-2 py-0.5 text-xs font-medium text-eventos-primary">
           {event.idAlcance === AlcanceEvento.PUBLICO
             ? "Público"
@@ -77,7 +81,7 @@ export function CatalogEventCard({
                 : "No especificado"}
         </span>
 
-        <Heading className="font-merriweather text-lg font-semibold leading-snug text-eventos-ink">
+        <Heading className="min-w-0 break-words font-merriweather text-lg font-semibold leading-snug text-eventos-ink">
           {event.nombre}
         </Heading>
 
@@ -127,6 +131,8 @@ export function CatalogEventCard({
       <div className="mt-6 flex justify-end">
         <Link
           to={`/eventos/${event.idEvento}`}
+          state={catalogReturnTo ? { catalogReturnTo } : undefined}
+          onClick={onOpenDetails}
           className="inline-flex min-h-10 items-center justify-center rounded-md bg-eventos-primary px-5 py-2 text-sm font-semibold text-eventos-on-primary transition-colors hover:bg-eventos-action-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-eventos-primary"
         >
           Ver detalles
