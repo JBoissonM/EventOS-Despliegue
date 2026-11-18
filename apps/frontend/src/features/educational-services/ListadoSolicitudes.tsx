@@ -421,7 +421,7 @@ export function ListadoSolicitudes() {
           <SearchField
             value={busqueda}
             onChange={setBusqueda}
-            placeholder="Buscar por nombre del evento"
+            placeholder="Buscar por nombre del evento o por solicitante"
           />
 
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">

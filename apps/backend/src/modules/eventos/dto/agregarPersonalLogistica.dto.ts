@@ -17,7 +17,7 @@ export class AgregarPersonalLogisticaDto {
 
   @ApiPropertyOptional({
     description:
-      'Si es true, solo verifica si el usuario existe (asignándolo si existe) sin enviar aún el correo de invitación a usuarios no registrados',
+      'Si es true, solo verifica si el usuario existe y cumple las validaciones sin asignarlo ni enviar correos',
   })
   @IsOptional()
   @IsBoolean()

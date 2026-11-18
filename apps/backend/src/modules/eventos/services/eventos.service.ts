@@ -8,6 +8,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
 import {
   AlcanceEvento,
+  EstadoBoleto,
   EstadoEvento,
   EstadoSubEvento,
   ModalidadAcceso,
@@ -206,8 +207,8 @@ export class EventosService {
 
     if (evento.idAlcance === AlcanceEvento.PRIVADO) {
       if (!tieneSesion) {
-        throw new NotFoundException(
-          'El evento no existe o no se encuentra disponible.',
+        throw new ForbiddenException(
+          'Debes iniciar sesión con tu cuenta invitada para consultar este evento privado.',
         );
       }
       const esOrganizador = evento.idOrganizador === usuarioActual?.sub;
@@ -228,8 +229,8 @@ export class EventosService {
       const esLogistica = logisticaRaw.length > 0;
 
       if (!esOrganizador && !esDirectivo && !estaInvitado && !esLogistica) {
-        throw new NotFoundException(
-          'El evento no existe o no se encuentra disponible.',
+        throw new ForbiddenException(
+          'No tienes permiso para consultar este evento. Si recibiste una invitación en otra cuenta, inicia sesión con ella.',
         );
       }
     }
@@ -241,9 +242,28 @@ export class EventosService {
     }
 
     if (evento.idAlcance === AlcanceEvento.INTERNO && !esUsuarioInterno) {
-      throw new ForbiddenException(
-        'Este evento es exclusivo para la comunidad interna del IPN.',
+      const tieneBoletoPrevio = await this.dataSource.query(
+        `SELECT 1
+         FROM "asistenteEvento" ae
+         INNER JOIN "subEvento" se ON ae."idSubEvento" = se."idSubEvento"
+         INNER JOIN "boleto" b ON ae."idBoleto" = b."idBoleto"
+         WHERE se."idEvento" = $1
+           AND ae."idUsuario" = $2
+           AND b."idEstadoBoleto" IN ($3, $4)
+         LIMIT 1`,
+        [
+          evento.idEvento,
+          usuarioActual!.sub,
+          EstadoBoleto.VALIDO,
+          EstadoBoleto.UTILIZADO,
+        ],
       );
+
+      if (tieneBoletoPrevio.length === 0) {
+        throw new ForbiddenException(
+          'Este evento es exclusivo para la comunidad interna del IPN.',
+        );
+      }
     }
 
     const subEventosDetallados = [];

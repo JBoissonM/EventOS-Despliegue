@@ -1,4 +1,5 @@
 import {
+  ModalidadAcceso,
   esLaboratorioRecinto,
   ETIQUETAS_MODALIDAD,
   obtenerModalidadesPermitidasPorRecinto,
@@ -20,6 +21,7 @@ import { SpaceRequerimentsDialog } from "../../organisms/SpaceRequirementsDialog
 import { useEffect, useRef, useState } from "react";
 import { ModalSubevento } from "../ModalSubevento/ModalSubevento";
 import { apiRequest } from "../../../lib/apiClient";
+import { Info } from "lucide-react";
 
 interface CardSubeventoBaseProps {
   subevento: SubeventoFormData;
@@ -34,19 +36,19 @@ type CardSubeventoProps = CardSubeventoBaseProps &
   (
     | { readOnly: true }
     | {
-      readOnly?: false;
-      errors: ErroresSubevento;
-      touched: CamposSubeventoTocados;
-      updateSubevento: (
-        index: number,
-        field: CampoSubevento,
-        value: string,
-      ) => void;
-      markSubeventoTouched: (index: number, field: CampoSubevento) => void;
-      onRemove: () => void;
-      canRemove: boolean;
-      canEdit: boolean;
-    }
+        readOnly?: false;
+        errors: ErroresSubevento;
+        touched: CamposSubeventoTocados;
+        updateSubevento: (
+          index: number,
+          field: CampoSubevento,
+          value: string,
+        ) => void;
+        markSubeventoTouched: (index: number, field: CampoSubevento) => void;
+        onRemove: () => void;
+        canRemove: boolean;
+        canEdit: boolean;
+      }
   );
 
 interface EspacioInfo {
@@ -57,11 +59,27 @@ interface EspacioInfo {
 
 const RECINTOS_BASE: EspacioInfo[] = [
   { idRecinto: RecintoId.AUDITORIO, nombre: "Auditorio Principal", aforo: 242 },
-  { idRecinto: RecintoId.LABORATORIO_2104, nombre: "Laboratorio 2104", aforo: 36 },
-  { idRecinto: RecintoId.LABORATORIO_2105, nombre: "Laboratorio 2105", aforo: 36 },
+  {
+    idRecinto: RecintoId.LABORATORIO_2104,
+    nombre: "Laboratorio 2104",
+    aforo: 36,
+  },
+  {
+    idRecinto: RecintoId.LABORATORIO_2105,
+    nombre: "Laboratorio 2105",
+    aforo: 36,
+  },
   { idRecinto: RecintoId.SALA_14, nombre: "Sala 14", aforo: 50 },
-  { idRecinto: RecintoId.LABORATORIO_2106, nombre: "Laboratorio 2106", aforo: 36 },
-  { idRecinto: RecintoId.LABORATORIO_2107, nombre: "Laboratorio 2107", aforo: 36 },
+  {
+    idRecinto: RecintoId.LABORATORIO_2106,
+    nombre: "Laboratorio 2106",
+    aforo: 36,
+  },
+  {
+    idRecinto: RecintoId.LABORATORIO_2107,
+    nombre: "Laboratorio 2107",
+    aforo: 36,
+  },
 ];
 
 const HORASINICIO = [
@@ -224,8 +242,7 @@ export function CardSubevento(props: CardSubeventoProps) {
         if (activo && Array.isArray(respuesta) && respuesta.length > 0) {
           setEspacios(respuesta);
         }
-      } catch {
-      }
+      } catch {}
     };
     void cargarEspacios();
     return () => {
@@ -316,8 +333,9 @@ export function CardSubevento(props: CardSubeventoProps) {
     (recinto) => recinto.idRecinto === Number(subevento.idRecinto),
   );
 
-  const { fechaHoy: fechaMinima, minutosActuales } =
-    obtenerFechaHoraActualCdmx();
+  const { fechaHoy } = obtenerFechaHoraActualCdmx();
+  // Bloquear el día de hoy: la fecha mínima para solicitar es a partir de mañana
+  const fechaMinima = sumarDias(fechaHoy, 1);
 
   const bloquesOcupados: HorarioOcupadoAgenda[] = [
     ...agendaOcupada,
@@ -332,12 +350,7 @@ export function CardSubevento(props: CardSubeventoProps) {
       seTraslapan(horaInicio, horaFin, bloque.horaInicio, bloque.horaFin),
     );
 
-  const esHoy = !readOnly && subevento.fecha === fechaMinima;
-
   const horasInicioDisponibles = HORASINICIO.filter(({ value: horaInicio }) => {
-    if (esHoy && horaEnMinutos(horaInicio) <= minutosActuales) {
-      return false;
-    }
     return HORASFIN.some(
       ({ value: horaFin }) =>
         horaEnMinutos(horaFin) > horaEnMinutos(horaInicio) &&
@@ -379,7 +392,8 @@ export function CardSubevento(props: CardSubeventoProps) {
               ? "Máximo 15 días a partir de la fecha de inicio"
               : undefined
         }
-        errorMessage={touched.fecha ? errors.fecha : undefined}>
+        errorMessage={touched.fecha ? errors.fecha : undefined}
+      >
         <DateInput
           id={`selectFecha-${index}`}
           min={minFecha}
@@ -393,26 +407,50 @@ export function CardSubevento(props: CardSubeventoProps) {
             }
           }}
           onBlur={
-            readOnly ? undefined : () => props.markSubeventoTouched(index, "fecha")
+            readOnly
+              ? undefined
+              : () => props.markSubeventoTouched(index, "fecha")
           }
         />
       </FormField>
 
       <FormField
-        label="Espacio deseado"
+        label="Espacio"
         htmlFor={`selectRecinto-${index}`}
         readOnly={readOnly}
         required
+        info={
+          <div className="relative inline-flex items-center group mb-1">
+            <button
+              type="button"
+              aria-label="Información de modalidad de acceso"
+              className="text-secondary hover:text-[#134045] transition-colors p-0.5 rounded-full hover:bg-secondary/10 focus:outline-none focus:ring-secondary/30 focus:ring-blue-300"
+            >
+              <Info size={15} />
+            </button>
+            <div className="absolute top-full left-0 mt-2 w-72 sm:w-80 opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-all duration-200 ease-out z-50">
+              <ModalidadAccesoHelp
+                idRecinto={
+                  subevento.idRecinto ? Number(subevento.idRecinto) : undefined
+                }
+                idModalidadAcceso={subevento.idModalidadAcceso}
+                className="shadow-xl bg-white border border-gray-200 font-normal"
+              />
+            </div>
+          </div>
+        }
         mensajeAyuda={
           recintoSeleccionado
-            ? `Capacidad: ${recintoSeleccionado.aforo} ${recintoSeleccionado.idRecinto !== RecintoId.AUDITORIO &&
-              recintoSeleccionado.idRecinto !== RecintoId.SALA_14
-              ? "equipos / personas"
-              : "personas / asientos"
-            }`
+            ? `Capacidad: ${recintoSeleccionado.aforo} ${
+                recintoSeleccionado.idRecinto !== RecintoId.AUDITORIO &&
+                recintoSeleccionado.idRecinto !== RecintoId.SALA_14
+                  ? "equipos / personas"
+                  : "personas / asientos"
+              }`
             : undefined
         }
-        errorMessage={touched.idRecinto ? errors.idRecinto : undefined}>
+        errorMessage={touched.idRecinto ? errors.idRecinto : undefined}
+      >
         <Select
           id={`selectRecinto-${index}`}
           placeholder="Selecciona un espacio"
@@ -448,7 +486,8 @@ export function CardSubevento(props: CardSubeventoProps) {
                 ? "No hay horarios disponibles para esta fecha y espacio."
                 : undefined
         }
-        errorMessage={touched.horaInicio ? errors.horaInicio : undefined}>
+        errorMessage={touched.horaInicio ? errors.horaInicio : undefined}
+      >
         <Select
           id={`selectHoraInicio-${index}`}
           placeholder="Selecciona la hora de inicio"
@@ -460,7 +499,7 @@ export function CardSubevento(props: CardSubeventoProps) {
             readOnly
               ? undefined
               : (e) =>
-                props.updateSubevento(index, "horaInicio", e.target.value)
+                  props.updateSubevento(index, "horaInicio", e.target.value)
           }
           onBlur={
             readOnly
@@ -485,7 +524,8 @@ export function CardSubevento(props: CardSubeventoProps) {
             ? "No hay horarios de finalización disponibles para este inicio."
             : undefined
         }
-        errorMessage={touched.horaFin ? errors.horaFin : undefined}>
+        errorMessage={touched.horaFin ? errors.horaFin : undefined}
+      >
         <Select
           id={`selectHoraFinal-${index}`}
           placeholder="Selecciona la hora final"
@@ -523,7 +563,8 @@ export function CardSubevento(props: CardSubeventoProps) {
           esLaboratorioRecinto(subevento.idRecinto)
             ? "Obligatoria en laboratorios"
             : undefined
-        }>
+        }
+      >
         <Select
           id={`selectBoleto-${index}`}
           placeholder={
@@ -575,7 +616,8 @@ export function CardSubevento(props: CardSubeventoProps) {
       <FormField
         label={readOnly ? "Espacio" : undefined}
         htmlFor={readOnly ? `recintoDetalle-${index}` : undefined}
-        readOnly={readOnly}>
+        readOnly={readOnly}
+      >
         {readOnly && (
           <Input
             id={`recintoDetalle-${index}`}
@@ -602,19 +644,9 @@ export function CardSubevento(props: CardSubeventoProps) {
         )}
       </FormField>
 
-      {!readOnly && (
-        <ModalidadAccesoHelp
-          idRecinto={subevento.idRecinto || undefined}
-          idModalidadAcceso={subevento.idModalidadAcceso}
-          className="col-span-full"
-        />
-      )}
-
       <SpaceRequerimentsDialog
         mostrar={mostrarModalEspacio}
-        laboratorio={
-          recintoSeleccionado?.nombre ?? "Espacio seleccionado"
-        }
+        laboratorio={recintoSeleccionado?.nombre ?? "Espacio seleccionado"}
         id={subevento.idRecinto}
         cerrar={() => setMostrarModalEspacio(false)}
       />
@@ -623,7 +655,7 @@ export function CardSubevento(props: CardSubeventoProps) {
           {props.canEdit ? (
             <div id="contenedorBotonesCard">
               <Button
-                text="Nombre y descripción del subevento"
+                text="Agregar nombre y descripción del subevento"
                 id={`botonVerInformacion-${subevento.id}`}
                 type="button"
                 className="w-full sm:w-auto"

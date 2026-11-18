@@ -113,21 +113,25 @@ export function OrganizerSubeventCard({
                 actionVariant: "primary" as const,
                 onAction: onToggleDetails,
               }
-          : {})}
+            : {})}
       />
       {detailsVisible && (
         <section
           aria-labelledby={`subevento-descripcion-${subevento.idSubEvento}`}
-          className="space-y-3 rounded-md border border-gray-200 bg-white px-5 py-4">
+          className="space-y-3 rounded-md border border-gray-200 bg-white px-5 py-4"
+        >
           <h4
             id={`subevento-descripcion-${subevento.idSubEvento}`}
-            className="font-semibold text-eventos-ink">
+            className="font-semibold text-eventos-ink"
+          >
             Descripción de la actividad
           </h4>
           <p className="whitespace-pre-wrap break-words text-sm text-eventos-body-text">
             {subevento.descripcion}
           </p>
-          <ModalidadAccesoHelp idModalidadAcceso={subevento.idModalidadAcceso} />
+          <ModalidadAccesoHelp
+            idModalidadAcceso={subevento.idModalidadAcceso}
+          />
           <div className="flex flex-wrap gap-2 pt-1">
             <Badge variant="secondary">
               Inscritos: {subevento.inscritosCount ?? 0}
@@ -147,11 +151,18 @@ export function OrganizerSubeventCard({
       {onCancel && (
         <Modal
           titulo="Motivo de cancelación"
-          contenido={`Ingrese el motivo de cancelación`}
+          contenido={`Ingrese el motivo de cancelación para la actividad: ${subevento.nombre}`}
           mostrarModal={mostrarConfirmacion}
-          cerrarModal={() => setMostrarConfirmacion(false)}>
-          <span className="text-xs">Máximo 500 caracteres</span>
-          <FormField errorMessage={errorMotivo}>
+          cerrarModal={() => setMostrarConfirmacion(false)}
+        >
+          <FormField
+            errorMessage={errorMotivo}
+            label="Motivo de cancelación"
+            required
+          >
+            <span className="text-xs text-gray-700">
+              Máximo 500 caracteres y minimo 10 caracteres
+            </span>
             <TextArea
               id="contenedorMotivo"
               className="h-50 resize-none"
@@ -176,6 +187,7 @@ export function OrganizerSubeventCard({
             <Button
               text="Aceptar"
               variant="success"
+              disabled={motivoCancelacion.trim().length < 10}
               type="button"
               onClick={continuarAConfirmacion}
             />
@@ -187,7 +199,8 @@ export function OrganizerSubeventCard({
           mostrarModal={mostrarAviso}
           titulo="Confirmar cancelación"
           contenido={`Estás seguro que deseas cancelar la actividad ${subevento.nombre}`}
-          cerrarModal={() => setMostrarAviso(false)}>
+          cerrarModal={() => setMostrarAviso(false)}
+        >
           <div className="flex justify-end gap-3">
             <Button
               text="Volver"

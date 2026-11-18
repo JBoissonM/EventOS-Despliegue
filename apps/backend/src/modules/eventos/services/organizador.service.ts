@@ -683,6 +683,8 @@ export class OrganizadorService {
       evento.poster = dto.poster.trim();
     }
 
+    const alcanceAnterior = evento.idAlcance;
+
     if (dto.idSubEvento !== undefined) {
       const subevento = await this.subEventoRepository.findOne({
         where: { idSubEvento: dto.idSubEvento, idEvento },
@@ -775,7 +777,7 @@ export class OrganizadorService {
       );
       const subEventoIdDefault = dto.idSubEvento ?? subeventos[0]?.idSubEvento;
 
-      const correosPorSubEvento = new Map<number, Set<string>>();
+      const identificadoresPorSubEvento = new Map<number, Set<string>>();
 
       for (const ponenteDto of dto.ponentes) {
         const idSub = ponenteDto.idSubEvento ?? subEventoIdDefault;
@@ -785,19 +787,32 @@ export class OrganizadorService {
           );
         }
 
-        const correoNormalizado = ponenteDto.correo.trim().toLowerCase();
-        let correosSet = correosPorSubEvento.get(idSub);
-        if (!correosSet) {
-          correosSet = new Set<string>();
-          correosPorSubEvento.set(idSub, correosSet);
+        const correoNormalizado = (ponenteDto.correo ?? '').trim().toLowerCase();
+        const nombreNormalizado = [
+          ponenteDto.nombre,
+          ponenteDto.apellidoPa,
+          ponenteDto.apellidoMa,
+        ]
+          .filter(Boolean)
+          .join(' ')
+          .trim()
+          .toLowerCase();
+        const claveUnica = correoNormalizado
+          ? `correo:${correoNormalizado}`
+          : `nombre:${nombreNormalizado}`;
+
+        let clavesSet = identificadoresPorSubEvento.get(idSub);
+        if (!clavesSet) {
+          clavesSet = new Set<string>();
+          identificadoresPorSubEvento.set(idSub, clavesSet);
         }
 
-        if (correosSet.has(correoNormalizado)) {
+        if (clavesSet.has(claveUnica)) {
           throw new ConflictException(
             'El ponente ya se encuentra registrado en el evento seleccionado.',
           );
         }
-        correosSet.add(correoNormalizado);
+        clavesSet.add(claveUnica);
       }
 
       const subEventoIdsArray =
@@ -814,9 +829,9 @@ export class OrganizadorService {
         const nuevosPonentes = dto.ponentes.map((p) =>
           this.ponenteRepository.create({
             nombre: p.nombre.trim(),
-            apellidoPa: p.apellidoPa.trim(),
+            apellidoPa: (p.apellidoPa ?? '').trim(),
             apellidoMa: p.apellidoMa ? p.apellidoMa.trim() : null,
-            correo: p.correo.trim().toLowerCase(),
+            correo: (p.correo ?? '').trim().toLowerCase(),
             idSubEvento: p.idSubEvento ?? subEventoIdDefault,
           }),
         );
@@ -824,7 +839,55 @@ export class OrganizadorService {
       }
     }
 
-    const eventoGuardado = await this.eventoRepository.save(evento);
+    const alcanceCambio =
+      dto.idSubEvento === undefined &&
+      dto.idAlcance !== undefined &&
+      dto.idAlcance !== alcanceAnterior;
+
+    let eventoGuardado: EventoEntity;
+    if (alcanceCambio) {
+      const queryRunner = this.dataSource.createQueryRunner();
+      await queryRunner.connect();
+      await queryRunner.startTransaction();
+
+      try {
+        eventoGuardado = await queryRunner.manager.save(EventoEntity, evento);
+
+        if (dto.idAlcance === AlcanceEvento.PRIVADO) {
+          await queryRunner.manager.query(
+            `INSERT INTO "invitacionEvento" ("idEvento", "idUsuario")
+             SELECT DISTINCT $1::int, ae."idUsuario"
+             FROM "asistenteEvento" ae
+             INNER JOIN "subEvento" se ON ae."idSubEvento" = se."idSubEvento"
+             INNER JOIN "boleto" b ON ae."idBoleto" = b."idBoleto"
+             WHERE se."idEvento" = $1
+               AND b."idEstadoBoleto" IN ($2, $3)
+               AND ae."idUsuario" <> $4
+             ON CONFLICT ("idEvento", "idUsuario") DO NOTHING`,
+            [
+              idEvento,
+              EstadoBoleto.VALIDO,
+              EstadoBoleto.UTILIZADO,
+              evento.idOrganizador,
+            ],
+          );
+        } else if (alcanceAnterior === AlcanceEvento.PRIVADO) {
+          await queryRunner.manager.query(
+            `DELETE FROM "invitacionEvento" WHERE "idEvento" = $1`,
+            [idEvento],
+          );
+        }
+
+        await queryRunner.commitTransaction();
+      } catch (error) {
+        await queryRunner.rollbackTransaction();
+        throw error;
+      } finally {
+        await queryRunner.release();
+      }
+    } else {
+      eventoGuardado = await this.eventoRepository.save(evento);
+    }
 
     return {
       mensaje: 'Operación realizada con éxito.',
@@ -881,7 +944,13 @@ export class OrganizadorService {
       );
     }
 
-    const cupoMaximo = evento.subEventos?.[0]?.recinto?.aforo ?? 0;
+    const subeventosVigentes = (evento.subEventos ?? []).filter(
+      (s) => s.estado !== EstadoSubEvento.CANCELADO,
+    );
+    const cupoMaximo = subeventosVigentes.reduce(
+      (max, sub) => Math.max(max, sub.recinto?.aforo ?? 0),
+      0,
+    );
     if (cupoMaximo > 0) {
       const totalInvitadosActivos = await this.invitacionRepository.count({
         where: { idEvento },
@@ -1108,14 +1177,88 @@ export class OrganizadorService {
       );
     }
 
-    await this.invitacionRepository.delete({
-      idInvitacionEvento: idInvitacion,
-      idEvento,
-    });
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
+    let boletosCanceladosCount = 0;
+    let destinatarioCorreo: string | null = null;
+    let nombreAsistente = '';
+
+    try {
+      const invitacion = await queryRunner.manager.findOne(
+        InvitacionEventoEntity,
+        {
+          where: { idInvitacionEvento: idInvitacion, idEvento },
+          relations: { usuario: true },
+        },
+      );
+
+      if (invitacion) {
+        const cancelados: Array<{ idBoleto: number }> =
+          await queryRunner.manager.query(
+            `UPDATE "boleto"
+             SET "idEstadoBoleto" = $1, "idAsiento" = NULL
+             WHERE "idEstadoBoleto" = $2
+               AND "idBoleto" IN (
+                 SELECT ae."idBoleto"
+                 FROM "asistenteEvento" ae
+                 INNER JOIN "subEvento" se ON ae."idSubEvento" = se."idSubEvento"
+                 WHERE se."idEvento" = $3
+                   AND ae."idUsuario" = $4
+                   AND ae."idBoleto" IS NOT NULL
+               )
+             RETURNING "idBoleto"`,
+            [
+              EstadoBoleto.CANCELADO,
+              EstadoBoleto.VALIDO,
+              idEvento,
+              invitacion.idUsuario,
+            ],
+          );
+
+        boletosCanceladosCount = cancelados.length;
+        if (invitacion.usuario?.correo) {
+          destinatarioCorreo = invitacion.usuario.correo;
+          nombreAsistente =
+            `${invitacion.usuario.nombre} ${invitacion.usuario.apellidoPa}`.trim();
+        }
+
+        await queryRunner.manager.query(
+          `DELETE FROM "retencionAsiento"
+           WHERE "idUsuario" = $1
+             AND "idSubEvento" IN (
+               SELECT "idSubEvento" FROM "subEvento" WHERE "idEvento" = $2
+             )`,
+          [invitacion.idUsuario, idEvento],
+        );
+
+        await queryRunner.manager.delete(InvitacionEventoEntity, {
+          idInvitacionEvento: idInvitacion,
+          idEvento,
+        });
+      }
+
+      await queryRunner.commitTransaction();
+    } catch (error) {
+      await queryRunner.rollbackTransaction();
+      throw error;
+    } finally {
+      await queryRunner.release();
+    }
+
+    if (boletosCanceladosCount > 0 && destinatarioCorreo) {
+      void this.mailService.enviarNotificacionBoletoCanceladoPorRevocacion({
+        destinatario: destinatarioCorreo,
+        nombreAsistente,
+        nombreEvento: evento.nombre,
+      });
+    }
 
     return {
       mensaje: 'Operación realizada con éxito.',
       idInvitacionEvento: idInvitacion,
+      boletosCancelados: boletosCanceladosCount,
     };
   }
 
@@ -1196,6 +1339,14 @@ export class OrganizadorService {
         );
       }
 
+      if (dto.soloVerificar) {
+        return {
+          asignadoDirecto: true,
+          invitacionEnviada: false,
+          mensaje: 'Usuario verificado.',
+        };
+      }
+
       await this.dataSource.query(
         `INSERT INTO "eventoPersonalLogistica" ("idEvento", "idUsuario") VALUES ($1, $2)`,
         [idEvento, usuarioExistente.idUsuario],
@@ -1213,6 +1364,8 @@ export class OrganizadorService {
       };
     }
 
+    await verificarDominioCorreoValido(correo);
+
     if (dto.soloVerificar) {
       return {
         asignadoDirecto: false,
@@ -1220,8 +1373,6 @@ export class OrganizadorService {
         mensaje: 'El usuario aún no está registrado.',
       };
     }
-
-    await verificarDominioCorreoValido(correo);
 
     const payload = {
       correo,

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParams } from "react-router";
+import { Info } from "lucide-react";
 import {
   AlcanceEvento,
   esModalidadConQr,
@@ -24,14 +25,13 @@ import { FormField } from "../../components/molecules/FormField";
 import { useNavigate } from "react-router";
 import { apiRequest } from "../../lib/apiClient";
 
-import { ArrowLeft } from "lucide-react";
 import { Badge } from "../../components/atoms/Badge/Badge";
 import { ModalidadAccesoHelp } from "../../components/molecules/ModalidadAccesoHelp";
+import { PageHeader } from "../../components/organisms/PageHeader/PageHeader";
 
 type TablaPonente = {
   id: number;
   nombre: string;
-  correo: string;
 };
 
 type TablaInvitados = InvitadoEventoItem;
@@ -44,12 +44,6 @@ const columnasPonente: Columna<TablaPonente>[] = [
     encabezado: "Nombre",
     render: (ponente) => ponente.nombre,
     className: "min-w-[12rem] sm:min-w-[13rem] break-all px-3",
-  },
-  {
-    id: "correo",
-    encabezado: "Correo",
-    render: (ponente) => ponente.correo,
-    className: "min-w-[10rem] max-w-[10rem] break-all px-3",
   },
 ];
 
@@ -231,7 +225,10 @@ function convertirSubevento(valor: unknown): EventoOrganizadorDetalleSubevento {
     idSubEvento: obtenerNumero(valor, "idSubEvento"),
     nombre: obtenerTexto(valor, "nombre"),
     descripcion: obtenerTexto(valor, "descripcion"),
-    idModalidadAcceso: obtenerNumero(valor, "idModalidadAcceso") as ModalidadAcceso,
+    idModalidadAcceso: obtenerNumero(
+      valor,
+      "idModalidadAcceso",
+    ) as ModalidadAcceso,
     estado: convertirEstadoSubevento(valor.estado),
     fecha: convertirFecha(valor.fecha),
     recinto: convertirRecinto(valor.recinto),
@@ -455,31 +452,28 @@ export function AdministracionEvento() {
   ).flatMap((subevento) =>
     subevento.ponentes.map((ponente) => ({
       id: ponente.idPonente,
-      nombre: `${ponente.nombre} ${ponente.apellidoPa} ${ponente.apellidoMa}`,
-      correo: ponente.correo,
+      nombre:
+        `${ponente.nombre} ${ponente.apellidoPa} ${ponente.apellidoMa ?? ""}`.trim(),
     })),
   );
 
   return (
     <section className="mx-auto w-full max-w-7xl space-y-8 px-4 sm:px-6 lg:space-y-10 lg:px-8">
-      <div
-        id="contenedorReturn"
-        className="flex gap-2 cursor-pointer"
-        onClick={() =>
-          navigate(
-            idSubEvento
-              ? `/organizador/administrar-evento-subeventos/${idEvento}`
-              : "/organizador/mis-eventos",
-          )
-        }
-      >
-        <ArrowLeft size={20} aria-hidden="true"></ArrowLeft>
-        <span>Volver</span>
-      </div>
       <div id="contenedorTituloBanner" className="space-y-4 sm:space-y-5">
-        <h1 className="font-merriweather text-2xl font-semibold leading-tight ">
-          Administración y detalles de mi evento
-        </h1>
+        <PageHeader
+          title="Administración y detalles de mi evento"
+          back={
+            idSubEvento
+              ? {
+                  to: `/organizador/administrar-evento-subeventos/${idEvento}`,
+                  label: "Volver a evento",
+                }
+              : {
+                  to: "/organizador/mis-eventos",
+                  label: "Volver a mis eventos",
+                }
+          }
+        />
         {datosEvento && (
           <EventBanner
             eventName={datosEvento.nombre}
@@ -677,15 +671,31 @@ export function AdministracionEvento() {
                     <span className="font-bold">Hora de finalización</span>
                     <span>{formatearHora(subevento.fecha?.horaFin)}</span>
                   </div>
+
                   <div className="flex min-w-0 flex-col gap-2 sm:col-span-2">
                     <span className="font-bold">Modalidad de acceso</span>
-                    <span>
-                      {obtenerEtiquetaModalidad(subevento.idModalidadAcceso)}
-                    </span>
-                    <ModalidadAccesoHelp
-                      idModalidadAcceso={subevento.idModalidadAcceso}
-                    />
+                    <div className="flex items-center gap-1.5">
+                      <span>
+                        {obtenerEtiquetaModalidad(subevento.idModalidadAcceso)}
+                      </span>
+                      <div className="relative inline-flex items-center group">
+                        <button
+                          type="button"
+                          aria-label="Información de modalidad de acceso"
+                          className="text-blue-500 hover:text-blue-700 transition-colors p-0.5 rounded-full hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-300"
+                        >
+                          <Info size={15} />
+                        </button>
+                        <div className="absolute top-full left-0 mt-2 w-72 sm:w-80 opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-all duration-200 ease-out z-50">
+                          <ModalidadAccesoHelp
+                            idModalidadAcceso={subevento.idModalidadAcceso}
+                            className="shadow-xl bg-white border border-gray-200"
+                          />
+                        </div>
+                      </div>
+                    </div>
                   </div>
+
                   {!idSubEvento && (
                     <div className="flex min-w-0 flex-col gap-2">
                       <span className="font-bold">Alcance</span>
@@ -714,10 +724,6 @@ export function AdministracionEvento() {
                           ? 0
                           : "No aplica (sin QR)"}
                     </span>
-                  </div>
-                  <div className="flex min-w-0 flex-col gap-2">
-                    <span className="font-bold">Estado</span>
-                    <span>{subevento.estado}</span>
                   </div>
 
                   {!idSubEvento && (

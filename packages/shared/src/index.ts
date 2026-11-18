@@ -289,7 +289,7 @@ export interface PonentePayload {
   nombre: string;
   apellidoPa: string;
   apellidoMa?: string | null;
-  correo: string;
+  correo?: string;
   idSubEvento?: number;
 }
 

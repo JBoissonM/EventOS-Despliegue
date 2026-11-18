@@ -116,5 +116,6 @@ Permite al Organizador reprogramar o reubicar un evento previamente creado, actu
 - **F-2.** Al aprobarse la modificación logística por Subdirección (`CU-07`), el sistema ordena cronológicamente los registros activos de inscripción (*First-In, First-Out* / FIFO).
 - **F-3.** Conserva como válidos los primeros registros hasta completar el aforo máximo permitido por la nueva sede (aplicando posteriormente la Matriz de Cambios de Recinto: **Correo A** si se conserva, **Correo B** si requiere nuevo registro o **Correo C** si pasa a Acceso Libre).
 - **F-4.** Los registros excedentes pasan automáticamente al estado `CANCELADO_POR_SOBRECUPO` y reciben notificación inmediata mediante el **Correo D (Cancelación por Sobrecupo)**.
+- **F-5.** Cuando el evento tenga alcance **Privado**, el sistema sincroniza automáticamente el padrón de invitados (`"invitacionEvento"`), retirando a los excedentes cancelados sin boleto activo en otro subevento y ajustando el total de invitados al nuevo aforo máximo vigente priorizando a quienes conservan boleto activo.
 
 *Fin de la trayectoria.*

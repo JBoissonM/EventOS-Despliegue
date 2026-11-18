@@ -1,4 +1,4 @@
-import { Pencil } from "lucide-react";
+import { Pencil, Info } from "lucide-react";
 import {
   AlcanceEvento,
   ETIQUETAS_MODALIDAD,
@@ -114,16 +114,27 @@ function seTraslapa(
 
 export interface HorarioOcupado {
   idEvento: number;
+  idSubEvento?: number;
   horaInicio: string;
   horaFin: string;
 }
 
-const fechaMinima = new Intl.DateTimeFormat("en-CA", {
+function sumarDias(fechaStr: string, dias: number): string {
+  if (!fechaStr) return "";
+  const [y, m, d] = fechaStr.split("-").map(Number);
+  const date = new Date(Date.UTC(y, m - 1, d));
+  date.setUTCDate(date.getUTCDate() + dias);
+  return date.toISOString().split("T")[0];
+}
+
+const fechaHoy = new Intl.DateTimeFormat("en-CA", {
   timeZone: "America/Mexico_City",
   year: "numeric",
   month: "2-digit",
   day: "2-digit",
 }).format(new Date());
+
+const fechaMinima = sumarDias(fechaHoy, 1);
 
 const anioActual = new Date().getFullYear();
 const FECHA_FIN_SEMESTRE = `${anioActual}-12-19`;
@@ -271,7 +282,7 @@ export function EditLogisticsSection({
             <FormField
               className="!font-bold !text-black"
               label="Banner del evento"
-              mensajeAyuda="Resolución: 2048 x 1152"
+              mensajeAyuda="Resolución: 2048 x 1152 y en formato .jpg"
             >
               <InputFile
                 key={archivoPoster?.name ?? posterUrl ?? "poster"}
@@ -455,7 +466,30 @@ export function EditLogisticsSection({
         <div className="flex min-w-0 flex-col gap-2">
           <FormField
             label="Modalidad de acceso"
+            htmlFor="campoAcceso"
             className="!font-bold !text-black"
+            info={
+              <div className="relative inline-flex items-center group mb-1">
+                <button
+                  type="button"
+                  aria-label="Información de modalidad de acceso"
+                  className="text-blue-500 hover:text-blue-700 transition-colors p-0.5 rounded-full hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-300"
+                >
+                  <Info size={15} />
+                </button>
+                <div className="absolute top-full right-0 mt-2 w-72 sm:w-80 opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-all duration-200 ease-out z-50">
+                  <ModalidadAccesoHelp
+                    idRecinto={recintoSeleccionado?.idRecinto}
+                    idModalidadAcceso={
+                      valores.idModalidadAcceso
+                        ? (Number(valores.idModalidadAcceso) as ModalidadAcceso)
+                        : undefined
+                    }
+                    className="shadow-xl bg-white border border-gray-200"
+                  />
+                </div>
+              </div>
+            }
           >
             <Select
               id="campoAcceso"
@@ -467,18 +501,13 @@ export function EditLogisticsSection({
               value={valores.idModalidadAcceso}
               disabled={deshabilitado || accesoFijo}
               onChange={(event) =>
-                onCambioLogistica("idModalidadAcceso", event.currentTarget.value)
+                onCambioLogistica(
+                  "idModalidadAcceso",
+                  event.currentTarget.value,
+                )
               }
             />
           </FormField>
-          <ModalidadAccesoHelp
-            idRecinto={recintoSeleccionado?.idRecinto}
-            idModalidadAcceso={
-              valores.idModalidadAcceso
-                ? (Number(valores.idModalidadAcceso) as ModalidadAcceso)
-                : undefined
-            }
-          />
         </div>
         {mostrarBanner && (
           <div className="flex min-w-0 flex-col gap-2">

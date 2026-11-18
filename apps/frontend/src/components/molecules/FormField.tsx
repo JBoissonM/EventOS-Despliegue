@@ -10,6 +10,7 @@ interface FormFieldProps {
   mensajeAyuda?: string;
   readOnly?: boolean;
   className?: string;
+  info?: ReactNode;
 }
 
 export function FormField({
@@ -20,20 +21,32 @@ export function FormField({
   children,
   mensajeAyuda,
   readOnly,
-  className
+  className,
+  info,
 }: FormFieldProps) {
   return (
     <div className="flex min-w-0 flex-col justify-end gap-0">
-      <Label className={className} htmlFor={htmlFor} required={required} readOnly={readOnly}>
-        {label}
-      </Label>
+      {label && (
+        <div className="flex items-center gap-1.5">
+          {info}
+          <Label
+            className={className}
+            htmlFor={htmlFor}
+            required={required}
+            readOnly={readOnly}
+          >
+            {label}
+          </Label>
+        </div>
+      )}
       {children}
       {!readOnly && (
         <span
           aria-live="polite"
           className={`font-merriweather mt-1 block min-h-5 text-[12px] leading-4 ${
             errorMessage ? "text-eventos-error" : "text-black"
-          }`}>
+          }`}
+        >
           {errorMessage ?? mensajeAyuda}
         </span>
       )}

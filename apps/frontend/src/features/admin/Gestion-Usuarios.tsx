@@ -1,7 +1,19 @@
 import { Button } from "../../components/atoms/Button/Button";
-import { Input } from "../../components/atoms/Input/Input";
 import { useGestionUsuarios } from "../admin/hooks/useGestionUsuarios";
-import { Search } from "lucide-react";
+import { PageContainer } from "../../components/templates/PageContainer";
+import { PageHeader } from "../../components/organisms/PageHeader/PageHeader";
+import { SearchField } from "../../components/molecules/SearchField";
+import { FilterDropdown, type FilterOption } from "../../components/molecules/FilterDropdown";
+
+const rolOptions: FilterOption[] = [
+  { value: "Estudiante", label: "Estudiante" },
+  { value: "Docente", label: "Docente" },
+  { value: "Externo", label: "Externo" },
+  { value: "Empresa", label: "Empresa" },
+  { value: "No verificado", label: "No verificado" },
+  { value: "Activo", label: "Activo" },
+  { value: "Inactivo", label: "Inactivo" },
+];
 
 export function GestionUsuarios() {
   const {
@@ -19,49 +31,39 @@ export function GestionUsuarios() {
     cerrarModalConfirmacion,
     cerrarModalExito,
     confirmarCambioEstatus,
-    handleVolverAlMenu,
   } = useGestionUsuarios();
 
   return (
-    <div className="space-y-6 font-merriweather text-gray-800 w-full p-0">
-      <div className="mb-2">
-        <button onClick={handleVolverAlMenu} className="flex items-center text-sm font-semibold text-gray-700 hover:text-gray-900 transition-colors">
-          <span className="font-merriweather text-[16px] mr-3">← Volver al menú</span>
-        </button>
-      </div>
-
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-        <h1 className="text-[28px] font-bold text-gray-900 font-merriweather">
-          Cuentas del sistema
-        </h1>
-
-        <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-          <div className="flex items-center border border-gray-300 rounded-md bg-white px-2 py-1.5 shadow-sm w-full sm:w-80">
-            <Input type="text" placeholder="Buscar por nombre o correo..." value={busqueda} onChange={(e) => setBusqueda(e.target.value)} className="border-none p-0 focus:ring-0 outline-none bg-transparent"/>
-            <span className="text-gray-500">
-              <Search className="w-5 h-5" />
-            </span>
+    <PageContainer>
+      <div className="space-y-6 text-gray-800">
+        <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
+          <div className="min-w-0 xl:max-w-md xl:shrink-0">
+            <PageHeader
+              title="Cuentas del sistema"
+              description="Directorio de usuarios registrados, roles y control de acceso"
+              back={{ to: "/menu-admin", label: "Volver al menú" }}
+            />
           </div>
 
-          <div className="flex items-center space-x-2">
-            <span className="text-sm font-medium text-gray-700 hidden sm:inline">Filtrar por</span>
-            <select
-              value={filtroRol}
-              onChange={(e) => setFiltroRol(e.target.value)}
-              className="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-900 focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500 font-merriweather shadow-sm"
-            >
-              <option value="Todos">Todos</option>
-              <option value="Estudiante">Estudiante</option>
-              <option value="Docente">Docente</option>
-              <option value="Externo">Externo</option>
-              <option value="Empresa">Empresa</option>
-              <option value="No verificado">No verificado</option>
-              <option value="Activo">Activo</option>
-              <option value="Inactivo">Inactivo</option>
-            </select>
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3 w-full lg:w-auto">
+            <SearchField
+              value={busqueda}
+              onChange={setBusqueda}
+              placeholder="Buscar por nombre o correo..."
+              className="w-full sm:w-80"
+            />
+            <div className="w-full sm:w-52">
+              <FilterDropdown
+                label="Rol"
+                allLabel="Todos los roles"
+                allValue="Todos"
+                value={filtroRol}
+                options={rolOptions}
+                onChange={setFiltroRol}
+              />
+            </div>
           </div>
         </div>
-      </div>
 
       <div className="bg-white rounded-lg border border-gray-300 shadow-sm p-6 overflow-x-auto">
         <table className="w-full text-left border-collapse">
@@ -168,6 +170,7 @@ export function GestionUsuarios() {
         </div>
       )}
     </div>
+  </PageContainer>
   );
 }
 

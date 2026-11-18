@@ -20,6 +20,7 @@ import {
   type OrganizerSubeventCardData,
 } from "./components/OrganizerSubeventCard";
 import { Badge } from "../../components/atoms/Badge/Badge";
+import { PageHeader } from "../../components/organisms/PageHeader/PageHeader";
 
 interface EventoSubeventosVista {
   idEvento: number;
@@ -325,19 +326,14 @@ export function AdministracionEventoConSubeventos() {
 
   return (
     <section className="mx-auto w-full max-w-7xl space-y-8 px-4 sm:px-6 lg:space-y-10 lg:px-8">
-      <button
-        type="button"
-        className="flex cursor-pointer items-center gap-2"
-        onClick={() => navigate("/organizador/mis-eventos")}
-      >
-        <ArrowLeft size={20} aria-hidden="true" />
-        <span>Volver</span>
-      </button>
-
-      <div className="space-y-4 sm:space-y-5">
-        <h1 className="font-merriweather text-2xl font-semibold leading-tight sm:text-3xl lg:text-4xl">
-          Administración y detalles de mi evento
-        </h1>
+      <div id="contenedorTituloBanner" className="space-y-4 sm:space-y-5">
+        <PageHeader
+          title="Administración y detalles de mi evento"
+          back={{
+            to: `/organizador/mis-eventos`,
+            label: "Volver a mis eventos",
+          }}
+        />
         {datosEvento && (
           <EventBanner
             eventName={datosEvento.nombre}
