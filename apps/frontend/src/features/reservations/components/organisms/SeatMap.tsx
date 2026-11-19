@@ -1,4 +1,5 @@
 import { DoorOpen, LogOut } from "lucide-react";
+import type { EstadoAsientoMapa } from "@eventos/shared";
 import { Seat } from "../atoms/Seat";
 import { SeatLegend } from "../molecules/SeatLegend";
 
@@ -7,12 +8,15 @@ export interface SeatMapItem {
   fila: string;
   numero: number;
   occupied: boolean;
+  estado?: EstadoAsientoMapa;
 }
 
 export interface SeatMapProps {
   seats: SeatMapItem[];
   selectedSeatId: number | null;
   onSelect: (idAsiento: number) => void;
+  disabled?: boolean;
+  pendingSeatId?: number | null;
   aisleAfter?: number[];
   venueName?: string;
 }
@@ -21,6 +25,8 @@ export function SeatMap({
   seats,
   selectedSeatId,
   onSelect,
+  disabled = false,
+  pendingSeatId = null,
   aisleAfter = [],
   venueName,
 }: SeatMapProps) {
@@ -52,6 +58,11 @@ export function SeatMap({
           <p className="text-sm lg:hidden">
             Desliza horizontalmente para explorar el mapa completo.
           </p>
+          {pendingSeatId !== null && (
+            <p role="status" className="text-sm font-semibold text-eventos-secondary">
+              Actualizando asiento...
+            </p>
+          )}
         </div>
       </div>
 
@@ -120,8 +131,9 @@ export function SeatMap({
                                 key={seat.idAsiento}
                                 idAsiento={seat.idAsiento}
                                 label={`${seat.fila}${seat.numero}`}
-                                status={seat.occupied ? "occupied" : selectedSeatId === seat.idAsiento ? "selected" : "available"}
+                                status={selectedSeatId === seat.idAsiento ? "selected" : seat.estado === "RETENIDO" ? "held" : seat.occupied ? "occupied" : "available"}
                                 onSelect={onSelect}
+                                disabled={disabled}
                                 compact
                               />
                             ) : (

@@ -21,7 +21,7 @@ export function ReservationAvailabilityIndicator({
       {isRefreshing && (
         <p
           role="status"
-          className="text-xs text-eventos-muted-text"
+          className="sr-only"
         >
           Actualizando disponibilidad...
         </p>

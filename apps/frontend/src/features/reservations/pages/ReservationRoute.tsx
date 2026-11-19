@@ -204,11 +204,10 @@ export function ReservationRoute() {
   const startTime = activity.fecha?.horaInicio.slice(0, 5) ?? "";
   const endTime = activity.fecha?.horaFin.slice(0, 5) ?? "";
 
-  const submitReservation = async (idAsiento?: number) => {
+  const submitReservation = async () => {
     try {
       const result = await reservationsService.createReservation({
         idSubEvento: activity.idSubEvento,
-        ...(idAsiento === undefined ? {} : { idAsiento }),
       });
 
       refresh();
@@ -233,12 +232,12 @@ export function ReservationRoute() {
           role="alert"
           className="mt-5 rounded-lg border border-eventos-warning bg-eventos-warning/20 p-4 text-sm text-eventos-body-text"
         >
-          No se pudo actualizar la disponibilidad. Las reservaciones
-          permanecerán deshabilitadas hasta obtener información reciente.
-          El sistema intentará actualizarla automáticamente.
+          {mustChooseSeat
+            ? "No se pudo actualizar el mapa de asientos. El sistema intentará actualizarlo automáticamente."
+            : "No se pudo actualizar la disponibilidad. Las reservaciones permanecerán deshabilitadas hasta obtener información reciente."}
         </p>
       ) : (
-        !canReserve && (
+        !canReserve && !mustChooseSeat && (
           <p
             role="status"
             className="mt-5 rounded-lg border border-eventos-warning bg-eventos-warning/20 p-4 font-semibold text-eventos-body-text"
@@ -253,6 +252,7 @@ export function ReservationRoute() {
         <ReservationPage
           key={activity.idSubEvento}
           mode="manual"
+          idSubEvento={activity.idSubEvento}
           eventName={activity.nombre}
           parentEventName={event.nombre}
           date={date}
@@ -266,7 +266,7 @@ export function ReservationRoute() {
           seats={toSeatMapItems(availability.asientos)}
           aisleAfter={[6, 17]}
           canReserve={canReserve}
-          onReserve={(idAsiento) => submitReservation(idAsiento)}
+          onAvailabilityChange={refresh}
         />
       ) : (
         <ReservationPage
