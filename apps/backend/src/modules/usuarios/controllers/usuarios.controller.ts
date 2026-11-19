@@ -20,6 +20,7 @@ import { UsuariosService } from '../services/usuarios.service';
 import { VerificarIdentidadDto } from '../dto/verificar-identidad.dto';
 import { RolesGuard } from '../../auth/roles.guard';
 import { Roles } from '../../../common/decorators/roles.decorator';
+import { documentoVerificacionOptions } from '../../../common/upload/upload.options';
 import { TipoCuentaUsuario } from '@eventos/shared';
 
 @ApiTags('Usuarios, Verificaciones y Administración de Cuentas')
@@ -46,11 +47,11 @@ export class UsuariosController {
   })
   @ApiConsumes('multipart/form-data')
   @Post('verificar')
-  @UseInterceptors(FileInterceptor('documentoPDF'))
+  @UseInterceptors(FileInterceptor('documentoPDF', documentoVerificacionOptions))
   async verificarCuenta(
     @Req() req: any,
     @Body() dto: VerificarIdentidadDto,
-    @UploadedFile() file: any,
+    @UploadedFile() file: Express.Multer.File,
   ) {
     const idUsuario = Number(req.user.sub ?? req.user.idUsuario);
 
@@ -58,19 +59,11 @@ export class UsuariosController {
       throw new BadRequestException('El archivo PDF es requerido.');
     }
 
-    if (file.mimetype !== 'application/pdf') {
-      throw new BadRequestException(
-        'Solo se admiten documentos en formato PDF.',
-      );
-    }
-
-    const archivoBase64 = `data:${file.mimetype};base64,${file.buffer.toString('base64')}`;
-
     return await this.usuariosService.verificarCuenta(
       idUsuario,
       dto.tipoPerfil,
       dto.informacionAdicional ?? null,
-      archivoBase64,
+      file,
     );
   }
 
