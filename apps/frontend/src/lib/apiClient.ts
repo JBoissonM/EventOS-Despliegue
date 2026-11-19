@@ -10,6 +10,7 @@ export class ApiError extends Error {
   constructor(
     public readonly status: number,
     message: string,
+    public readonly codigo?: string,
   ) {
     super(message);
     this.name = "ApiError";
@@ -86,7 +87,11 @@ export async function apiRequest<T>(
       }
     }
 
-    throw new ApiError(response.status, message);
+    const codigo = data && typeof data === "object" && "codigo" in data && typeof data.codigo === "string"
+      ? data.codigo
+      : undefined;
+
+    throw new ApiError(response.status, message, codigo);
   }
 
   return data as T;

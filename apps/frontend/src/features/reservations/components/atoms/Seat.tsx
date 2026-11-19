@@ -1,5 +1,5 @@
 
-export type SeatStatus = "available" | "occupied" | "selected";
+export type SeatStatus = "available" | "held" | "occupied" | "selected";
 
 export interface SeatProps {
   idAsiento: number;
@@ -7,16 +7,19 @@ export interface SeatProps {
   status: SeatStatus;
   onSelect: (idAsiento: number) => void;
   compact?: boolean;
+  disabled?: boolean;
 }
 
 const statusLabels: Record<SeatStatus, string> = {
   available: "disponible",
+  held: "apartado temporalmente",
   occupied: "ocupado",
   selected: "seleccionado",
 };
 
 const normalStyles: Record<SeatStatus, string> = {
   available: "bg-eventos-success text-white hover:brightness-90",
+  held: "bg-eventos-warning text-eventos-ink",
   occupied: "bg-eventos-error text-white",
   selected:
     "bg-eventos-primary text-white ring-2 ring-eventos-primary ring-offset-2",
@@ -24,6 +27,7 @@ const normalStyles: Record<SeatStatus, string> = {
 
 const compactStyles: Record<SeatStatus, string> = {
   available: "bg-eventos-secondary-light hover:brightness-95",
+  held: "bg-eventos-warning",
   occupied: "bg-secondary",
   selected:
     "bg-eventos-primary ring-2 ring-eventos-primary ring-offset-2",
@@ -35,13 +39,14 @@ export function Seat({
                        status,
                        onSelect,
                        compact = false,
+                       disabled = false,
                      }: SeatProps) {
-  const isOccupied = status === "occupied";
+  const isUnavailable = status === "occupied" || status === "held";
 
   return (
     <button
       type="button"
-      disabled={isOccupied}
+      disabled={disabled || isUnavailable}
       aria-pressed={status === "selected"}
       aria-label={`Asiento ${label}, ${statusLabels[status]}`}
       onClick={() => onSelect(idAsiento)}
