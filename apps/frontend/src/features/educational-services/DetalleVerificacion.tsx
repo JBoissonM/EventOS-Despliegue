@@ -325,38 +325,37 @@ export function DetalleVerificacion() {
           </div>
         </div>
 
-        <div className="lg:col-span-7 w-full min-h-130 bg-eventos-divider rounded-2xl border border-gray-300 shadow-inner flex flex-col justify-center items-center overflow-hidden">
-          {solicitud.archivo ? (
-            solicitud.archivo.startsWith("data:application/pdf") ||
-            solicitud.archivo.toLowerCase().includes(".pdf") ? (
+        <div className="lg:col-span-7 w-full space-y-2">
+          <div className="flex items-center justify-end">
+            <button
+              type="button"
+              onClick={cargarDetalle}
+              disabled={cargando || procesando}
+              className="rounded-md border border-gray-300 bg-white hover:bg-gray-50 px-3 py-1.5 text-xs font-semibold text-gray-700 shadow-sm transition-colors cursor-pointer disabled:opacity-50 font-merriweather"
+            >
+              Recargar documento
+            </button>
+          </div>
+
+          <div className="w-full min-h-130 bg-eventos-divider rounded-2xl border border-gray-300 shadow-inner flex flex-col justify-center items-center overflow-hidden">
+            {solicitud.archivo ? (
               <iframe
                 src={solicitud.archivo}
                 title="Documento probatorio adjunto"
                 className="w-full h-full min-h-130 border-0 bg-white"
               />
             ) : (
-              <div className="w-full h-full flex flex-col items-center justify-center p-0 text-center">
-                <img
-                  src={solicitud.archivo}
-                  alt="Comprobante probatorio"
-                  className="max-h-120 w-auto object-contain rounded-xl shadow-md"
-                  onError={(e) => {
-                    (e.target as HTMLElement).style.display = "none";
-                  }}
-                />
+              <div className="flex flex-col items-center justify-center text-gray-500 p-8 text-center space-y-2">
+                <FileText className="w-16 h-16 text-gray-400" />
+                <p className="font-merriweather font-medium text-base text-gray-700">
+                  Documento probatorio adjunto
+                </p>
+                <p className="text-sm text-gray-500 max-w-xs">
+                  No se encontró un documento probatorio legible en esta solicitud.
+                </p>
               </div>
-            )
-          ) : (
-            <div className="flex flex-col items-center justify-center text-gray-500 p-8 text-center space-y-2">
-              <FileText className="w-16 h-16 text-gray-400" />
-              <p className="font-merriweather font-medium text-base text-gray-700">
-                Documento probatorio adjunto
-              </p>
-              <p className="text-sm text-gray-500 max-w-xs">
-                No se encontró un documento probatorio legible en esta solicitud.
-              </p>
-            </div>
-          )}
+            )}
+          </div>
         </div>
       </div>
 

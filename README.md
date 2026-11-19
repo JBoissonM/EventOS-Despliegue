@@ -555,13 +555,14 @@ async crear(@UploadedFile() file: Express.Multer.File) {
   // para mostrarlo: this.storage.publicUrl(key)
 }
 
-// Documento de identidad (privado, CU06)
-@Post()
-@UseInterceptors(FileInterceptor('documento', documentoOptions))
-async registrar(@UploadedFile() file: Express.Multer.File) {
-  const key = await this.storage.upload(file, 'documentos-identidad', 'private');
-  // guardar `key` en la base de datos
-  // para que un administrador lo vea: await this.storage.privateUrl(key)
+// Documento de verificación de identidad (privado, CU06)
+@Post('verificar')
+@UseInterceptors(FileInterceptor('documentoPDF', documentoVerificacionOptions))
+async verificarCuenta(@UploadedFile() file: Express.Multer.File) {
+  // En el servicio se validan magic bytes con esPdfValido(file.buffer)
+  const key = await this.storage.upload(file, 'verificaciones', 'private');
+  // guardar `key` en la columna verificacion.archivo
+  // para que Subdirección lo consulte en el detalle: await this.storage.privateUrl(key, 600)
 }
 ```
 
@@ -569,12 +570,21 @@ async registrar(@UploadedFile() file: Express.Multer.File) {
 
 **Validaciones incluidas en `upload.options.ts`:**
 
-| Configuración      | Tipos permitidos                    | Tamaño máximo | Error si no cumple                     |
-| ------------------ | ----------------------------------- | ------------- | -------------------------------------- |
-| `posterOptions`    | JPG, PNG, WebP                      | 5 MB          | `400` (tipo) / `413` (tamaño)          |
-| `documentoOptions` | PDF, JPG, PNG                       | 5 MB          | `400` (tipo) / `413` (tamaño)          |
+| Configuración                  | Tipos permitidos                    | Tamaño máximo | Error si no cumple                     |
+| ------------------------------ | ----------------------------------- | ------------- | -------------------------------------- |
+| `posterOptions`                | JPG, PNG, WebP                      | 5 MB          | `400` (tipo) / `413` (tamaño)          |
+| `documentoOptions`             | PDF, JPG, PNG                       | 5 MB          | `400` (tipo) / `413` (tamaño)          |
+| `documentoVerificacionOptions` | Solo PDF (`application/pdf`)        | 5 MB          | `400` (tipo) / `413` (tamaño)          |
 
-Para otro caso de uso, se crea una configuración nueva con `crearUploadOptions(['tipos/permitidos'], maxMB)`.
+Para otro caso de uso, se crea una configuración nueva con `crearUploadOptions(['tipos/permitidos'], maxMB, mensajeTipoNoPermitido?)`.
+
+**Flujo del documento de verificación de identidad (CU06):**
+
+- **Recepción y validación:** el endpoint usa `documentoVerificacionOptions` (únicamente `application/pdf`, máximo 5 MB) y valida los magic bytes del archivo con `esPdfValido(buffer)` (revisa que los primeros 5 bytes sean `%PDF-`).
+- **Almacenamiento privado:** el PDF se sube al bucket privado (`'private'`) bajo la carpeta `verificaciones/`, y en la base de datos (`verificacion.archivo`) **solo queda guardada la `key`**. Si la transacción de base de datos falla, el archivo recién subido se limpia con `deleteSafe(key, 'private')`.
+- **Consulta en Subdirección:** el listado de solicitudes ya **no incluye** el campo `archivo`. Al consultar el detalle de una solicitud, se devuelve una **URL firmada temporal de 10 minutos** (`privateUrl(key, 600)`).
+- **Eliminación al rechazar:** cuando Subdirección rechaza una solicitud, se borran los registros de verificación del usuario y se eliminan sus archivos del bucket privado con `deleteSafe(archivo, 'private')`.
+- **Compatibilidad con registros antiguos:** los registros previos guardados como data URL (`data:...`) siguen funcionando sin necesidad de migración (el detalle los devuelve tal cual y `deleteSafe` los ignora).
 
 **Reglas del equipo:**
 

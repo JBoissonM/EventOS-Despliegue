@@ -81,6 +81,10 @@ export function useVerificacion() {
         body: data,
       });
 
+      if (response.status === 413) {
+        throw new Error("El archivo excede el tamaño máximo de 5 MB.");
+      }
+
       const result = await response.json();
 
       if (!response.ok) {
