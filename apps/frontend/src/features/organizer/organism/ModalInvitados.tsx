@@ -132,7 +132,9 @@ export function ModalInvitados({
                 columnas={columnasInvitadoModal}
                 filas={invitadosTemporales}
                 obtenerClave={(p) => p.id}
-                className="table-auto min-w-full bg-white text-left text-sm [&_tbody_tr]:h-12 [&_thead_tr]:h-10 [&_th]:py-2 [&_td]:py-2table-auto min-w-full bg-white text-left text-sm"
+                encabezadoClassName="h-10 border-b border-gray-300"
+                filaClassName="h-12"
+                className="table-auto min-w-full bg-white text-left text-sm [&_th]:py-2 [&_td]:py-2"
               />
             </div>
           ) : (
