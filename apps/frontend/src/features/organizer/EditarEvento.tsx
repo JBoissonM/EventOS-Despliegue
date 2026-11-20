@@ -1336,9 +1336,9 @@ export function EditarEvento() {
                           <strong className="text-gray-900">
                             {invitadoAEliminar.correo}
                           </strong>
-                          ? Al confirmar los cambios se revocará su acceso a este
-                          evento privado y, si ya había reservado boleto, este
-                          será cancelado.
+                          ? Al confirmar los cambios se revocará su acceso a
+                          este evento privado y, si ya había reservado boleto,
+                          este será cancelado.
                         </p>
                         <div className="flex justify-end gap-3 pt-2">
                           <Button
@@ -1398,7 +1398,7 @@ export function EditarEvento() {
                         Tus invitados
                       </h2>
                       {invitados.length > 0 ? (
-                        <div className="mt-4 w-full min-w-0 overflow-x-auto rounded-md border border-gray-200 shadow-md">
+                        <div className="mt-4 w-full min-w-0 overflow-x-auto overflow-y-auto max-h-[225px] rounded-md border border-gray-200 shadow-md">
                           <Table
                             columnas={columnasInvitados}
                             filas={invitados}

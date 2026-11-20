@@ -628,7 +628,7 @@ export function AdministracionEvento() {
                     Tus invitados
                   </h2>
                   {invitados.length > 0 ? (
-                    <div className="w-full overflow-x-auto rounded-md border border-gray-200 shadow-md">
+                    <div className="w-full overflow-x-auto overflow-y-auto max-h-[200px] rounded-md border border-gray-200 shadow-md">
                       <Table
                         columnas={columnasInvitados}
                         filas={invitados}

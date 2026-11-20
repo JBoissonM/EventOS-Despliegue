@@ -21,6 +21,7 @@ type SolicitudTabla = {
   nombreSolicitante: string;
   fechaInicio: string | null;
   fechaCierre: string | null;
+  idAlcance: number;
   urgente: boolean;
   esModificacion: boolean;
 };
@@ -200,6 +201,7 @@ function convertirSolicitud(valor: unknown): SolicitudTabla {
     idEvento: obtenerNumero(valor, "idEvento"),
     nombre: obtenerTexto(valor, "nombre"),
     nombreSolicitante,
+    idAlcance: obtenerNumero(valor, "idAlcance"),
     fechaInicio: fechas[0] ?? null,
     fechaCierre: fechas[fechas.length - 1] ?? null,
     urgente,
@@ -327,9 +329,9 @@ export function ListadoSolicitudes() {
       encabezado: "Prioridad",
       className: "text-center",
       render: (solicitud) => (
-        <div className="min-w-[8rem] lg:min-w-[5rem] flex w-fit mx-auto justify-center">
+        <div className="min-w-[8rem] lg:min-w-[8rem] flex w-fit mx-auto justify-center">
           <Badge
-            className="min-w-[6rem]"
+            className="min-w-[6rem] !py-1"
             variant={solicitud.urgente === true ? "error" : "success"}
           >
             <div className="flex gap-1">
@@ -347,13 +349,31 @@ export function ListadoSolicitudes() {
       encabezado: "Tipo",
       className: "text-center",
       render: (solicitud) => (
-        <div className="min-w-[8rem] lg:min-w-[5rem] flex w-fit mx-auto justify-center">
+        <div className="min-w-[8rem] lg:min-w-[8rem] flex w-fit mx-auto justify-center">
           <Badge
-            className="min-w-[6rem]"
+            className="min-w-[6rem] !py-1"
             variant={solicitud.esModificacion === true ? "warning" : "primary"}
           >
             <div className="flex gap-1">
               {solicitud.esModificacion === true ? "Modificación" : "Solicitud"}
+            </div>
+          </Badge>
+        </div>
+      ),
+    },
+    {
+      id: "estado",
+      encabezado: "Alcance",
+      className: "text-center",
+      render: (solicitud) => (
+        <div className="min-w-[8rem] lg:min-w-[8rem] flex w-fit mx-auto justify-center">
+          <Badge variant="secondary" className="!py-1">
+            <div className="flex gap-1 !mx-3">
+              {solicitud.idAlcance === 1
+                ? "Público"
+                : solicitud.idAlcance === 2
+                  ? "Interno"
+                  : "Privado"}
             </div>
           </Badge>
         </div>
@@ -364,7 +384,7 @@ export function ListadoSolicitudes() {
       id: "nombre",
       encabezado: "Nombre del evento",
       render: (solicitud) => solicitud.nombre,
-      className: "min-w-[12rem] max-w-[18rem] px-4",
+      className: "min-w-[12rem] lg:min-w-[10rem] px-4",
     },
     {
       id: "solicitante",
@@ -376,17 +396,18 @@ export function ListadoSolicitudes() {
       id: "fechaInicio",
       encabezado: "Fecha inicio",
       render: (solicitud) => mostrarFecha(solicitud.fechaInicio),
-      className: "min-w-[8rem] px-4",
+      className: "min-w-[8rem] px-3 text-center whitespace-nowrap",
     },
     {
       id: "fechaCierre",
       encabezado: "Fecha fin",
       render: (solicitud) => mostrarFecha(solicitud.fechaCierre),
-      className: "min-w-[8rem] px-4",
+      className: "min-w-[8rem] px-3 text-center whitespace-nowrap",
     },
     {
       id: "acciones",
       encabezado: "Acciones",
+      className: "px-3 whitespace-nowrap text-center",
       render: (solicitud) => (
         <Button
           text="Ver detalles"
@@ -498,13 +519,13 @@ export function ListadoSolicitudes() {
       {!cargando && !error && solicitudesFiltradas.length > 0 && (
         <div
           id="contenedorTabla"
-          className="mx-auto w-full max-w-7xl overflow-x-auto shadow-md p-5 border border-gray-200 bg-white rounded-md"
+          className="mx-auto w-full max-w-7xl overflow-x-auto max-w-[1250px] shadow-md p-5 border border-gray-200 bg-white rounded-md"
         >
           <Table
             columnas={columnas}
             filas={solicitudesFiltradas}
             obtenerClave={(solicitud) => solicitud.idEvento}
-            className="table-auto min-w-full text-left [&_tbody_tr]:h-20 [&_thead_tr]:h-[80px]"
+            className="table-auto w-full text-left [&_tbody_tr]:py-4 [&_thead_tr]:h-[80px]"
           />
         </div>
       )}
