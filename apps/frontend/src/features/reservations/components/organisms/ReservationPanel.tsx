@@ -6,12 +6,11 @@ import { ReservationSummary } from "../molecules/ReservationSummary";
 import { SeatMap } from "./SeatMap";
 import type { SeatMapItem } from "./SeatMap";
 import { ReservationSuccessDialog } from "./ReservationSuccessDialog";
-import type { CreateReservationResponse } from "../../services/reservations.service";
 import { ReservationAvailabilityIndicator } from "../molecules/ReservationAvailabilityIndicator";
-
-const SELECTION_DURATION_MS = 5 * 60 * 1000;
+import { getSeatHoldErrorMessage, useSeatHold } from "../../hooks/useSeatHold";
 
 export interface ReservationPanelProps {
+  idSubEvento: number;
   eventName: string;
   parentEventName?: string;
   date: string;
@@ -19,7 +18,7 @@ export interface ReservationPanelProps {
   endTime: string;
   venue: string;
   seats: SeatMapItem[];
-  onReserve: (idAsiento: number) => Promise<CreateReservationResponse | void>;
+  onAvailabilityChange: () => void;
   canReserve?: boolean;
   aisleAfter?: number[];
   availableSeats: number;
@@ -28,141 +27,110 @@ export interface ReservationPanelProps {
 }
 
 export function ReservationPanel({
-                                   eventName,
-                                   parentEventName,
-                                   date,
-                                   startTime,
-                                   endTime,
-                                   venue,
-                                   seats,
-                                   onReserve,
-                                   canReserve = true,
-                                   aisleAfter = [],
-                                   availableSeats,
-                                   capacity,
-                                   isRefreshing = false,
-                                 }: ReservationPanelProps) {
-  const [selectedSeatId, setSelectedSeatId] = useState<number | null>(null);
-  const [expiresAt, setExpiresAt] = useState<number | null>(null);
+  idSubEvento,
+  eventName,
+  parentEventName,
+  date,
+  startTime,
+  endTime,
+  venue,
+  seats,
+  onAvailabilityChange,
+  canReserve = true,
+  aisleAfter = [],
+  availableSeats,
+  capacity,
+  isRefreshing = false,
+}: ReservationPanelProps) {
+  const {
+    hold,
+    expiresAt,
+    syncStatus,
+    pendingAction,
+    pendingSeatId,
+    error,
+    selectSeat,
+    confirmHold,
+    syncHold,
+    expireHold,
+    clearError,
+  } = useSeatHold(idSubEvento, onAvailabilityChange);
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
+  const [confirmationSeatId, setConfirmationSeatId] = useState<number | null>(null);
   const [isReserved, setIsReserved] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [isSuccessOpen, setIsSuccessOpen] = useState(false);
   const [ticketId, setTicketId] = useState<number | null>(null);
   const [ticketQr, setTicketQr] = useState<string | null>(null);
   const [confirmedSeatLabel, setConfirmedSeatLabel] = useState<string | null>(null);
 
-  const selectedSeat =
-    seats.find(
-      (seat) => seat.idAsiento === selectedSeatId && !seat.occupied,
-    ) ?? null;
-
-  const selectedSeatLabel = selectedSeat
-    ? `${selectedSeat.fila}${selectedSeat.numero}`
-    : null;
+  const selectedSeatLabel = hold ? `${hold.fila}${hold.numero}` : null;
 
   const displayedSeatLabel = isReserved
     ? confirmedSeatLabel
     : selectedSeatLabel;
 
   const showMobileActions =
-    !isReserved && (selectedSeat !== null || error !== null);
+    !isReserved && (hold !== null || error !== null || notice !== null);
+
+  const canConfirm =
+    hold !== null &&
+    syncStatus === "ready" &&
+    pendingAction === null &&
+    !isReserved &&
+    expiresAt !== null &&
+    Date.now() < expiresAt;
 
   const expireSelection = useCallback(() => {
-    if (isLoading || isReserved) return;
-
-    setSelectedSeatId(null);
-    setExpiresAt(null);
+    if (pendingAction === "confirming") return;
+    expireHold();
     setIsConfirmOpen(false);
-    setError(
-      "Se agotaron los cinco minutos para confirmar tu selección. Elige un asiento para comenzar de nuevo.",
-    );
-  }, [isLoading, isReserved]);
+    setConfirmationSeatId(null);
+  }, [expireHold, pendingAction]);
 
   useEffect(() => {
-    if (isReserved || selectedSeatId === null) return;
-
-    const seatStillAvailable = seats.some(
-      (seat) =>
-        seat.idAsiento === selectedSeatId &&
-        !seat.occupied,
-    );
-
-    if (!seatStillAvailable) {
-      setSelectedSeatId(null);
-      setExpiresAt(null);
+    if (!isConfirmOpen || pendingAction === "confirming") return;
+    if (confirmationSeatId === null || hold?.idAsiento !== confirmationSeatId) {
+      if (hold && confirmationSeatId !== null) {
+        setNotice("Tu asiento cambió en otra pestaña. Revisa la selección antes de confirmar.");
+      }
       setIsConfirmOpen(false);
-      setError(
-        "El asiento seleccionado ya no está disponible. Selecciona otro asiento.",
-      );
+      setConfirmationSeatId(null);
     }
-  }, [seats, selectedSeatId, isReserved]);
+  }, [confirmationSeatId, hold, isConfirmOpen, pendingAction]);
 
   const handleSeatSelection = (idAsiento: number) => {
-    if (!canReserve || isLoading || isReserved) return;
-
-    if (expiresAt !== null && Date.now() >= expiresAt) {
-      expireSelection();
-      return;
-    }
-
-    setSelectedSeatId(idAsiento);
-
-    setExpiresAt(
-      (current) => current ?? Date.now() + SELECTION_DURATION_MS,
-    );
-
-    setError(null);
+    if (pendingAction !== null || isConfirmOpen || isReserved) return;
+    if (hold === null && !canReserve) return;
+    setNotice(null);
+    clearError();
+    void selectSeat(idAsiento);
   };
 
   const handleOpenConfirmation = () => {
-    if (!selectedSeat || !canReserve || isLoading || isReserved) return;
-
-    if (expiresAt === null || Date.now() >= expiresAt) {
-      expireSelection();
-      return;
-    }
-
+    if (!canConfirm || hold === null) return;
+    setNotice(null);
+    setConfirmationSeatId(hold.idAsiento);
     setIsConfirmOpen(true);
   };
 
   const handleConfirm = async () => {
-    if (!selectedSeat || isLoading || isReserved || !canReserve) return;
-
-    if (expiresAt === null || Date.now() >= expiresAt) {
-      expireSelection();
-      return;
-    }
-
-    const seatId = selectedSeat.idAsiento;
+    if (!canConfirm || confirmationSeatId === null) return;
     const seatLabel = selectedSeatLabel;
 
-    setIsLoading(true);
-    setError(null);
-
     try {
-      const result = await onReserve(seatId);
-
-      if (result) {
-        setTicketId(result.boleto.idBoleto);
-        setTicketQr(result.qr ?? null);
-      }
-
+      const result = await confirmHold(confirmationSeatId);
+      setTicketId(result.boleto.idBoleto);
+      setTicketQr(result.qr ?? null);
       setConfirmedSeatLabel(seatLabel);
       setIsReserved(true);
       setIsConfirmOpen(false);
+      setConfirmationSeatId(null);
       setIsSuccessOpen(true);
     } catch (cause: unknown) {
-      setError(
-        cause instanceof Error
-          ? cause.message
-          : "No fue posible completar la reservación.",
-      );
-
+      setNotice(getSeatHoldErrorMessage(cause));
       setIsConfirmOpen(false);
-    } finally {
-      setIsLoading(false);
+      setConfirmationSeatId(null);
     }
   };
 
@@ -183,8 +151,15 @@ export function ReservationPanel({
           <div className="min-w-0">
             <SeatMap
               seats={seats}
-              selectedSeatId={selectedSeat?.idAsiento ?? null}
+              selectedSeatId={hold?.idAsiento ?? null}
               onSelect={handleSeatSelection}
+              disabled={
+                syncStatus !== "ready" ||
+                pendingAction !== null ||
+                isConfirmOpen ||
+                (!canReserve && hold === null)
+              }
+              pendingSeatId={pendingSeatId}
               aisleAfter={aisleAfter}
               venueName={venue}
             />
@@ -215,6 +190,28 @@ export function ReservationPanel({
             venue={venue}
             selectedSeatLabel={displayedSeatLabel}
           />
+
+          {!isReserved && syncStatus === "loading" && (
+            <p role="status" className="sr-only">
+              Comprobando si tienes un asiento apartado...
+            </p>
+          )}
+
+          {!isReserved && syncStatus === "error" && (
+            <button
+              type="button"
+              onClick={() => void syncHold()}
+              className="rounded-md border border-eventos-primary px-4 py-2 font-semibold text-eventos-primary"
+            >
+              Reintentar consulta de asiento
+            </button>
+          )}
+
+          {!isReserved && !canReserve && hold === null && syncStatus === "ready" && (
+            <p role="status" className="text-sm text-eventos-muted-text">
+              No hay asientos disponibles para esta actividad en este momento.
+            </p>
+          )}
 
           {isReserved ? (
             <p
@@ -248,19 +245,19 @@ export function ReservationPanel({
                 </div>
               )}
 
-              {error && (
+              {(notice || error) && (
                 <p
                   role="alert"
                   className="rounded-md border border-eventos-error p-3 text-sm text-eventos-error"
                 >
-                  {error}
+                  {notice || error}
                 </p>
               )}
 
               <Button
                 text="Reservar asiento"
                 fullWidth
-                disabled={!selectedSeat || isLoading || !canReserve}
+                disabled={!canConfirm}
                 onClick={handleOpenConfirmation}
               />
             </div>
@@ -274,9 +271,12 @@ export function ReservationPanel({
         description={`¿Deseas reservar el asiento ${selectedSeatLabel ?? ""} para ${eventName}?`}
         confirmText="Confirmar reservación"
         cancelText="Volver"
-        isLoading={isLoading}
+        isLoading={pendingAction === "confirming"}
         onConfirm={handleConfirm}
-        onCancel={() => setIsConfirmOpen(false)}
+        onCancel={() => {
+          setIsConfirmOpen(false);
+          setConfirmationSeatId(null);
+        }}
       />
 
       <ReservationSuccessDialog

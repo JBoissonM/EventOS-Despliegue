@@ -23,9 +23,10 @@ interface ReservationDetails {
 
 interface ManualReservationProps extends ReservationDetails {
   mode: "manual";
+  idSubEvento: number;
   seats: SeatMapItem[];
   aisleAfter?: number[];
-  onReserve: (idAsiento: number) => Promise<CreateReservationResponse | void>;
+  onAvailabilityChange: () => void;
 }
 
 interface AutomaticReservationProps extends ReservationDetails {
@@ -67,6 +68,7 @@ export function ReservationPage(props: ReservationPageProps) {
       </header>
       {props.mode === "manual" ? (
         <ReservationPanel
+          idSubEvento={props.idSubEvento}
           eventName={props.eventName}
           parentEventName={props.parentEventName}
           date={props.date}
@@ -79,7 +81,7 @@ export function ReservationPage(props: ReservationPageProps) {
           capacity={props.capacity}
           isRefreshing={props.isRefreshing}
           canReserve={props.canReserve}
-          onReserve={props.onReserve}
+          onAvailabilityChange={props.onAvailabilityChange}
         />
       ) : (
         <AutomaticReservationPanel

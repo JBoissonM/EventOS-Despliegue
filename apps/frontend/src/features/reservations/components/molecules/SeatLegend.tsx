@@ -14,6 +14,11 @@ const legendItems: LegendItem[] = [
         color: "bg-eventos-secondary-light",
     },
     {
+        status: "held",
+        label: "Apartado",
+        color: "bg-eventos-warning",
+    },
+    {
         status: "occupied",
         label: "Ocupado",
         color: "bg-secondary",

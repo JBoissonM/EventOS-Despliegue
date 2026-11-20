@@ -683,7 +683,8 @@ export interface SolicitudVerificacionItem {
   correo: string;
   numeroBoleta: string | null;
   informacionAdicional: string | null;
-  archivo: string;
+  // en el detalle es una URL firmada temporal (10 min) o una data URL antigua; no se incluye en el listado.
+  archivo?: string | null;
 }
 
 export interface RechazarVerificacionPayload {

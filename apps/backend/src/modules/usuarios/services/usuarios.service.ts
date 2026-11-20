@@ -2,6 +2,7 @@ import {
   BadRequestException,
   ConflictException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -10,6 +11,8 @@ import { UsuarioEntity } from '../../auth/entities/usuario.entity';
 import { VerificacionEntity } from '../../auth/entities/verificacion.entity';
 import { RolEntity } from '../entities/rol.entity';
 import { MailService } from '../../reservas/services/mail.service';
+import { StorageService } from '../../../common/storage/storage.service';
+import { esPdfValido } from '../../../common/upload/upload.options';
 import {
   EstadoVerificacion,
   TipoCuentaUsuario,
@@ -22,6 +25,8 @@ import {
 
 @Injectable()
 export class UsuariosService {
+  private readonly logger = new Logger(UsuariosService.name);
+
   // Regex unificada de Boleta para Estudiantes y Profesores
   private readonly BOLETA_REGEX = /^(?:\d{4,10}|P[EP]\d{8})$/;
 
@@ -42,6 +47,7 @@ export class UsuariosService {
     private readonly rolRepository: Repository<RolEntity>,
     private readonly dataSource: DataSource,
     private readonly mailService: MailService,
+    private readonly storageService: StorageService,
   ) {}
 
   // Consulta el Perfil y evalúa caducidad de 3 meses (90 días) o si está Pendiente de Subdirección
@@ -120,9 +126,9 @@ export class UsuariosService {
     idUsuario: number,
     tipoPerfil: TipoPerfilVerificacion,
     informacionAdicional: string | null,
-    archivoPath: string,
+    file: Express.Multer.File,
   ) {
-    if (!archivoPath) {
+    if (!file) {
       throw new BadRequestException('El documento PDF es obligatorio');
     }
 
@@ -204,27 +210,42 @@ export class UsuariosService {
         throw new BadRequestException('Tipo de perfil no válido');
     }
 
-    return await this.dataSource.transaction(async (manager) => {
-      const nuevaVerificacion = manager.create(VerificacionEntity, {
-        informacionAdicional: infoLimpia,
-        archivo: archivoPath,
-        idRol: idRolAsignar,
-        idUsuario: idUsuario,
+    if (!esPdfValido(file.buffer)) {
+      throw new BadRequestException('El archivo no es un PDF válido.');
+    }
+
+    const key = await this.storageService.upload(
+      file,
+      'verificaciones',
+      'private',
+    );
+
+    try {
+      return await this.dataSource.transaction(async (manager) => {
+        const nuevaVerificacion = manager.create(VerificacionEntity, {
+          informacionAdicional: infoLimpia,
+          archivo: key,
+          idRol: idRolAsignar,
+          idUsuario: idUsuario,
+        });
+
+        await manager.save(nuevaVerificacion);
+
+        // Se mantiene en NO_VERIFICADO hasta que Subdirección apruebe la solicitud
+        usuario.esVerificado = EstadoVerificacion.NO_VERIFICADO;
+        await manager.save(usuario);
+
+        return {
+          mensaje:
+            'Solicitud de verificación enviada correctamente. Pendiente de aprobación por Subdirección.',
+          estadoSolicitud: 'Pendiente',
+          verificacion: nuevaVerificacion,
+        };
       });
-
-      await manager.save(nuevaVerificacion);
-
-      // Se mantiene en NO_VERIFICADO hasta que Subdirección apruebe la solicitud
-      usuario.esVerificado = EstadoVerificacion.NO_VERIFICADO;
-      await manager.save(usuario);
-
-      return {
-        mensaje:
-          'Solicitud de verificación enviada correctamente. Pendiente de aprobación por Subdirección.',
-        estadoSolicitud: 'Pendiente',
-        verificacion: nuevaVerificacion,
-      };
-    });
+    } catch (error) {
+      await this.storageService.deleteSafe(key, 'private');
+      throw error;
+    }
   }
 
   //Listar solicitudes de verificación y filtrar por rol o nombre del solicitante
@@ -279,7 +300,6 @@ export class UsuariosService {
         correo: u.correo,
         numeroBoleta: verif.informacionAdicional || null,
         informacionAdicional: verif.informacionAdicional || null,
-        archivo: verif.archivo,
       });
     }
 
@@ -334,6 +354,23 @@ export class UsuariosService {
       throw new NotFoundException('Usuario solicitante no encontrado.');
     }
 
+    let archivoUrl: string | null = null;
+    if (verif.archivo && verif.archivo.trim() !== '') {
+      if (verif.archivo.startsWith('data:')) {
+        archivoUrl = verif.archivo;
+      } else {
+        try {
+          archivoUrl = await this.storageService.privateUrl(verif.archivo, 600);
+        } catch (error) {
+          const err = error as Error;
+          this.logger.error(
+            `Error al generar URL firmada para verificación ${verif.idVerificacion}: ${err?.message ?? String(error)}`,
+          );
+          archivoUrl = null;
+        }
+      }
+    }
+
     return {
       idVerificacion: verif.idVerificacion,
       idUsuario: u.idUsuario,
@@ -347,7 +384,7 @@ export class UsuariosService {
       correo: u.correo,
       numeroBoleta: verif.informacionAdicional || null,
       informacionAdicional: verif.informacionAdicional || null,
-      archivo: verif.archivo,
+      archivo: archivoUrl,
     };
   }
 
@@ -466,8 +503,17 @@ export class UsuariosService {
       await this.usuarioRepository.save(usuario);
     }
 
+    const verificacionesUsuario = await this.verificacionRepository.find({
+      where: { idUsuario: verif.idUsuario },
+    });
+    const archivosEliminar = verificacionesUsuario.map((v) => v.archivo);
+
     // Eliminamos todas las solicitudes pendientes de ese usuario para que pueda volver a subir su documento corregido
     await this.verificacionRepository.delete({ idUsuario: verif.idUsuario });
+
+    for (const archivo of archivosEliminar) {
+      await this.storageService.deleteSafe(archivo, 'private');
+    }
 
     if (usuario) {
       const nombreUsuario =
