@@ -1,4 +1,5 @@
 import { esModalidadConQr, obtenerEtiquetaModalidad } from "@eventos/shared";
+import { resolverUrlPoster } from "../../../utils/posterUrl";
 import { formatEventDate } from "../../event-details/utils/formatEventDate";
 import type { TicketItem } from "../pages/MyTicketsPage";
 import type { TicketSummaryResponse } from "../services/tickets.service";
@@ -26,12 +27,6 @@ export function mapTicketToCard(ticket: TicketSummaryResponse): TicketItem {
     visibility,
     modalityLabel: obtenerEtiquetaModalidad(ticket.idModalidadAcceso),
     supportsQr: esModalidadConQr(ticket.idModalidadAcceso),
-    posterUrl: (() => {
-      const rawPoster = ticket.poster?.trim() ?? "";
-      if (!rawPoster) return undefined;
-      return /^https?:\/\//i.test(rawPoster)
-        ? rawPoster
-        : `http://localhost:9000/eventos-public/${rawPoster.replace(/^\/+/, "")}`;
-    })(),
+    posterUrl: resolverUrlPoster(ticket.poster) ?? undefined,
   };
 }

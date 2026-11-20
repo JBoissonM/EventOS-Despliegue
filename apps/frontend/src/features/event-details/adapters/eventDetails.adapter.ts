@@ -1,4 +1,5 @@
 import { EstadoSubEvento } from "@eventos/shared";
+import { resolverUrlPoster } from "../../../utils/posterUrl";
 import type { EventDetailsApi, SubEventDetailsApi } from "../types/eventDetails.api.types";
 import type { EventActivityViewModel, EventDetailsViewModel } from "../types/eventDetails.types";
 
@@ -52,12 +53,7 @@ export function toEventDetailsViewModel(event: EventDetailsApi): EventDetailsVie
     .map((activity) => mapActivity(activity, event.idEvento))
     .sort((a, b) => (a.fecha?.fecha ?? "").localeCompare(b.fecha?.fecha ?? ""));
 
-  const rawPoster = event.poster?.trim() ?? "";
-  const posterReferencia = /^https?:\/\//i.test(rawPoster)
-    ? rawPoster
-    : rawPoster
-      ? `http://localhost:9000/eventos-public/${rawPoster.replace(/^\/+/, "")}`
-      : null;
+  const posterReferencia = resolverUrlPoster(event.poster);
 
   return {
     idEvento: event.idEvento,

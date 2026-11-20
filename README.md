@@ -578,6 +578,12 @@ async verificarCuenta(@UploadedFile() file: Express.Multer.File) {
 
 Para otro caso de uso, se crea una configuración nueva con `crearUploadOptions(['tipos/permitidos'], maxMB, mensajeTipoNoPermitido?)`.
 
+**Flujo del póster de eventos:**
+
+- **Restricción del campo de texto `poster`:** cuando no se sube como archivo, el campo de texto `poster` en los DTOs (`CrearSolicitudDto` y `ActualizarInfoGeneralDto`) solo acepta URLs `https` cuyos dominios estén incluidos en `HOSTS_POSTER_EXTERNO_PERMITIDOS` (`placehold.co`, `images.unsplash.com`). Esto impide que un cliente envíe una `key` arbitraria o cualquier otra URL.
+- **Limpieza si la operación falla:** si se sube un archivo de póster al crear una solicitud o al actualizar la información general del evento y la operación posterior falla, se elimina el póster recién subido con `deleteSafe(posterKey, 'public')` para no dejar archivos huérfanos en el bucket.
+- **Reemplazo del póster anterior:** al actualizar la información general del evento, una vez que el evento se guarda con éxito, si el póster cambió (ya sea por un nuevo archivo subido o por una URL permitida en el campo de texto), se elimina el póster anterior con `deleteSafe(posterAnterior, 'public')` (`deleteSafe` ignora URLs externas).
+
 **Flujo del documento de verificación de identidad (CU06):**
 
 - **Recepción y validación:** el endpoint usa `documentoVerificacionOptions` (únicamente `application/pdf`, máximo 5 MB) y valida los magic bytes del archivo con `esPdfValido(buffer)` (revisa que los primeros 5 bytes sean `%PDF-`).
