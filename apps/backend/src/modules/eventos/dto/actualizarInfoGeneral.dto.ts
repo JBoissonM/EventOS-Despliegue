@@ -7,6 +7,7 @@ import {
   IsOptional,
   IsPositive,
   IsString,
+  IsUrl,
   MaxLength,
   ValidateIf,
   ValidateNested,
@@ -18,6 +19,7 @@ import {
   type ActualizarInfoGeneralPayload,
   type PonentePayload,
 } from '@eventos/shared';
+import { HOSTS_POSTER_EXTERNO_PERMITIDOS } from '../../../common/upload/upload.options';
 
 export class PonenteItemDto implements PonentePayload {
   @ApiPropertyOptional()
@@ -127,6 +129,18 @@ export class ActualizarInfoGeneralDto implements ActualizarInfoGeneralPayload {
   @ApiPropertyOptional()
   @IsOptional()
   @IsString({ message: 'La ruta del póster debe ser una cadena de texto.' })
+  @MaxLength(500)
+  @IsUrl(
+    {
+      protocols: ['https'],
+      require_protocol: true,
+      host_whitelist: HOSTS_POSTER_EXTERNO_PERMITIDOS,
+    },
+    {
+      message:
+        'El póster debe subirse como archivo o ser una URL https de un origen permitido.',
+    },
+  )
   poster?: string;
 
   @ApiPropertyOptional({ enum: AlcanceEvento })

@@ -9,6 +9,7 @@ import { PageHeader } from "../../components/organisms/PageHeader/PageHeader";
 import { SearchField } from "../../components/molecules/SearchField";
 import { FilterDropdown, type FilterOption } from "../../components/molecules/FilterDropdown";
 import { ClearFiltersButton } from "../../components/molecules/ClearFiltersButton";
+import { resolverUrlPoster } from "../../utils/posterUrl";
 import { useMisEventosLogistica } from "../logistics/hook/useMisEventosLogistica";
 
 const dateOptions: FilterOption[] = [
@@ -150,12 +151,7 @@ export function PanelEventosAsignados() {
               ? new Date(item.fecha).toLocaleDateString("es-MX", { timeZone: "UTC", year: "numeric", month: "2-digit", day: "2-digit" }) 
               : "Por definir";
 
-            const rawPoster = item.poster?.trim();
-            const posterSrc = rawPoster
-              ? /^https?:\/\//i.test(rawPoster)
-                ? rawPoster
-                : `http://localhost:9000/eventos-public/${rawPoster.replace(/^\/+/, "")}`
-              : null;
+            const posterSrc = resolverUrlPoster(item.poster);
 
             return (
               <div

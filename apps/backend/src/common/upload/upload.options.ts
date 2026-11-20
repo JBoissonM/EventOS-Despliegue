@@ -33,6 +33,12 @@ export function crearUploadOptions(
   };
 }
 
+// Dominios externos permitidos cuando el póster se envía como URL en texto
+export const HOSTS_POSTER_EXTERNO_PERMITIDOS = [
+  'placehold.co',
+  'images.unsplash.com',
+];
+
 // Configuraciones listas para usar con FileInterceptor
 export const posterOptions = crearUploadOptions(
   ['image/jpeg', 'image/png', 'image/webp'],

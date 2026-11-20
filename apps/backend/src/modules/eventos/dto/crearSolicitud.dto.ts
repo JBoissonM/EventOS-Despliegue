@@ -5,12 +5,14 @@ import {
   IsNotEmpty,
   IsOptional,
   IsString,
+  IsUrl,
   MaxLength,
   ValidateNested,
 } from 'class-validator';
 import { plainToInstance, Transform } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { AlcanceEvento } from '@eventos/shared';
+import { HOSTS_POSTER_EXTERNO_PERMITIDOS } from '../../../common/upload/upload.options';
 import { CrearSubEventoDto } from './crearSubEvento.dto';
 
 export class CrearSolicitudDto {
@@ -49,6 +51,18 @@ export class CrearSolicitudDto {
   @ApiPropertyOptional()
   @IsOptional()
   @IsString({ message: 'La ruta del póster debe ser una cadena de texto.' })
+  @MaxLength(500)
+  @IsUrl(
+    {
+      protocols: ['https'],
+      require_protocol: true,
+      host_whitelist: HOSTS_POSTER_EXTERNO_PERMITIDOS,
+    },
+    {
+      message:
+        'El póster debe subirse como archivo o ser una URL https de un origen permitido.',
+    },
+  )
   poster?: string;
 
   @ApiProperty({ type: () => [CrearSubEventoDto] })

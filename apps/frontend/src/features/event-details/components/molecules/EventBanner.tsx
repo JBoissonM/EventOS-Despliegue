@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { ImageOff } from "lucide-react";
+import { resolverUrlPoster } from "../../../../utils/posterUrl";
 
 interface EventBannerProps {
   eventName: string;
@@ -14,12 +15,7 @@ export function EventBanner({
 }: EventBannerProps) {
   const [failedUrl, setFailedUrl] = useState<string | null>(null);
 
-  const rawUrl = posterUrl?.trim() || null;
-  const imageUrl = rawUrl
-    ? /^https?:\/\//i.test(rawUrl)
-      ? rawUrl
-      : `http://localhost:9000/eventos-public/${rawUrl.replace(/^\/+/, "")}`
-    : null;
+  const imageUrl = resolverUrlPoster(posterUrl);
   const showImage = imageUrl !== null && failedUrl !== imageUrl;
 
   return (

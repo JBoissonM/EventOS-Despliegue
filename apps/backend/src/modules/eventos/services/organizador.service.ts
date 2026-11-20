@@ -668,12 +668,16 @@ export class OrganizadorService {
       throw new ConflictException('Evento finalizado o inactivo.');
     }
 
+    const posterAnterior = evento.poster;
+    let posterNuevo: string | undefined;
+
     if (posterFile) {
       const posterKey = await this.storageService.upload(
         posterFile,
         'posters',
         'public',
       );
+      posterNuevo = posterKey;
       evento.poster = posterKey;
     } else if (
       dto.poster &&
@@ -683,210 +687,221 @@ export class OrganizadorService {
       evento.poster = dto.poster.trim();
     }
 
-    const alcanceAnterior = evento.idAlcance;
-
-    if (dto.idSubEvento !== undefined) {
-      const subevento = await this.subEventoRepository.findOne({
-        where: { idSubEvento: dto.idSubEvento, idEvento },
-      });
-      if (!subevento) {
-        throw new BadRequestException(
-          'El subevento especificado no pertenece a este evento.',
-        );
-      }
-      if (dto.nombre !== undefined) {
-        subevento.nombre = dto.nombre.trim();
-      }
-      if (dto.descripcion !== undefined) {
-        subevento.descripcion = dto.descripcion.trim();
-      }
-      await this.subEventoRepository.save(subevento);
-
-      const solicitudPendiente =
-        await this.solicitudModificacionRepository.findOne({
-          where: { idEvento, estado: 'Pendiente' },
-        });
-      if (
-        solicitudPendiente &&
-        Array.isArray(solicitudPendiente.subeventosPropuestos)
-      ) {
-        solicitudPendiente.subeventosPropuestos =
-          solicitudPendiente.subeventosPropuestos.map((prop) =>
-            prop.idSubEvento === dto.idSubEvento
-              ? {
-                  ...prop,
-                  ...(dto.nombre !== undefined
-                    ? { nombre: dto.nombre.trim() }
-                    : {}),
-                  ...(dto.descripcion !== undefined
-                    ? { descripcion: dto.descripcion.trim() }
-                    : {}),
-                }
-              : prop,
-          );
-        await this.solicitudModificacionRepository.save(solicitudPendiente);
-      }
-    } else {
-      if (dto.nombre !== undefined) {
-        evento.nombre = dto.nombre.trim();
-      }
-      if (dto.descripcion !== undefined) {
-        evento.descripcion = dto.descripcion.trim();
-      }
-      if (dto.justificacion !== undefined) {
-        evento.justificacion = dto.justificacion.trim();
-      }
-      if (dto.idAlcance !== undefined) {
-        evento.idAlcance = dto.idAlcance;
-      }
-
-      if (dto.nombre !== undefined || dto.descripcion !== undefined) {
-        const subeventosActivos = await this.subEventoRepository.find({
-          where: { idEvento },
-        });
-        const noCancelados = subeventosActivos.filter(
-          (s) => s.estado !== EstadoSubEvento.CANCELADO,
-        );
-        if (noCancelados.length === 1) {
-          const unicoSub = noCancelados[0];
-          if (dto.nombre !== undefined) {
-            unicoSub.nombre = dto.nombre.trim();
-          }
-          if (dto.descripcion !== undefined) {
-            unicoSub.descripcion = dto.descripcion.trim();
-          }
-          await this.subEventoRepository.save(unicoSub);
-        }
-      }
-    }
-
-    if (dto.ponentes !== undefined) {
-      const subeventos = await this.subEventoRepository.find({
-        where: { idEvento },
-        order: { idSubEvento: 'ASC' },
-      });
-
-      if (subeventos.length === 0 && dto.ponentes.length > 0) {
-        throw new BadRequestException(
-          'El evento no cuenta con subeventos registrados para asociar ponentes.',
-        );
-      }
-
-      const subEventosIdsValidos = new Set(
-        subeventos.map((s) => s.idSubEvento),
-      );
-      const subEventoIdDefault = dto.idSubEvento ?? subeventos[0]?.idSubEvento;
-
-      const identificadoresPorSubEvento = new Map<number, Set<string>>();
-
-      for (const ponenteDto of dto.ponentes) {
-        const idSub = ponenteDto.idSubEvento ?? subEventoIdDefault;
-        if (!subEventosIdsValidos.has(idSub)) {
-          throw new BadRequestException(
-            'El subevento asignado al ponente no pertenece a este evento.',
-          );
-        }
-
-        const correoNormalizado = (ponenteDto.correo ?? '').trim().toLowerCase();
-        const nombreNormalizado = [
-          ponenteDto.nombre,
-          ponenteDto.apellidoPa,
-          ponenteDto.apellidoMa,
-        ]
-          .filter(Boolean)
-          .join(' ')
-          .trim()
-          .toLowerCase();
-        const claveUnica = correoNormalizado
-          ? `correo:${correoNormalizado}`
-          : `nombre:${nombreNormalizado}`;
-
-        let clavesSet = identificadoresPorSubEvento.get(idSub);
-        if (!clavesSet) {
-          clavesSet = new Set<string>();
-          identificadoresPorSubEvento.set(idSub, clavesSet);
-        }
-
-        if (clavesSet.has(claveUnica)) {
-          throw new ConflictException(
-            'El ponente ya se encuentra registrado en el evento seleccionado.',
-          );
-        }
-        clavesSet.add(claveUnica);
-      }
-
-      const subEventoIdsArray =
-        dto.idSubEvento !== undefined
-          ? [dto.idSubEvento]
-          : [...subEventosIdsValidos];
-      if (subEventoIdsArray.length > 0) {
-        await this.ponenteRepository.delete({
-          idSubEvento: In(subEventoIdsArray),
-        });
-      }
-
-      if (dto.ponentes.length > 0) {
-        const nuevosPonentes = dto.ponentes.map((p) =>
-          this.ponenteRepository.create({
-            nombre: p.nombre.trim(),
-            apellidoPa: (p.apellidoPa ?? '').trim(),
-            apellidoMa: p.apellidoMa ? p.apellidoMa.trim() : null,
-            correo: (p.correo ?? '').trim().toLowerCase(),
-            idSubEvento: p.idSubEvento ?? subEventoIdDefault,
-          }),
-        );
-        await this.ponenteRepository.save(nuevosPonentes);
-      }
-    }
-
-    const alcanceCambio =
-      dto.idSubEvento === undefined &&
-      dto.idAlcance !== undefined &&
-      dto.idAlcance !== alcanceAnterior;
-
     let eventoGuardado: EventoEntity;
-    if (alcanceCambio) {
-      const queryRunner = this.dataSource.createQueryRunner();
-      await queryRunner.connect();
-      await queryRunner.startTransaction();
+    try {
+      const alcanceAnterior = evento.idAlcance;
 
-      try {
-        eventoGuardado = await queryRunner.manager.save(EventoEntity, evento);
-
-        if (dto.idAlcance === AlcanceEvento.PRIVADO) {
-          await queryRunner.manager.query(
-            `INSERT INTO "invitacionEvento" ("idEvento", "idUsuario")
-             SELECT DISTINCT $1::int, ae."idUsuario"
-             FROM "asistenteEvento" ae
-             INNER JOIN "subEvento" se ON ae."idSubEvento" = se."idSubEvento"
-             INNER JOIN "boleto" b ON ae."idBoleto" = b."idBoleto"
-             WHERE se."idEvento" = $1
-               AND b."idEstadoBoleto" IN ($2, $3)
-               AND ae."idUsuario" <> $4
-             ON CONFLICT ("idEvento", "idUsuario") DO NOTHING`,
-            [
-              idEvento,
-              EstadoBoleto.VALIDO,
-              EstadoBoleto.UTILIZADO,
-              evento.idOrganizador,
-            ],
+      if (dto.idSubEvento !== undefined) {
+        const subevento = await this.subEventoRepository.findOne({
+          where: { idSubEvento: dto.idSubEvento, idEvento },
+        });
+        if (!subevento) {
+          throw new BadRequestException(
+            'El subevento especificado no pertenece a este evento.',
           );
-        } else if (alcanceAnterior === AlcanceEvento.PRIVADO) {
-          await queryRunner.manager.query(
-            `DELETE FROM "invitacionEvento" WHERE "idEvento" = $1`,
-            [idEvento],
+        }
+        if (dto.nombre !== undefined) {
+          subevento.nombre = dto.nombre.trim();
+        }
+        if (dto.descripcion !== undefined) {
+          subevento.descripcion = dto.descripcion.trim();
+        }
+        await this.subEventoRepository.save(subevento);
+
+        const solicitudPendiente =
+          await this.solicitudModificacionRepository.findOne({
+            where: { idEvento, estado: 'Pendiente' },
+          });
+        if (
+          solicitudPendiente &&
+          Array.isArray(solicitudPendiente.subeventosPropuestos)
+        ) {
+          solicitudPendiente.subeventosPropuestos =
+            solicitudPendiente.subeventosPropuestos.map((prop) =>
+              prop.idSubEvento === dto.idSubEvento
+                ? {
+                    ...prop,
+                    ...(dto.nombre !== undefined
+                      ? { nombre: dto.nombre.trim() }
+                      : {}),
+                    ...(dto.descripcion !== undefined
+                      ? { descripcion: dto.descripcion.trim() }
+                      : {}),
+                  }
+                : prop,
+            );
+          await this.solicitudModificacionRepository.save(solicitudPendiente);
+        }
+      } else {
+        if (dto.nombre !== undefined) {
+          evento.nombre = dto.nombre.trim();
+        }
+        if (dto.descripcion !== undefined) {
+          evento.descripcion = dto.descripcion.trim();
+        }
+        if (dto.justificacion !== undefined) {
+          evento.justificacion = dto.justificacion.trim();
+        }
+        if (dto.idAlcance !== undefined) {
+          evento.idAlcance = dto.idAlcance;
+        }
+
+        if (dto.nombre !== undefined || dto.descripcion !== undefined) {
+          const subeventosActivos = await this.subEventoRepository.find({
+            where: { idEvento },
+          });
+          const noCancelados = subeventosActivos.filter(
+            (s) => s.estado !== EstadoSubEvento.CANCELADO,
+          );
+          if (noCancelados.length === 1) {
+            const unicoSub = noCancelados[0];
+            if (dto.nombre !== undefined) {
+              unicoSub.nombre = dto.nombre.trim();
+            }
+            if (dto.descripcion !== undefined) {
+              unicoSub.descripcion = dto.descripcion.trim();
+            }
+            await this.subEventoRepository.save(unicoSub);
+          }
+        }
+      }
+
+      if (dto.ponentes !== undefined) {
+        const subeventos = await this.subEventoRepository.find({
+          where: { idEvento },
+          order: { idSubEvento: 'ASC' },
+        });
+
+        if (subeventos.length === 0 && dto.ponentes.length > 0) {
+          throw new BadRequestException(
+            'El evento no cuenta con subeventos registrados para asociar ponentes.',
           );
         }
 
-        await queryRunner.commitTransaction();
-      } catch (error) {
-        await queryRunner.rollbackTransaction();
-        throw error;
-      } finally {
-        await queryRunner.release();
+        const subEventosIdsValidos = new Set(
+          subeventos.map((s) => s.idSubEvento),
+        );
+        const subEventoIdDefault = dto.idSubEvento ?? subeventos[0]?.idSubEvento;
+
+        const identificadoresPorSubEvento = new Map<number, Set<string>>();
+
+        for (const ponenteDto of dto.ponentes) {
+          const idSub = ponenteDto.idSubEvento ?? subEventoIdDefault;
+          if (!subEventosIdsValidos.has(idSub)) {
+            throw new BadRequestException(
+              'El subevento asignado al ponente no pertenece a este evento.',
+            );
+          }
+
+          const correoNormalizado = (ponenteDto.correo ?? '').trim().toLowerCase();
+          const nombreNormalizado = [
+            ponenteDto.nombre,
+            ponenteDto.apellidoPa,
+            ponenteDto.apellidoMa,
+          ]
+            .filter(Boolean)
+            .join(' ')
+            .trim()
+            .toLowerCase();
+          const claveUnica = correoNormalizado
+            ? `correo:${correoNormalizado}`
+            : `nombre:${nombreNormalizado}`;
+
+          let clavesSet = identificadoresPorSubEvento.get(idSub);
+          if (!clavesSet) {
+            clavesSet = new Set<string>();
+            identificadoresPorSubEvento.set(idSub, clavesSet);
+          }
+
+          if (clavesSet.has(claveUnica)) {
+            throw new ConflictException(
+              'El ponente ya se encuentra registrado en el evento seleccionado.',
+            );
+          }
+          clavesSet.add(claveUnica);
+        }
+
+        const subEventoIdsArray =
+          dto.idSubEvento !== undefined
+            ? [dto.idSubEvento]
+            : [...subEventosIdsValidos];
+        if (subEventoIdsArray.length > 0) {
+          await this.ponenteRepository.delete({
+            idSubEvento: In(subEventoIdsArray),
+          });
+        }
+
+        if (dto.ponentes.length > 0) {
+          const nuevosPonentes = dto.ponentes.map((p) =>
+            this.ponenteRepository.create({
+              nombre: p.nombre.trim(),
+              apellidoPa: (p.apellidoPa ?? '').trim(),
+              apellidoMa: p.apellidoMa ? p.apellidoMa.trim() : null,
+              correo: (p.correo ?? '').trim().toLowerCase(),
+              idSubEvento: p.idSubEvento ?? subEventoIdDefault,
+            }),
+          );
+          await this.ponenteRepository.save(nuevosPonentes);
+        }
       }
-    } else {
-      eventoGuardado = await this.eventoRepository.save(evento);
+
+      const alcanceCambio =
+        dto.idSubEvento === undefined &&
+        dto.idAlcance !== undefined &&
+        dto.idAlcance !== alcanceAnterior;
+
+      if (alcanceCambio) {
+        const queryRunner = this.dataSource.createQueryRunner();
+        await queryRunner.connect();
+        await queryRunner.startTransaction();
+
+        try {
+          eventoGuardado = await queryRunner.manager.save(EventoEntity, evento);
+
+          if (dto.idAlcance === AlcanceEvento.PRIVADO) {
+            await queryRunner.manager.query(
+              `INSERT INTO "invitacionEvento" ("idEvento", "idUsuario")
+               SELECT DISTINCT $1::int, ae."idUsuario"
+               FROM "asistenteEvento" ae
+               INNER JOIN "subEvento" se ON ae."idSubEvento" = se."idSubEvento"
+               INNER JOIN "boleto" b ON ae."idBoleto" = b."idBoleto"
+               WHERE se."idEvento" = $1
+                 AND b."idEstadoBoleto" IN ($2, $3)
+                 AND ae."idUsuario" <> $4
+               ON CONFLICT ("idEvento", "idUsuario") DO NOTHING`,
+              [
+                idEvento,
+                EstadoBoleto.VALIDO,
+                EstadoBoleto.UTILIZADO,
+                evento.idOrganizador,
+              ],
+            );
+          } else if (alcanceAnterior === AlcanceEvento.PRIVADO) {
+            await queryRunner.manager.query(
+              `DELETE FROM "invitacionEvento" WHERE "idEvento" = $1`,
+              [idEvento],
+            );
+          }
+
+          await queryRunner.commitTransaction();
+        } catch (error) {
+          await queryRunner.rollbackTransaction();
+          throw error;
+        } finally {
+          await queryRunner.release();
+        }
+      } else {
+        eventoGuardado = await this.eventoRepository.save(evento);
+      }
+    } catch (error) {
+      if (posterNuevo) {
+        await this.storageService.deleteSafe(posterNuevo, 'public');
+      }
+      throw error;
+    }
+
+    if (posterAnterior !== eventoGuardado.poster) {
+      await this.storageService.deleteSafe(posterAnterior, 'public');
     }
 
     return {

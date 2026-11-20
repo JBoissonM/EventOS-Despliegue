@@ -206,10 +206,17 @@ export class SolicitudesController {
 
     const idOrganizador = req.user?.sub;
 
-    return await this.eventosService.registrarSolicitud(
-      idOrganizador,
-      dto,
-      posterKey,
-    );
+    try {
+      return await this.eventosService.registrarSolicitud(
+        idOrganizador,
+        dto,
+        posterKey,
+      );
+    } catch (error) {
+      if (posterKey) {
+        await this.storageService.deleteSafe(posterKey, 'public');
+      }
+      throw error;
+    }
   }
 }
