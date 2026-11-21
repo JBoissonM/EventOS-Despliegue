@@ -9,6 +9,7 @@ export type TipoInvitacionCorreo =
 
 export interface InvitacionPendienteRegistro {
   idEvento: number;
+  idSubEvento?: number;
   tipo: TipoInvitacionCorreo;
   expiraEn: number;
 }
@@ -48,14 +49,21 @@ export function registrarInvitacionPendiente(
   correoRaw: string,
   idEvento: number,
   tipo: TipoInvitacionCorreo,
+  idSubEvento?: number,
   ttlMs = 48 * 60 * 60 * 1000,
 ): void {
   const correo = correoRaw.trim().toLowerCase();
   const ahora = Date.now();
   const vigentes = (INVITACIONES_PENDIENTES.get(correo) ?? []).filter(
-    (item) => item.expiraEn > ahora && !(item.idEvento === idEvento && item.tipo === tipo),
+    (item) =>
+      item.expiraEn > ahora &&
+      !(
+        item.idEvento === idEvento &&
+        item.idSubEvento === idSubEvento &&
+        item.tipo === tipo
+      ),
   );
-  vigentes.push({ idEvento, tipo, expiraEn: ahora + ttlMs });
+  vigentes.push({ idEvento, idSubEvento, tipo, expiraEn: ahora + ttlMs });
   INVITACIONES_PENDIENTES.set(correo, vigentes);
 }
 

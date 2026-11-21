@@ -1,3 +1,4 @@
+import { randomUUID } from 'crypto';
 import {
   BadRequestException,
   ConflictException,
@@ -418,6 +419,8 @@ export class SolicitudesService {
         const nuevoSubEvento = await manager.save(SubEventoEntity, {
           nombre: sub.nombre,
           descripcion: sub.descripcion,
+          tokenInvitacion: randomUUID(),
+          enlaceInvitacionActivo: false,
           idEvento: eventoGuardado.idEvento,
           idRecinto: sub.idRecinto,
           idFecha: fechaGuardada.idFecha,
@@ -920,7 +923,8 @@ export class SolicitudesService {
         idEvento,
       );
       const idsConservados = new Set<number>();
-      const usuariosExcedentesFifo = new Set<number>();
+      const excedentesFifoPorSubevento = new Map<number, Set<number>>();
+      const aforoPorSubevento = new Map<number, number>();
 
       for (const propuesto of subeventosPropuestos) {
         const existente = propuesto.idSubEvento
@@ -939,6 +943,10 @@ export class SolicitudesService {
           const cambioModalidad =
             existente.idModalidadAcceso !== destinoModalidad;
           const recintoDestino = recintosBloqueados.get(propuesto.idRecinto)!;
+          aforoPorSubevento.set(
+            existente.idSubEvento,
+            recintoDestino.aforo ?? 0,
+          );
 
           if (cambioRecinto || cambioModalidad) {
             const activos: Array<{
@@ -980,8 +988,11 @@ export class SolicitudesService {
                      WHERE "idBoleto" = ANY($2::int[])`,
                     [EstadoBoleto.CANCELADO, idsExcedentes],
                   );
+                  const setSub =
+                    excedentesFifoPorSubevento.get(existente.idSubEvento) ??
+                    new Set<number>();
                   for (const exc of excedentesFifo) {
-                    usuariosExcedentesFifo.add(Number(exc.idUsuario));
+                    setSub.add(Number(exc.idUsuario));
                     if (!exc.correo) continue;
                     colaCorreoD.push({
                       destinatario: exc.correo,
@@ -989,6 +1000,7 @@ export class SolicitudesService {
                       nombreEvento: evento.nombre,
                     });
                   }
+                  excedentesFifoPorSubevento.set(existente.idSubEvento, setSub);
                 }
               }
 
@@ -1097,6 +1109,8 @@ export class SolicitudesService {
           const nuevoSub = await manager.save(SubEventoEntity, {
             nombre: propuesto.nombre,
             descripcion: propuesto.descripcion,
+            tokenInvitacion: randomUUID(),
+            enlaceInvitacionActivo: false,
             idEvento,
             idRecinto: propuesto.idRecinto,
             idFecha: nuevaFecha.idFecha,
@@ -1155,68 +1169,69 @@ export class SolicitudesService {
       }
 
       if (evento.idAlcance === AlcanceEvento.PRIVADO) {
-        const idsExcedentesUsuarios = Array.from(usuariosExcedentesFifo);
-        if (idsExcedentesUsuarios.length > 0) {
-          await manager.query(
-            `DELETE FROM "invitacionEvento" ie
-             WHERE ie."idEvento" = $1
-               AND ie."idUsuario" = ANY($2::int[])
-               AND NOT EXISTS (
-                 SELECT 1
-                 FROM "asistenteEvento" ae
-                 INNER JOIN "subEvento" se ON ae."idSubEvento" = se."idSubEvento"
-                 INNER JOIN "boleto" b ON ae."idBoleto" = b."idBoleto"
-                 WHERE se."idEvento" = $1
-                   AND se."estado" <> $3
-                   AND ae."idUsuario" = ie."idUsuario"
-                   AND b."idEstadoBoleto" IN ($4, $5)
-               )`,
-            [
-              idEvento,
-              idsExcedentesUsuarios,
-              EstadoSubEvento.CANCELADO,
-              EstadoBoleto.VALIDO,
-              EstadoBoleto.UTILIZADO,
-            ],
-          );
+        for (const anterior of subeventosExistentes) {
+          if (!idsConservados.has(anterior.idSubEvento)) {
+            await manager.query(
+              `DELETE FROM "invitacionEvento" WHERE "idSubEvento" = $1`,
+              [anterior.idSubEvento],
+            );
+          }
         }
 
-        const aforoMaximoPrivado = subeventosPropuestos.reduce(
-          (max, prop) =>
-            Math.max(max, recintosBloqueados.get(prop.idRecinto)?.aforo ?? 0),
-          0,
-        );
-
-        if (aforoMaximoPrivado > 0) {
-          await manager.query(
-            `DELETE FROM "invitacionEvento"
-             WHERE "idInvitacionEvento" IN (
-               SELECT ie."idInvitacionEvento"
-               FROM "invitacionEvento" ie
-               WHERE ie."idEvento" = $1
-               ORDER BY (
-                 EXISTS (
+        for (const [idSub, idsExcedentesSet] of excedentesFifoPorSubevento.entries()) {
+          const idsExcedentesUsuarios = Array.from(idsExcedentesSet);
+          if (idsExcedentesUsuarios.length > 0) {
+            await manager.query(
+              `DELETE FROM "invitacionEvento" ie
+               WHERE ie."idSubEvento" = $1
+                 AND ie."idUsuario" = ANY($2::int[])
+                 AND NOT EXISTS (
                    SELECT 1
                    FROM "asistenteEvento" ae
-                   INNER JOIN "subEvento" se ON ae."idSubEvento" = se."idSubEvento"
                    INNER JOIN "boleto" b ON ae."idBoleto" = b."idBoleto"
-                   WHERE se."idEvento" = $1
-                     AND se."estado" <> $2
+                   WHERE ae."idSubEvento" = $1
                      AND ae."idUsuario" = ie."idUsuario"
                      AND b."idEstadoBoleto" IN ($3, $4)
-                 )
-               ) DESC,
-               ie."idInvitacionEvento" ASC
-               OFFSET $5
-             )`,
-            [
-              idEvento,
-              EstadoSubEvento.CANCELADO,
-              EstadoBoleto.VALIDO,
-              EstadoBoleto.UTILIZADO,
-              aforoMaximoPrivado,
-            ],
-          );
+                 )`,
+              [
+                idSub,
+                idsExcedentesUsuarios,
+                EstadoBoleto.VALIDO,
+                EstadoBoleto.UTILIZADO,
+              ],
+            );
+          }
+        }
+
+        for (const [idSub, aforoSub] of aforoPorSubevento.entries()) {
+          if (aforoSub > 0) {
+            await manager.query(
+              `DELETE FROM "invitacionEvento"
+               WHERE "idInvitacionEvento" IN (
+                 SELECT ie."idInvitacionEvento"
+                 FROM "invitacionEvento" ie
+                 WHERE ie."idSubEvento" = $1
+                 ORDER BY (
+                   EXISTS (
+                     SELECT 1
+                     FROM "asistenteEvento" ae
+                     INNER JOIN "boleto" b ON ae."idBoleto" = b."idBoleto"
+                     WHERE ae."idSubEvento" = $1
+                       AND ae."idUsuario" = ie."idUsuario"
+                       AND b."idEstadoBoleto" IN ($2, $3)
+                   )
+                 ) DESC,
+                 ie."idInvitacionEvento" ASC
+                 OFFSET $4
+               )`,
+              [
+                idSub,
+                EstadoBoleto.VALIDO,
+                EstadoBoleto.UTILIZADO,
+                aforoSub,
+              ],
+            );
+          }
         }
       }
 

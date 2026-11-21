@@ -349,45 +349,38 @@ export class OrganizadorService {
         where: { idEvento, estado: 'Pendiente' },
       });
 
+    let invitadosPorSubevento = new Map<number, InvitadoEventoItem[]>();
     let invitadosDetallados: InvitadoEventoItem[] | undefined = undefined;
     if (evento.idAlcance === AlcanceEvento.PRIVADO) {
-      const invitaciones = await this.invitacionRepository.find({
-        where: { idEvento },
-        relations: { usuario: true },
-        order: { idInvitacionEvento: 'ASC' },
-      });
-
-      const ahora = Date.now();
-      const OCHO_HORAS_MS = 8 * 60 * 60 * 1000;
+      const invitaciones =
+        subEventoIds.length > 0
+          ? await this.invitacionRepository.find({
+              where: { idSubEvento: In(subEventoIds) },
+              relations: { usuario: true },
+              order: { idInvitacionEvento: 'ASC' },
+            })
+          : [];
 
       invitadosDetallados = invitaciones.map((inv) => {
-        const fechaEnvioMs = inv.fechaUltimoEnvio
-          ? new Date(inv.fechaUltimoEnvio).getTime()
-          : 0;
-        const tiempoTranscurrido = ahora - fechaEnvioMs;
-        const puedeReenviar = tiempoTranscurrido >= OCHO_HORAS_MS;
-        const msRestantes = Math.max(0, OCHO_HORAS_MS - tiempoTranscurrido);
-        const horasRestantesCooldown = puedeReenviar
-          ? 0
-          : Math.ceil(msRestantes / (60 * 60 * 1000));
-
-        const usr = inv.usuario;
-        const nombreCompleto = usr
-          ? `${usr.nombre} ${usr.apellidoPa}${usr.apellidoMa ? ' ' + usr.apellidoMa : ''}`
-          : 'Invitado';
-
-        return {
-          idInvitacionEvento: inv.idInvitacionEvento,
-          idUsuario: inv.idUsuario,
-          nombreCompleto,
-          correo: usr?.correo ?? '',
-          fechaUltimoEnvio: inv.fechaUltimoEnvio
-            ? new Date(inv.fechaUltimoEnvio).toISOString()
-            : '',
-          puedeReenviar,
-          horasRestantesCooldown,
-        };
+        const item = this.mapearInvitadoItem(inv);
+        const lista = invitadosPorSubevento.get(inv.idSubEvento) ?? [];
+        lista.push(item);
+        invitadosPorSubevento.set(inv.idSubEvento, lista);
+        return item;
       });
+    }
+
+    for (const subDet of subEventosDetallados) {
+      const subOriginal = subeventos.find(
+        (s) => s.idSubEvento === subDet.idSubEvento,
+      );
+      subDet.tokenInvitacion = subOriginal?.tokenInvitacion;
+      subDet.enlaceInvitacionActivo = Boolean(
+        subOriginal?.enlaceInvitacionActivo,
+      );
+      if (evento.idAlcance === AlcanceEvento.PRIVADO) {
+        subDet.invitados = invitadosPorSubevento.get(subDet.idSubEvento) ?? [];
+      }
     }
 
     const personalLogisticaRaw = await this.dataSource.query(
@@ -860,17 +853,19 @@ export class OrganizadorService {
 
           if (dto.idAlcance === AlcanceEvento.PRIVADO) {
             await queryRunner.manager.query(
-              `INSERT INTO "invitacionEvento" ("idEvento", "idUsuario")
-               SELECT DISTINCT $1::int, ae."idUsuario"
+              `INSERT INTO "invitacionEvento" ("idSubEvento", "idUsuario")
+               SELECT DISTINCT se."idSubEvento", ae."idUsuario"
                FROM "asistenteEvento" ae
                INNER JOIN "subEvento" se ON ae."idSubEvento" = se."idSubEvento"
                INNER JOIN "boleto" b ON ae."idBoleto" = b."idBoleto"
                WHERE se."idEvento" = $1
-                 AND b."idEstadoBoleto" IN ($2, $3)
-                 AND ae."idUsuario" <> $4
-               ON CONFLICT ("idEvento", "idUsuario") DO NOTHING`,
+                 AND se.estado <> $2
+                 AND b."idEstadoBoleto" IN ($3, $4)
+                 AND ae."idUsuario" <> $5
+               ON CONFLICT ("idSubEvento", "idUsuario") DO NOTHING`,
               [
                 idEvento,
+                EstadoSubEvento.CANCELADO,
                 EstadoBoleto.VALIDO,
                 EstadoBoleto.UTILIZADO,
                 evento.idOrganizador,
@@ -878,7 +873,10 @@ export class OrganizadorService {
             );
           } else if (alcanceAnterior === AlcanceEvento.PRIVADO) {
             await queryRunner.manager.query(
-              `DELETE FROM "invitacionEvento" WHERE "idEvento" = $1`,
+              `DELETE FROM "invitacionEvento"
+               WHERE "idSubEvento" IN (
+                 SELECT "idSubEvento" FROM "subEvento" WHERE "idEvento" = $1
+               )`,
               [idEvento],
             );
           }
@@ -916,14 +914,45 @@ export class OrganizadorService {
     };
   }
 
-  async agregarInvitadoPrivado(
+  private mapearInvitadoItem(inv: InvitacionEventoEntity): InvitadoEventoItem {
+    const ahora = Date.now();
+    const OCHO_HORAS_MS = 8 * 60 * 60 * 1000;
+    const fechaEnvioMs = inv.fechaUltimoEnvio
+      ? new Date(inv.fechaUltimoEnvio).getTime()
+      : 0;
+    const tiempoTranscurrido = ahora - fechaEnvioMs;
+    const puedeReenviar = tiempoTranscurrido >= OCHO_HORAS_MS;
+    const msRestantes = Math.max(0, OCHO_HORAS_MS - tiempoTranscurrido);
+    const horasRestantesCooldown = puedeReenviar
+      ? 0
+      : Math.ceil(msRestantes / (60 * 60 * 1000));
+
+    const usr = inv.usuario;
+    const nombreCompleto = usr
+      ? `${usr.nombre} ${usr.apellidoPa}${usr.apellidoMa ? ' ' + usr.apellidoMa : ''}`
+      : 'Invitado';
+
+    return {
+      idInvitacionEvento: inv.idInvitacionEvento,
+      idSubEvento: inv.idSubEvento,
+      idUsuario: inv.idUsuario,
+      nombreCompleto,
+      correo: usr?.correo ?? '',
+      fechaUltimoEnvio: inv.fechaUltimoEnvio
+        ? new Date(inv.fechaUltimoEnvio).toISOString()
+        : '',
+      puedeReenviar,
+      horasRestantesCooldown,
+    };
+  }
+
+  private async obtenerContextoSubeventoPrivado(
     idEvento: number,
+    idSubEvento: number,
     idUsuario: number,
-    dto: AgregarInvitadoDto,
   ) {
     const evento = await this.eventoRepository.findOne({
       where: { idEvento },
-      relations: { subEventos: { recinto: true } },
     });
 
     if (!evento) {
@@ -948,33 +977,13 @@ export class OrganizadorService {
       throw new BadRequestException('El evento no cuenta con alcance privado.');
     }
 
-    const correoBuscado = dto.correo.trim().toLowerCase();
-    const usuarioDestinatario = await this.usuarioRepository.findOne({
-      where: { correo: correoBuscado },
+    const subEvento = await this.subEventoRepository.findOne({
+      where: { idSubEvento, idEvento },
+      relations: { recinto: true, fecha: true },
     });
 
-    if (usuarioDestinatario && !usuarioDestinatario.estatus) {
-      throw new NotFoundException(
-        'No se encontró una cuenta activa para el destinatario del boleto directo.',
-      );
-    }
-
-    const subeventosVigentes = (evento.subEventos ?? []).filter(
-      (s) => s.estado !== EstadoSubEvento.CANCELADO,
-    );
-    const cupoMaximo = subeventosVigentes.reduce(
-      (max, sub) => Math.max(max, sub.recinto?.aforo ?? 0),
-      0,
-    );
-    if (cupoMaximo > 0) {
-      const totalInvitadosActivos = await this.invitacionRepository.count({
-        where: { idEvento },
-      });
-      if (totalInvitadosActivos >= cupoMaximo) {
-        throw new ConflictException(
-          'La cantidad solicitada excede el límite disponible.',
-        );
-      }
+    if (!subEvento || subEvento.estado === EstadoSubEvento.CANCELADO) {
+      throw new NotFoundException('No se encontró la actividad solicitada.');
     }
 
     const organizador = await this.usuarioRepository.findOneBy({
@@ -987,15 +996,111 @@ export class OrganizadorService {
     const frontendBaseUrl = (
       process.env.FRONTEND_URL ?? 'http://localhost:5173'
     ).replace(/\/+$/, '');
-    const enlaceEvento = `${frontendBaseUrl}/eventos/${idEvento}`;
+
+    return { evento, subEvento, nombreOrganizador, frontendBaseUrl };
+  }
+
+  private construirDatosCorreoSubEvento(
+    evento: EventoEntity,
+    subEvento: SubEventoEntity,
+    nombreOrganizador: string,
+    frontendBaseUrl: string,
+  ) {
+    const enlaceEvento = subEvento.tokenInvitacion
+      ? `${frontendBaseUrl}/eventos/privado/${subEvento.tokenInvitacion}`
+      : `${frontendBaseUrl}/eventos/${evento.idEvento}/actividades/${subEvento.idSubEvento}`;
+
+    return {
+      nombreEvento: evento.nombre,
+      descripcionEvento: evento.descripcion,
+      organizador: nombreOrganizador,
+      enlaceEvento,
+      nombreSubEvento: subEvento.nombre,
+      fecha: subEvento.fecha?.fecha,
+      horaInicio: subEvento.fecha?.horaInicio,
+      horaFin: subEvento.fecha?.horaFin,
+      nombreRecinto: subEvento.recinto?.nombre,
+      esAccesoLibre:
+        subEvento.idModalidadAcceso === ModalidadAcceso.ACCESO_LIBRE,
+    };
+  }
+
+  async agregarInvitadoPrivado(
+    idEvento: number,
+    idSubEvento: number,
+    idUsuario: number,
+    dto: AgregarInvitadoDto,
+  ) {
+    const { evento, subEvento, nombreOrganizador, frontendBaseUrl } =
+      await this.obtenerContextoSubeventoPrivado(
+        idEvento,
+        idSubEvento,
+        idUsuario,
+      );
+
+    const correoBuscado = dto.correo.trim().toLowerCase();
+    const usuarioDestinatario = await this.usuarioRepository.findOne({
+      where: { correo: correoBuscado },
+    });
+
+    if (usuarioDestinatario && !usuarioDestinatario.estatus) {
+      throw new NotFoundException(
+        'No se encontró una cuenta activa para el destinatario del boleto directo.',
+      );
+    }
+
+    const cupoMaximo = subEvento.recinto?.aforo ?? 0;
+    const esAccesoLibre =
+      subEvento.idModalidadAcceso === ModalidadAcceso.ACCESO_LIBRE;
+
+    if (cupoMaximo > 0 && (!esAccesoLibre || usuarioDestinatario)) {
+      const totalInvitadosActivos = await this.invitacionRepository.count({
+        where: { idSubEvento },
+      });
+      if (totalInvitadosActivos >= cupoMaximo) {
+        throw new ConflictException(
+          'La cantidad solicitada excede el límite disponible.',
+        );
+      }
+    }
+
+    const baseCorreo = this.construirDatosCorreoSubEvento(
+      evento,
+      subEvento,
+      nombreOrganizador,
+      frontendBaseUrl,
+    );
 
     if (!usuarioDestinatario) {
       await verificarDominioCorreoValido(correoBuscado);
+
+      if (esAccesoLibre) {
+        try {
+          await this.mailService.enviarInvitacionEventoPrivado({
+            ...baseCorreo,
+            destinatario: correoBuscado,
+            nombreUsuario: '',
+            requiereRegistro: false,
+          });
+        } catch {
+          throw new InternalServerErrorException(
+            'No se pudo enviar el correo de invitación. Verifica la dirección o inténtalo de nuevo más tarde.',
+          );
+        }
+
+        return {
+          mensaje: 'Operación realizada con éxito.',
+          invitacionEnviada: true,
+          esAccesoLibre: true,
+          correo: correoBuscado,
+        };
+      }
 
       const token = this.jwtService.sign(
         {
           correo: correoBuscado,
           idEvento,
+          idSubEvento,
           tipo: 'INVITACION_EVENTO_PRIVADO',
         },
         {
@@ -1008,17 +1113,15 @@ export class OrganizadorService {
         correoBuscado,
         idEvento,
         'INVITACION_EVENTO_PRIVADO',
+        idSubEvento,
       );
 
       const enlaceRegistro = `${frontendBaseUrl}/registro?token=${encodeURIComponent(token)}`;
       try {
         await this.mailService.enviarInvitacionEventoPrivado({
+          ...baseCorreo,
           destinatario: correoBuscado,
           nombreUsuario: '',
-          nombreEvento: evento.nombre,
-          descripcionEvento: evento.descripcion,
-          organizador: nombreOrganizador,
-          enlaceEvento,
           requiereRegistro: true,
           enlaceRegistro,
         });
@@ -1037,7 +1140,7 @@ export class OrganizadorService {
 
     const invitacionPrevia = await this.invitacionRepository.findOne({
       where: {
-        idEvento,
+        idSubEvento,
         idUsuario: usuarioDestinatario.idUsuario,
       },
     });
@@ -1049,7 +1152,7 @@ export class OrganizadorService {
     }
 
     const nuevaInvitacion = this.invitacionRepository.create({
-      idEvento,
+      idSubEvento,
       idUsuario: usuarioDestinatario.idUsuario,
       fechaUltimoEnvio: new Date(),
     });
@@ -1058,25 +1161,19 @@ export class OrganizadorService {
 
     void this.mailService
       .enviarInvitacionEventoPrivado({
+        ...baseCorreo,
         destinatario: usuarioDestinatario.correo,
         nombreUsuario: `${usuarioDestinatario.nombre} ${usuarioDestinatario.apellidoPa}`.trim(),
-        nombreEvento: evento.nombre,
-        descripcionEvento: evento.descripcion,
-        organizador: nombreOrganizador,
-        enlaceEvento,
       })
       .catch(() => {});
-
-    const nombreCompleto = `${usuarioDestinatario.nombre} ${usuarioDestinatario.apellidoPa}${usuarioDestinatario.apellidoMa ? ' ' + usuarioDestinatario.apellidoMa : ''}`;
 
     return {
       mensaje: 'Operación realizada con éxito.',
       invitado: {
-        idInvitacionEvento: guardada.idInvitacionEvento,
-        idUsuario: guardada.idUsuario,
-        nombreCompleto,
-        correo: usuarioDestinatario.correo,
-        fechaUltimoEnvio: guardada.fechaUltimoEnvio.toISOString(),
+        ...this.mapearInvitadoItem({
+          ...guardada,
+          usuario: usuarioDestinatario,
+        }),
         puedeReenviar: false,
         horasRestantesCooldown: 8,
       },
@@ -1085,35 +1182,21 @@ export class OrganizadorService {
 
   async reenviarInvitacionPrivada(
     idEvento: number,
+    idSubEvento: number,
     idInvitacion: number,
     idUsuario: number,
   ) {
-    const evento = await this.eventoRepository.findOne({
-      where: { idEvento },
-    });
-
-    if (!evento) {
-      throw new NotFoundException('No se encontró el evento solicitado.');
-    }
-
-    if (evento.idOrganizador !== idUsuario) {
-      throw new ForbiddenException(
-        'No tienes permisos para administrar este evento.',
+    const { evento, subEvento, nombreOrganizador, frontendBaseUrl } =
+      await this.obtenerContextoSubeventoPrivado(
+        idEvento,
+        idSubEvento,
+        idUsuario,
       );
-    }
-
-    if (
-      evento.idEstadoEvento === EstadoEvento.CANCELADO ||
-      evento.idEstadoEvento === EstadoEvento.FINALIZADO ||
-      evento.idEstadoEvento === EstadoEvento.RECHAZADO
-    ) {
-      throw new ConflictException('Evento finalizado o inactivo.');
-    }
 
     const invitacion = await this.invitacionRepository.findOne({
       where: {
         idInvitacionEvento: idInvitacion,
-        idEvento,
+        idSubEvento,
       },
       relations: { usuario: true },
     });
@@ -1140,26 +1223,18 @@ export class OrganizadorService {
     await this.invitacionRepository.save(invitacion);
 
     if (invitacion.usuario) {
-      const organizador = await this.usuarioRepository.findOneBy({
-        idUsuario,
-      });
-      const nombreOrganizador = organizador
-        ? `${organizador.nombre} ${organizador.apellidoPa}`.trim()
-        : 'Organizador';
-
-      const frontendBaseUrl = (
-        process.env.FRONTEND_URL ?? 'http://localhost:5173'
-      ).replace(/\/+$/, '');
-      const enlaceEvento = `${frontendBaseUrl}/eventos/${idEvento}`;
+      const baseCorreo = this.construirDatosCorreoSubEvento(
+        evento,
+        subEvento,
+        nombreOrganizador,
+        frontendBaseUrl,
+      );
 
       void this.mailService
         .enviarInvitacionEventoPrivado({
+          ...baseCorreo,
           destinatario: invitacion.usuario.correo,
           nombreUsuario: `${invitacion.usuario.nombre} ${invitacion.usuario.apellidoPa}`.trim(),
-          nombreEvento: evento.nombre,
-          descripcionEvento: evento.descripcion,
-          organizador: nombreOrganizador,
-          enlaceEvento,
         })
         .catch(() => {});
     }
@@ -1167,6 +1242,7 @@ export class OrganizadorService {
     return {
       mensaje: 'Operación realizada con éxito.',
       idInvitacionEvento: invitacion.idInvitacionEvento,
+      idSubEvento,
       fechaUltimoEnvio: invitacion.fechaUltimoEnvio.toISOString(),
       horasRestantesCooldown: 8,
       puedeReenviar: false,
@@ -1175,6 +1251,7 @@ export class OrganizadorService {
 
   async revocarInvitacionPrivada(
     idEvento: number,
+    idSubEvento: number,
     idInvitacion: number,
     idUsuario: number,
   ) {
@@ -1192,6 +1269,14 @@ export class OrganizadorService {
       );
     }
 
+    const subEvento = await this.subEventoRepository.findOne({
+      where: { idSubEvento, idEvento },
+    });
+
+    if (!subEvento) {
+      throw new NotFoundException('No se encontró la actividad solicitada.');
+    }
+
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
     await queryRunner.startTransaction();
@@ -1204,7 +1289,7 @@ export class OrganizadorService {
       const invitacion = await queryRunner.manager.findOne(
         InvitacionEventoEntity,
         {
-          where: { idInvitacionEvento: idInvitacion, idEvento },
+          where: { idInvitacionEvento: idInvitacion, idSubEvento },
           relations: { usuario: true },
         },
       );
@@ -1218,8 +1303,7 @@ export class OrganizadorService {
                AND "idBoleto" IN (
                  SELECT ae."idBoleto"
                  FROM "asistenteEvento" ae
-                 INNER JOIN "subEvento" se ON ae."idSubEvento" = se."idSubEvento"
-                 WHERE se."idEvento" = $3
+                 WHERE ae."idSubEvento" = $3
                    AND ae."idUsuario" = $4
                    AND ae."idBoleto" IS NOT NULL
                )
@@ -1227,7 +1311,7 @@ export class OrganizadorService {
             [
               EstadoBoleto.CANCELADO,
               EstadoBoleto.VALIDO,
-              idEvento,
+              idSubEvento,
               invitacion.idUsuario,
             ],
           );
@@ -1242,15 +1326,13 @@ export class OrganizadorService {
         await queryRunner.manager.query(
           `DELETE FROM "retencionAsiento"
            WHERE "idUsuario" = $1
-             AND "idSubEvento" IN (
-               SELECT "idSubEvento" FROM "subEvento" WHERE "idEvento" = $2
-             )`,
-          [invitacion.idUsuario, idEvento],
+             AND "idSubEvento" = $2`,
+          [invitacion.idUsuario, idSubEvento],
         );
 
         await queryRunner.manager.delete(InvitacionEventoEntity, {
           idInvitacionEvento: idInvitacion,
-          idEvento,
+          idSubEvento,
         });
       }
 
@@ -1273,6 +1355,7 @@ export class OrganizadorService {
     return {
       mensaje: 'Operación realizada con éxito.',
       idInvitacionEvento: idInvitacion,
+      idSubEvento,
       boletosCancelados: boletosCanceladosCount,
     };
   }

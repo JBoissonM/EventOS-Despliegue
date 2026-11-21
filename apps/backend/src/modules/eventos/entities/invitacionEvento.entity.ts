@@ -8,16 +8,16 @@ import {
   Unique,
 } from 'typeorm';
 import { UsuarioEntity } from '../../auth/entities/usuario.entity';
-import { EventoEntity } from './evento.entity';
+import { SubEventoEntity } from './subevento.entity';
 
 @Entity({ name: 'invitacionEvento' })
-@Unique(['idEvento', 'idUsuario'])
+@Unique(['idSubEvento', 'idUsuario'])
 export class InvitacionEventoEntity {
   @PrimaryGeneratedColumn({ name: 'idInvitacionEvento', type: 'int' })
   idInvitacionEvento: number;
 
-  @Column({ name: 'idEvento', type: 'int' })
-  idEvento: number;
+  @Column({ name: 'idSubEvento', type: 'int' })
+  idSubEvento: number;
 
   @Column({ name: 'idUsuario', type: 'int' })
   idUsuario: number;
@@ -25,9 +25,9 @@ export class InvitacionEventoEntity {
   @CreateDateColumn({ name: 'fechaUltimoEnvio', type: 'timestamp' })
   fechaUltimoEnvio: Date;
 
-  @ManyToOne(() => EventoEntity, { onDelete: 'CASCADE' })
-  @JoinColumn({ name: 'idEvento' })
-  evento?: EventoEntity;
+  @ManyToOne(() => SubEventoEntity, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'idSubEvento' })
+  subEvento?: SubEventoEntity;
 
   @ManyToOne(() => UsuarioEntity)
   @JoinColumn({ name: 'idUsuario' })
