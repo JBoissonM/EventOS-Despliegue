@@ -24,6 +24,7 @@ import { OrganizadorService } from '../services/organizador.service';
 import { ModificarLogisticaDto } from '../dto/modificarLogistica.dto';
 import { ActualizarInfoGeneralDto } from '../dto/actualizarInfoGeneral.dto';
 import { AgregarInvitadoDto } from '../dto/invitadoPrivado.dto';
+import { AgregarInvitadosMasivoDto } from '../dto/agregarInvitadosMasivo.dto';
 import { CancelarSolicitudDto } from '../dto/cancelarSolicitud.dto';
 import { AgregarPersonalLogisticaDto } from '../dto/agregarPersonalLogistica.dto';
 import { posterOptions } from '../../../common/upload/upload.options';
@@ -185,6 +186,28 @@ export class OrganizadorController {
       dto,
       posterFile,
       rolActor,
+    );
+  }
+
+  @ApiOperation({
+    summary:
+      'Agregar invitados de forma masiva por lote a un subevento en un evento privado',
+  })
+  @Throttle({ default: { limit: 60, ttl: 60000 } })
+  @Post(':idEvento/subeventos/:idSubEvento/invitados/masivo')
+  @UsePipes(new ValidationPipe({ transform: true, whitelist: true }))
+  async agregarInvitadosMasivo(
+    @Param('idEvento', ParseIntPipe) idEvento: number,
+    @Param('idSubEvento', ParseIntPipe) idSubEvento: number,
+    @Body() dto: AgregarInvitadosMasivoDto,
+    @Req() req: any,
+  ) {
+    const idUsuario = this.obtenerIdUsuarioAutenticado(req);
+    return await this.organizadorService.agregarInvitadosMasivo(
+      idEvento,
+      idSubEvento,
+      idUsuario,
+      dto,
     );
   }
 
