@@ -13,6 +13,8 @@ type TableProps<T> = {
   filas: T[];
   obtenerClave: (fila: T) => string | number;
   className?: string;
+  filaClassName?: string;
+  encabezadoClassName?: string;
 };
 
 export function Table<T>({
@@ -20,11 +22,13 @@ export function Table<T>({
   filas,
   obtenerClave,
   className = "",
+  filaClassName = "h-[120px]",
+  encabezadoClassName = "h-[120px] border-b border-gray-300",
 }: TableProps<T>) {
   return (
     <table className={`text-sm sm:text-base ${className}`}>
       <thead>
-        <tr className="h-[120px] border-b border-gray-300">
+        <tr className={encabezadoClassName}>
           {columnas.map((columna) => (
             <th
               key={columna.id}
@@ -37,7 +41,7 @@ export function Table<T>({
       </thead>
       <tbody>
         {filas.map((fila) => (
-          <tr className="h-[120px]" key={obtenerClave(fila)}>
+          <tr className={filaClassName} key={obtenerClave(fila)}>
             {columnas.map((columna) => (
               <td
                 key={columna.id}

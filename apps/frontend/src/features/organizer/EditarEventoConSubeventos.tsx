@@ -1681,7 +1681,9 @@ export function EditarEventoConSubeventos() {
                     columnas={columnasLogistica}
                     filas={personalLogistica}
                     obtenerClave={(personal) => personal.idUsuario}
-                    className="w-full min-w-full bg-white text-left text-sm [&_tbody_tr]:h-12 [&_thead_tr]:h-10 [&_th]:py-2 [&_td]:py-2"
+                    encabezadoClassName="h-10 border-b border-gray-300"
+                    filaClassName="h-12"
+                    className="w-full min-w-full bg-white text-left text-sm [&_th]:py-2 [&_td]:py-2"
                   />
                 </div>
               ) : (
@@ -1714,11 +1716,15 @@ export function EditarEventoConSubeventos() {
                       columnas={columnasInvitados}
                       filas={invitados}
                       obtenerClave={(invitado) =>
-                        invitado.idUsuario ??
-                        invitado.idInvitacionEvento ??
-                        invitado.correo
+                        invitado.correo ||
+                        (invitado.idInvitacionEvento
+                          ? String(invitado.idInvitacionEvento)
+                          : "") ||
+                        String(invitado.idUsuario)
                       }
-                      className="w-full min-w-full bg-white text-left text-sm [&_tbody_tr]:h-12 [&_thead_tr]:h-10 [&_th]:py-2 [&_td]:py-2"
+                      encabezadoClassName="h-10 border-b border-gray-300"
+                      filaClassName="h-12"
+                      className="w-full min-w-full bg-white text-left text-sm [&_th]:py-2 [&_td]:py-2"
                     />
                   </div>
                 ) : (

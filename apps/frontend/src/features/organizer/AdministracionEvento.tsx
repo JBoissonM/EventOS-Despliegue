@@ -628,16 +628,20 @@ export function AdministracionEvento() {
                     Tus invitados
                   </h2>
                   {invitados.length > 0 ? (
-                    <div className="w-full overflow-x-auto rounded-md border border-gray-200 shadow-md">
+                    <div className="w-full overflow-x-auto overflow-y-auto max-h-[200px] rounded-md border border-gray-200 shadow-md">
                       <Table
                         columnas={columnasInvitados}
                         filas={invitados}
                         obtenerClave={(invitado) =>
-                          invitado.idUsuario ??
-                          invitado.idInvitacionEvento ??
-                          invitado.correo
+                          invitado.correo ||
+                          (invitado.idInvitacionEvento
+                            ? String(invitado.idInvitacionEvento)
+                            : "") ||
+                          String(invitado.idUsuario)
                         }
-                        className="table-auto min-w-full bg-white text-left text-sm [&_tbody_tr]:h-12 [&_thead_tr]:h-10 [&_th]:py-2 [&_td]:py-2"
+                        encabezadoClassName="h-10 border-b border-gray-300"
+                        filaClassName="h-12"
+                        className="table-auto min-w-full bg-white text-left text-sm [&_th]:py-2 [&_td]:py-2"
                       />
                     </div>
                   ) : (

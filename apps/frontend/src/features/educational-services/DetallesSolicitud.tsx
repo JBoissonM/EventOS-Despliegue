@@ -614,9 +614,9 @@ export function DetallesSolicitud() {
               className="space-y-4 rounded-md bg-white h-fit p-6 text-gray-900 shadow-sm border border-gray-200"
             >
               <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-start">
-                <div className="md:col-span-5 space-y-2">
+                <div className="md:col-span-5 space-y-5">
                   <div className="flex flex-wrap items-center gap-2">
-                    <h4 className="font-merriweather font-bold text-gray-900">
+                    <h4 className="font-merriweather font-bold text-md text-gray-900">
                       {subevento.nombre}
                     </h4>
                     {datos.esModificacion && subevento.esNuevo && (
@@ -629,18 +629,18 @@ export function DetallesSolicitud() {
                         </Badge>
                       )}
                   </div>
-                  <p className="font-merriweather text-xs sm:text-sm text-gray-700 leading-relaxed">
+                  <p className="font-merriweather text-sm sm:text-md text-gray-700 leading-relaxed">
                     {subevento.descripcion}
                   </p>
                 </div>
 
                 <div className="md:col-span-7 grid grid-cols-1 sm:grid-cols-3 gap-y-5 gap-x-4">
                   <div>
-                    <div className="flex items-center gap-1.5 text-xs font-semibold text-gray-800">
-                      <MapPin className="h-4 w-4 text-gray-700 shrink-0" />
+                    <div className="flex items-center gap-1.5 text-md font-semibold text-gray-800">
+                      <MapPin size={20} className="text-gray-700 shrink-0" />
                       <span>Espacio</span>
                     </div>
-                    <p className="mt-1 font-merriweather text-xs sm:text-sm text-gray-700">
+                    <p className="mt-1 font-merriweather text-sm sm:text-md text-gray-700">
                       {subevento.nombreRecinto || "-"}
                     </p>
                     {cambioRecinto && (
@@ -651,27 +651,30 @@ export function DetallesSolicitud() {
                   </div>
 
                   <div>
-                    <div className="flex items-center gap-1.5 text-xs font-semibold text-gray-800">
-                      <CalendarDays className="h-4 w-4 text-gray-700 shrink-0" />
+                    <div className="flex items-center gap-1.5 text-md font-semibold text-gray-800">
+                      <CalendarDays
+                        size={20}
+                        className="text-gray-700 shrink-0"
+                      />
                       <span>Fecha</span>
                     </div>
                     <p className="mt-1 font-merriweather text-xs sm:text-sm text-gray-700">
                       {formatearFecha(subevento.fecha)}
                     </p>
                     {cambioFecha && (
-                      <p className="mt-0.5 text-xs text-eventos-muted-text">
+                      <p className="mt-0.5 text-sm text-eventos-muted-text">
                         Antes: {formatearFecha(subevento.fechaAnterior)}
                       </p>
                     )}
                   </div>
 
                   <div>
-                    <div className="text-xs font-semibold text-gray-800">
+                    <div className="text-md font-semibold text-gray-800">
                       Modalidad de acceso
                     </div>
 
                     <div className="flex items-center gap-1.5 mt-1">
-                      <span className="mt-1 font-merriweather text-xs sm:text-sm text-gray-700">
+                      <span className="mt-1 font-merriweather text-sm sm:text-md text-gray-700">
                         {obtenerEtiquetaModalidad(subevento.idModalidadAcceso)}
                       </span>
                       <div className="relative inline-flex items-center group">
@@ -699,11 +702,11 @@ export function DetallesSolicitud() {
                   </div>
 
                   <div>
-                    <div className="flex items-center gap-1.5 text-xs font-semibold text-gray-800">
-                      <Clock className="h-4 w-4 text-gray-700 shrink-0" />
+                    <div className="flex items-center gap-1.5 text-md font-semibold text-gray-800">
+                      <Clock size={20} className="text-gray-700 shrink-0" />
                       <span>Hora de Inicio</span>
                     </div>
-                    <p className="mt-1 font-merriweather text-xs sm:text-sm text-gray-700">
+                    <p className="mt-1 font-merriweather text-sm sm:text-md text-gray-700">
                       {formatearHora(subevento.horaInicio)}
                     </p>
                     {cambioHoraInicio && (
@@ -714,11 +717,11 @@ export function DetallesSolicitud() {
                   </div>
 
                   <div>
-                    <div className="flex items-center gap-1.5 text-xs font-semibold text-gray-800">
-                      <Clock className="h-4 w-4 text-gray-700 shrink-0" />
-                      <span>Hora de Finalización</span>
+                    <div className="flex items-center gap-1.5 text-md font-semibold text-gray-800">
+                      <Clock size={20} className="text-gray-700 shrink-0" />
+                      <span>Hora de Cierre</span>
                     </div>
-                    <p className="mt-1 font-merriweather text-xs sm:text-sm text-gray-700">
+                    <p className="mt-1 font-merriweather text-sm sm:text-md text-gray-700">
                       {formatearHora(subevento.horaFin)}
                     </p>
                     {cambioHoraFin && (
@@ -729,11 +732,11 @@ export function DetallesSolicitud() {
                   </div>
 
                   <div>
-                    <div className="flex items-center gap-1.5 text-xs font-semibold text-gray-800">
-                      <Users className="h-4 w-4 text-gray-700 shrink-0" />
+                    <div className="flex items-center gap-1.5 text-md font-semibold text-gray-800">
+                      <Users size={20} className="text-gray-700 shrink-0" />
                       <span>Aforo estimado</span>
                     </div>
-                    <p className="mt-1 font-merriweather text-xs sm:text-sm text-gray-700">
+                    <p className="mt-1 font-merriweather text-sm sm:text-md text-gray-700">
                       {subevento.aforo ?? "-"}
                     </p>
                     {cambioAforo && (

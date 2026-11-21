@@ -14,6 +14,7 @@ type SolicitudTabla = {
   nombreSolicitante: string;
   fechaInicio: string | null;
   fechaCierre: string | null;
+  idAlcance: number;
   urgente: boolean;
   esModificacion: boolean;
 };
@@ -108,6 +109,7 @@ function convertirSolicitud(valor: unknown): SolicitudTabla {
     idEvento: obtenerNumero(valor, "idEvento"),
     nombre: obtenerTexto(valor, "nombre"),
     nombreSolicitante,
+    idAlcance: obtenerNumero(valor, "idAlcance"),
     fechaInicio: fechas[0] ?? null,
     fechaCierre: fechas[fechas.length - 1] ?? null,
     urgente,
@@ -230,29 +232,48 @@ export function SeccionSolicitudesPendientes() {
     },
 
     {
+      id: "estado",
+      encabezado: "Alcance",
+      className: "text-center",
+      render: (solicitud) => (
+        <div className="min-w-[10rem] lg:min-w-[8rem] flex w-fit mx-auto justify-center">
+          <Badge variant="secondary" className="!py-1">
+            <div className="flex gap-1 !mx-3">
+              {solicitud.idAlcance === 1
+                ? "Público"
+                : solicitud.idAlcance === 2
+                  ? "Interno"
+                  : "Privado"}
+            </div>
+          </Badge>
+        </div>
+      ),
+    },
+
+    {
       id: "nombre",
       encabezado: "Nombre del evento",
       render: (solicitud) => solicitud.nombre,
-      className: "min-w-[12rem] max-w-[18rem] px-4 text-left",
+      className: "min-w-[12rem] lg:min-w-[10rem] px-4 text-left",
     },
     {
       id: "nombreSolicitante",
       encabezado: "Solicitante",
       render: (solicitud) => solicitud.nombreSolicitante,
-      className: "min-w-[9rem] sm:max-w-[9rem] px-4 text-center sm:text-left",
+      className: "min-w-[12rem] max-w-[10rem] px-4 text-center sm:text-left",
     },
     {
       id: "fechaInicio",
       encabezado: "Fecha inicio",
       render: (solicitud) => mostrarFecha(solicitud.fechaInicio),
-      className: "min-w-[8rem] px-4",
+      className: "min-w-[8rem] px-3",
     },
 
     {
       id: "fechaFin",
       encabezado: "Fecha fin",
       render: (solicitud) => mostrarFecha(solicitud.fechaCierre),
-      className: "min-w-[8rem] px-4",
+      className: "min-w-[8rem] px-3",
     },
 
     {
@@ -284,7 +305,7 @@ export function SeccionSolicitudesPendientes() {
         columnas={columnas}
         filas={solicitudesRecientes}
         obtenerClave={(solicitud) => solicitud.idEvento}
-        className="table-auto min-w-full text-center [&_tbody_tr]:h-20 [&_thead_tr]:h-[80px] [&_th]:sticky [&_th]:top-0 [&_th]:bg-white [&_th]:z-10"
+        className="table-auto min-w-full text-center [&_tbody_tr]:py-4 [&_thead_tr]:h-[80px] [&_th]:sticky [&_th]:top-0 [&_th]:bg-white [&_th]:z-10"
       />
     </div>
   );

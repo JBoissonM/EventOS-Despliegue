@@ -16,12 +16,14 @@ import {
 } from "../../components/molecules/FilterDropdown";
 import { DateRangeFields } from "../../components/molecules/DateRangeFields";
 import { obtenerAhoraCdmx } from "../../utils/fechaHorario";
+import Badge from "../../components/atoms/Badge/Badge";
 
 type SolicitudesAprobadas = {
   idEvento: number;
   nombre: string;
   nombreSolicitante: string;
   fechaInicio: string | null;
+  idAlcance: number;
   fechaFin: string | null;
 };
 
@@ -118,6 +120,7 @@ function convertirSolicitud(valor: unknown): SolicitudesAprobadas {
     idEvento: obtenerNumero(valor, "idEvento"),
     nombre: obtenerTexto(valor, "nombre"),
     nombreSolicitante,
+    idAlcance: obtenerNumero(valor, "idAlcance"),
     fechaInicio: fechas[0] ?? null,
     fechaFin: fechas[fechas.length - 1] ?? null,
   };
@@ -356,6 +359,24 @@ export function SolicitudesAprobadas() {
 
   const columnas: Columna<SolicitudesAprobadas>[] = [
     {
+      id: "estado",
+      encabezado: "Alcance",
+      className: "text-center",
+      render: (solicitud) => (
+        <div className="min-w-[8rem] lg:min-w-[8rem] flex w-fit mx-auto justify-center">
+          <Badge variant="secondary" className="!py-1">
+            <div className="flex gap-1 !mx-3">
+              {solicitud.idAlcance === 1
+                ? "Público"
+                : solicitud.idAlcance === 2
+                  ? "Interno"
+                  : "Privado"}
+            </div>
+          </Badge>
+        </div>
+      ),
+    },
+    {
       id: "nombre",
       encabezado: "Nombre del evento",
       render: (solicitud) => solicitud.nombre,
@@ -363,7 +384,7 @@ export function SolicitudesAprobadas() {
     },
     {
       id: "solicitante",
-      encabezado: "Nombre del solicitante",
+      encabezado: "Solicitante",
       render: (solicitud) => solicitud.nombreSolicitante,
       className: "min-w-[12rem] max-w-[12rem] px-4",
     },
@@ -518,7 +539,7 @@ export function SolicitudesAprobadas() {
               columnas={columnas}
               filas={solicitudesFiltradas}
               obtenerClave={(solicitud) => solicitud.idEvento}
-              className="table-auto min-w-full text-left [&_tbody_tr]:h-20 [&_thead_tr]:h-[80px]"
+              className="table-auto w-full text-left [&_tbody_tr]:py-4 [&_thead_tr]:h-[80px]"
             />
           </div>
         )}
