@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'bun:test';
-import { ForbiddenException } from '@nestjs/common';
+import {
+  ConflictException,
+  ForbiddenException,
+} from '@nestjs/common';
 import {
   AlcanceEvento,
   EstadoEvento,
@@ -15,7 +18,11 @@ function crearEventosServiceTest(params: {
   esLogistica?: boolean;
   tieneBoletoPrevio?: boolean;
   subEventosCustom?: Array<Record<string, any>>;
+  subEventoPorToken?: Record<string, any> | null;
+  ocupadosReales?: number;
 }) {
+  const queriesEjecutadas: Array<{ sql: string; params?: any[] }> = [];
+
   const eventoMock = {
     idEvento: 20,
     nombre: 'Evento Privado o Interno',
@@ -36,24 +43,55 @@ function crearEventosServiceTest(params: {
       idModalidadAcceso: ModalidadAcceso.QR_GENERAL,
       idFecha: 1,
       idRecinto: 1,
+      tokenInvitacion: 'token-sub-201',
+      enlaceInvitacionActivo: true,
     },
   ];
 
-  const dataSourceMock = {
-    query: async (sql: string) => {
-      if (sql.includes('FROM "invitacionEvento"')) {
-        return (params.subEventosInvitadosIds ?? []).map((idSubEvento) => ({
-          idSubEvento,
-        }));
+  const ejecutarQuery = async (sql: string, queryParams?: any[]) => {
+    queriesEjecutadas.push({ sql, params: queryParams });
+    if (sql.includes('AS total')) {
+      return [{ total: params.ocupadosReales ?? 0 }];
+    }
+    if (sql.includes('FROM "invitacionEvento"')) {
+      return (params.subEventosInvitadosIds ?? []).map((idSubEvento) => ({
+        idSubEvento,
+      }));
+    }
+    if (sql.includes('FROM "eventoPersonalLogistica"')) {
+      return params.esLogistica ? [{ '?column?': 1 }] : [];
+    }
+    if (sql.includes('FROM "asistenteEvento"')) {
+      return params.tieneBoletoPrevio ? [{ '?column?': 1 }] : [];
+    }
+    return [];
+  };
+
+  const managerMock = {
+    findOne: async (entity: any) => {
+      if (entity === 'recinto' || entity?.name === 'RecintoEntity') {
+        return { idRecinto: 1, nombre: 'Sala 14', aforo: 40 };
       }
-      if (sql.includes('FROM "eventoPersonalLogistica"')) {
-        return params.esLogistica ? [{ '?column?': 1 }] : [];
+      if (entity?.name === 'EventoEntity') {
+        return eventoMock;
       }
-      if (sql.includes('FROM "asistenteEvento"')) {
-        return params.tieneBoletoPrevio ? [{ '?column?': 1 }] : [];
-      }
-      return [];
+      return params.subEventoPorToken !== undefined
+        ? params.subEventoPorToken
+        : { ...subEventosMock[0], evento: eventoMock };
     },
+    query: ejecutarQuery,
+  };
+
+  const dataSourceMock = {
+    query: ejecutarQuery,
+    createQueryRunner: () => ({
+      connect: async () => {},
+      startTransaction: async () => {},
+      commitTransaction: async () => {},
+      rollbackTransaction: async () => {},
+      release: async () => {},
+      manager: managerMock,
+    }),
     getRepository: (name: string) => ({
       findOne: async () =>
         name === 'recinto'
@@ -67,16 +105,34 @@ function crearEventosServiceTest(params: {
     }),
   };
 
-  return new EventosService(
+  const service = new EventosService(
     { findOne: async () => eventoMock } as any,
     {} as any,
-    { find: async () => subEventosMock } as any,
+    {
+      find: async () => subEventosMock,
+      findOne: async () =>
+        params.subEventoPorToken !== undefined
+          ? params.subEventoPorToken
+          : {
+              ...subEventosMock[0],
+              evento: eventoMock,
+              recinto: { idRecinto: 1, nombre: 'Sala 14', aforo: 40 },
+              fecha: {
+                idFecha: 1,
+                fecha: '2026-12-10',
+                horaInicio: '10:00:00',
+                horaFin: '12:00:00',
+              },
+            },
+    } as any,
     {} as any,
     { find: async () => [] } as any,
     { count: async () => 0 } as any,
     dataSourceMock as any,
     { resolvePublicUrl: (k: string) => k } as any,
   );
+
+  return Object.assign(service, { queriesEjecutadas });
 }
 
 describe('EventosService - Acceso a Eventos Privados e Internos con boleto previo', () => {
@@ -167,5 +223,104 @@ describe('EventosService - Acceso a Eventos Privados e Internos con boleto previ
     });
 
     expect(detalle.idEvento).toBe(20);
+  });
+
+  it('obtenerDetalleSubEventoPrivadoPorToken muestra ficha sin login cuando enlaceInvitacionActivo es true', async () => {
+    const service = crearEventosServiceTest({
+      idAlcance: AlcanceEvento.PRIVADO,
+      ocupadosReales: 5,
+    });
+
+    const detalle =
+      await service.obtenerDetalleSubEventoPrivadoPorToken('token-sub-201');
+
+    expect(detalle.idSubEvento).toBe(201);
+    expect(detalle.usuarioAutenticado).toBe(false);
+    expect(detalle.cupoDisponible).toBe(35);
+  });
+
+  it('obtenerDetalleSubEventoPrivadoPorToken bloquea (403) cuando enlaceInvitacionActivo es false y usuario no está invitado', async () => {
+    const service = crearEventosServiceTest({
+      idAlcance: AlcanceEvento.PRIVADO,
+      subEventoPorToken: {
+        idSubEvento: 201,
+        idEvento: 20,
+        nombre: 'Actividad Privada',
+        descripcion: 'Desc',
+        estado: EstadoSubEvento.ACEPTADO,
+        idModalidadAcceso: ModalidadAcceso.QR_GENERAL,
+        tokenInvitacion: 'token-off',
+        enlaceInvitacionActivo: false,
+        evento: {
+          idEvento: 20,
+          nombre: 'Evento Privado',
+          descripcion: 'Desc',
+          idAlcance: AlcanceEvento.PRIVADO,
+          idEstadoEvento: EstadoEvento.ACEPTADO,
+          idOrganizador: 99,
+          poster: 'p.jpg',
+        },
+      },
+    });
+
+    await expect(
+      service.obtenerDetalleSubEventoPrivadoPorToken('token-off'),
+    ).rejects.toThrow(ForbiddenException);
+  });
+
+  it('aceptarEnlaceSubEventoPrivado en Acceso libre NO inserta en invitacionEvento', async () => {
+    const service = crearEventosServiceTest({
+      idAlcance: AlcanceEvento.PRIVADO,
+      subEventoPorToken: {
+        idSubEvento: 201,
+        idEvento: 20,
+        idRecinto: 1,
+        estado: EstadoSubEvento.ACEPTADO,
+        idModalidadAcceso: ModalidadAcceso.ACCESO_LIBRE,
+        tokenInvitacion: 'token-libre',
+        enlaceInvitacionActivo: true,
+      },
+    });
+
+    const res = await service.aceptarEnlaceSubEventoPrivado('token-libre', 50);
+
+    expect(res.autorizado).toBe(true);
+    expect(res.esAccesoLibre).toBe(true);
+    expect(
+      service.queriesEjecutadas.some((q) =>
+        q.sql.includes('INSERT INTO "invitacionEvento"'),
+      ),
+    ).toBe(false);
+  });
+
+  it('aceptarEnlaceSubEventoPrivado autoriza al usuario con sesión activa cuando hay cupo real disponible', async () => {
+    const service = crearEventosServiceTest({
+      idAlcance: AlcanceEvento.PRIVADO,
+      ocupadosReales: 10,
+    });
+
+    const res = await service.aceptarEnlaceSubEventoPrivado(
+      'token-sub-201',
+      50,
+    );
+
+    expect(res.autorizado).toBe(true);
+    expect(res.yaAutorizado).toBe(false);
+    expect(
+      service.queriesEjecutadas.some((q) =>
+        q.sql.includes('INSERT INTO "invitacionEvento"'),
+      ),
+    ).toBe(true);
+  });
+
+  it('aceptarEnlaceSubEventoPrivado lanza ConflictException (409) cuando el recinto alcanzó su cupo real', async () => {
+    const service = crearEventosServiceTest({
+      idAlcance: AlcanceEvento.PRIVADO,
+      ocupadosReales: 40,
+    });
+
+    await expect(
+      service.aceptarEnlaceSubEventoPrivado('token-sub-201', 50),
+    ).rejects.toThrow(ConflictException);
   });
 });

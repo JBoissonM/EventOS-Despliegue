@@ -1,4 +1,5 @@
 import {
+  ConflictException,
   ForbiddenException,
   Injectable,
   InternalServerErrorException,
@@ -13,6 +14,7 @@ import {
   EstadoSubEvento,
   ModalidadAcceso,
   TipoCuentaUsuario,
+  type DetalleSubEventoPrivadoResponse,
   type MovimientoBitacoraItem,
 } from '@eventos/shared';
 import { EventoEntity } from '../entities/evento.entity';
@@ -22,6 +24,7 @@ import { FechaEntity } from '../entities/fecha.entity';
 import { BitacoraEventoEntity } from '../entities/bitacoraEvento.entity';
 import { PonenteEntity } from '../entities/ponente.entity';
 import { AsientoEntity } from '../../reservas/entities/asiento.entity';
+import { RecintoEntity } from '../../recintos/entities/recinto.entity';
 import { StorageService } from '../../../common/storage/storage.service';
 
 @Injectable()
@@ -483,6 +486,274 @@ export class EventosService {
       };
     } catch {
       throw new InternalServerErrorException('Error al exportar archivo.');
+    }
+  }
+
+  private async obtenerOcupadosRealesSubEvento(
+    idSubEvento: number,
+    queryRunnerOrSource: { query: (sql: string, params?: any[]) => Promise<any[]> } = this.dataSource,
+  ): Promise<number> {
+    const ocupadosRaw = await queryRunnerOrSource.query(
+      `SELECT
+         (
+           SELECT COUNT(*)::int
+           FROM "asistenteEvento" ae
+           INNER JOIN "boleto" b ON ae."idBoleto" = b."idBoleto"
+           WHERE ae."idSubEvento" = $1
+             AND b."idEstadoBoleto" IN ($2, $3)
+         ) +
+         (
+           SELECT COUNT(*)::int
+           FROM "retencionAsiento" ra
+           WHERE ra."idSubEvento" = $1
+             AND ra."venceEn" > NOW()
+         ) AS total`,
+      [idSubEvento, EstadoBoleto.VALIDO, EstadoBoleto.UTILIZADO],
+    );
+    return Number(ocupadosRaw[0]?.total ?? 0);
+  }
+
+  async obtenerDetalleSubEventoPrivadoPorToken(
+    tokenSubEventoRaw: string,
+    usuarioActual?: {
+      sub?: number;
+      tipoCuenta?: TipoCuentaUsuario;
+    },
+  ): Promise<DetalleSubEventoPrivadoResponse> {
+    const tokenSubEvento = tokenSubEventoRaw?.trim();
+    if (!tokenSubEvento) {
+      throw new NotFoundException(
+        'La invitación o actividad solicitada no existe o no se encuentra disponible.',
+      );
+    }
+
+    const subEvento = await this.subEventoRepository.findOne({
+      where: { tokenInvitacion: tokenSubEvento },
+      relations: { evento: true, fecha: true, recinto: true },
+    });
+
+    if (
+      !subEvento ||
+      subEvento.estado === EstadoSubEvento.CANCELADO ||
+      !subEvento.evento ||
+      subEvento.evento.idEstadoEvento !== EstadoEvento.ACEPTADO ||
+      subEvento.evento.idAlcance !== AlcanceEvento.PRIVADO
+    ) {
+      throw new NotFoundException(
+        'La invitación o actividad solicitada no existe o no se encuentra disponible.',
+      );
+    }
+
+    const evento = subEvento.evento;
+    const tieneSesion = Boolean(usuarioActual && usuarioActual.sub);
+    let yaInvitado = false;
+    let esLogistica = false;
+    const esOrganizador =
+      tieneSesion && evento.idOrganizador === usuarioActual?.sub;
+    const esDirectivo =
+      tieneSesion &&
+      (usuarioActual?.tipoCuenta === TipoCuentaUsuario.SUBDIRECCION ||
+        usuarioActual?.tipoCuenta === TipoCuentaUsuario.ADMINISTRADOR);
+
+    if (tieneSesion) {
+      const [invRaw, logRaw] = await Promise.all([
+        this.dataSource.query(
+          `SELECT 1 FROM "invitacionEvento" WHERE "idSubEvento" = $1 AND "idUsuario" = $2 LIMIT 1`,
+          [subEvento.idSubEvento, usuarioActual!.sub],
+        ),
+        this.dataSource.query(
+          `SELECT 1 FROM "eventoPersonalLogistica" WHERE "idEvento" = $1 AND "idUsuario" = $2 LIMIT 1`,
+          [evento.idEvento, usuarioActual!.sub],
+        ),
+      ]);
+      yaInvitado = invRaw.length > 0;
+      esLogistica = logRaw.length > 0;
+    }
+
+    const tieneAccesoAutorizado =
+      esOrganizador || esDirectivo || esLogistica || yaInvitado;
+
+    if (!subEvento.enlaceInvitacionActivo && !tieneAccesoAutorizado) {
+      throw new ForbiddenException(
+        'Este enlace de invitación no está habilitado. Solo los usuarios invitados por correo pueden acceder.',
+      );
+    }
+
+    const ponentes = await this.ponenteRepository.find({
+      where: { idSubEvento: subEvento.idSubEvento },
+    });
+
+    const esAccesoLibre =
+      subEvento.idModalidadAcceso === ModalidadAcceso.ACCESO_LIBRE;
+    const aforo = subEvento.recinto?.aforo ?? 0;
+    const ocupados = esAccesoLibre
+      ? 0
+      : await this.obtenerOcupadosRealesSubEvento(subEvento.idSubEvento);
+    const cupoDisponible = esAccesoLibre
+      ? aforo
+      : Math.max(0, aforo - ocupados);
+
+    return {
+      idEvento: evento.idEvento,
+      nombreEvento: evento.nombre,
+      descripcionEvento: evento.descripcion,
+      posterUrl: this.storageService.resolvePublicUrl(evento.poster),
+      idAlcance: evento.idAlcance ?? AlcanceEvento.PRIVADO,
+      idSubEvento: subEvento.idSubEvento,
+      nombreSubEvento: subEvento.nombre,
+      descripcionSubEvento: subEvento.descripcion,
+      idModalidadAcceso: subEvento.idModalidadAcceso,
+      esAccesoLibre,
+      requiereCuenta: !esAccesoLibre,
+      enlaceInvitacionActivo: subEvento.enlaceInvitacionActivo,
+      usuarioAutenticado: tieneSesion,
+      yaAutorizado: tieneAccesoAutorizado,
+      cupoDisponible,
+      sinCupo: !esAccesoLibre && aforo > 0 && cupoDisponible <= 0,
+      fecha: subEvento.fecha
+        ? {
+            idFecha: subEvento.fecha.idFecha,
+            fecha: subEvento.fecha.fecha,
+            horaInicio: subEvento.fecha.horaInicio,
+            horaFin: subEvento.fecha.horaFin,
+          }
+        : null,
+      recinto: subEvento.recinto
+        ? {
+            idRecinto: subEvento.recinto.idRecinto,
+            nombre: subEvento.recinto.nombre,
+            aforo: subEvento.recinto.aforo,
+          }
+        : null,
+      ponentes: ponentes.map((p) => ({
+        idPonente: p.idPonente,
+        nombre: p.nombre,
+        apellidoPa: p.apellidoPa,
+        apellidoMa: p.apellidoMa ?? null,
+      })),
+    };
+  }
+
+  async aceptarEnlaceSubEventoPrivado(
+    tokenSubEventoRaw: string,
+    idUsuario: number,
+  ) {
+    const tokenSubEvento = tokenSubEventoRaw?.trim();
+    if (!tokenSubEvento) {
+      throw new NotFoundException(
+        'La invitación o actividad solicitada no existe o no se encuentra disponible.',
+      );
+    }
+
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
+    try {
+      const subEvento = await queryRunner.manager.findOne(SubEventoEntity, {
+        where: { tokenInvitacion: tokenSubEvento },
+        lock: { mode: 'pessimistic_write' },
+      });
+
+      if (!subEvento || subEvento.estado === EstadoSubEvento.CANCELADO) {
+        throw new NotFoundException(
+          'La invitación o actividad solicitada no existe o no se encuentra disponible.',
+        );
+      }
+
+      const [evento, recinto] = await Promise.all([
+        queryRunner.manager.findOne(EventoEntity, {
+          where: { idEvento: subEvento.idEvento },
+        }),
+        queryRunner.manager.findOne(RecintoEntity, {
+          where: { idRecinto: subEvento.idRecinto },
+        }),
+      ]);
+
+      if (
+        !evento ||
+        evento.idEstadoEvento !== EstadoEvento.ACEPTADO ||
+        evento.idAlcance !== AlcanceEvento.PRIVADO
+      ) {
+        throw new NotFoundException(
+          'La invitación o actividad solicitada no existe o no se encuentra disponible.',
+        );
+      }
+
+      if (subEvento.idModalidadAcceso === ModalidadAcceso.ACCESO_LIBRE) {
+        await queryRunner.commitTransaction();
+        return {
+          autorizado: true,
+          yaAutorizado: true,
+          esAccesoLibre: true,
+          idEvento: evento.idEvento,
+          idSubEvento: subEvento.idSubEvento,
+          mensaje: 'Este subevento es de acceso libre y no requiere registro.',
+        };
+      }
+
+      const invitacionExistente = await queryRunner.manager.query(
+        `SELECT 1 FROM "invitacionEvento" WHERE "idSubEvento" = $1 AND "idUsuario" = $2 LIMIT 1`,
+        [subEvento.idSubEvento, idUsuario],
+      );
+
+      if (
+        invitacionExistente.length > 0 ||
+        evento.idOrganizador === idUsuario
+      ) {
+        await queryRunner.commitTransaction();
+        return {
+          autorizado: true,
+          yaAutorizado: true,
+          esAccesoLibre: false,
+          idEvento: evento.idEvento,
+          idSubEvento: subEvento.idSubEvento,
+          mensaje: 'Tu acceso ya se encuentra autorizado para esta actividad.',
+        };
+      }
+
+      if (!subEvento.enlaceInvitacionActivo) {
+        throw new ForbiddenException(
+          'Este enlace de invitación no está habilitado. Solo los usuarios invitados por correo pueden acceder.',
+        );
+      }
+
+      const aforo = Number(recinto?.aforo ?? 0);
+      if (aforo > 0) {
+        const ocupados = await this.obtenerOcupadosRealesSubEvento(
+          subEvento.idSubEvento,
+          queryRunner.manager,
+        );
+        if (ocupados >= aforo) {
+          throw new ConflictException(
+            'El evento ha alcanzado su capacidad máxima.',
+          );
+        }
+      }
+
+      await queryRunner.manager.query(
+        `INSERT INTO "invitacionEvento" ("idSubEvento", "idUsuario", "fechaUltimoEnvio")
+         VALUES ($1, $2, NOW())
+         ON CONFLICT ("idSubEvento", "idUsuario") DO NOTHING`,
+        [subEvento.idSubEvento, idUsuario],
+      );
+
+      await queryRunner.commitTransaction();
+
+      return {
+        autorizado: true,
+        yaAutorizado: false,
+        esAccesoLibre: false,
+        idEvento: evento.idEvento,
+        idSubEvento: subEvento.idSubEvento,
+        mensaje:
+          'Acceso autorizado con éxito. Ya puedes completar tu registro o reserva.',
+      };
+    } catch (error) {
+      await queryRunner.rollbackTransaction();
+      throw error;
+    } finally {
+      await queryRunner.release();
     }
   }
 }

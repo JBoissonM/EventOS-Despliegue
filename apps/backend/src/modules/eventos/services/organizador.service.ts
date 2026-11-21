@@ -1,3 +1,4 @@
+import { randomUUID } from 'crypto';
 import {
   BadRequestException,
   ConflictException,
@@ -1591,6 +1592,54 @@ export class OrganizadorService {
       idInvitacionEvento: idInvitacion,
       idSubEvento,
       boletosCancelados: boletosCanceladosCount,
+    };
+  }
+
+  async actualizarEnlaceInvitacion(
+    idEvento: number,
+    idSubEvento: number,
+    idUsuario: number,
+    activo: boolean,
+  ) {
+    const { subEvento } = await this.obtenerContextoSubeventoPrivado(
+      idEvento,
+      idSubEvento,
+      idUsuario,
+    );
+
+    subEvento.enlaceInvitacionActivo = activo;
+    if (!subEvento.tokenInvitacion) {
+      subEvento.tokenInvitacion = randomUUID();
+    }
+    const guardado = await this.subEventoRepository.save(subEvento);
+
+    return {
+      mensaje: 'Operación realizada con éxito.',
+      idSubEvento: guardado.idSubEvento,
+      tokenInvitacion: guardado.tokenInvitacion,
+      enlaceInvitacionActivo: guardado.enlaceInvitacionActivo,
+    };
+  }
+
+  async regenerarEnlaceInvitacion(
+    idEvento: number,
+    idSubEvento: number,
+    idUsuario: number,
+  ) {
+    const { subEvento } = await this.obtenerContextoSubeventoPrivado(
+      idEvento,
+      idSubEvento,
+      idUsuario,
+    );
+
+    subEvento.tokenInvitacion = randomUUID();
+    const guardado = await this.subEventoRepository.save(subEvento);
+
+    return {
+      mensaje: 'Enlace de invitación regenerado con éxito.',
+      idSubEvento: guardado.idSubEvento,
+      tokenInvitacion: guardado.tokenInvitacion,
+      enlaceInvitacionActivo: guardado.enlaceInvitacionActivo,
     };
   }
 

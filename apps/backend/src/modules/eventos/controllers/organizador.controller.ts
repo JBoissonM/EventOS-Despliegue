@@ -25,6 +25,7 @@ import { ModificarLogisticaDto } from '../dto/modificarLogistica.dto';
 import { ActualizarInfoGeneralDto } from '../dto/actualizarInfoGeneral.dto';
 import { AgregarInvitadoDto } from '../dto/invitadoPrivado.dto';
 import { AgregarInvitadosMasivoDto } from '../dto/agregarInvitadosMasivo.dto';
+import { ActualizarEnlaceInvitacionDto } from '../dto/actualizarEnlaceInvitacion.dto';
 import { CancelarSolicitudDto } from '../dto/cancelarSolicitud.dto';
 import { AgregarPersonalLogisticaDto } from '../dto/agregarPersonalLogistica.dto';
 import { posterOptions } from '../../../common/upload/upload.options';
@@ -186,6 +187,45 @@ export class OrganizadorController {
       dto,
       posterFile,
       rolActor,
+    );
+  }
+
+  @ApiOperation({
+    summary:
+      'Habilitar o deshabilitar el enlace compartible de invitación de un subevento privado',
+  })
+  @Patch(':idEvento/subeventos/:idSubEvento/enlace-invitacion')
+  @UsePipes(new ValidationPipe({ transform: true, whitelist: true }))
+  async actualizarEnlaceInvitacion(
+    @Param('idEvento', ParseIntPipe) idEvento: number,
+    @Param('idSubEvento', ParseIntPipe) idSubEvento: number,
+    @Body() dto: ActualizarEnlaceInvitacionDto,
+    @Req() req: any,
+  ) {
+    const idUsuario = this.obtenerIdUsuarioAutenticado(req);
+    return await this.organizadorService.actualizarEnlaceInvitacion(
+      idEvento,
+      idSubEvento,
+      idUsuario,
+      dto.activo,
+    );
+  }
+
+  @ApiOperation({
+    summary:
+      'Regenerar el token del enlace compartible de invitación de un subevento privado',
+  })
+  @Post(':idEvento/subeventos/:idSubEvento/enlace-invitacion/regenerar')
+  async regenerarEnlaceInvitacion(
+    @Param('idEvento', ParseIntPipe) idEvento: number,
+    @Param('idSubEvento', ParseIntPipe) idSubEvento: number,
+    @Req() req: any,
+  ) {
+    const idUsuario = this.obtenerIdUsuarioAutenticado(req);
+    return await this.organizadorService.regenerarEnlaceInvitacion(
+      idEvento,
+      idSubEvento,
+      idUsuario,
     );
   }
 
