@@ -130,6 +130,8 @@ CREATE TABLE "subEvento" (
   estado varchar(50) NOT NULL,
   nombre varchar(150) NOT NULL,
   descripcion varchar(500) NOT NULL,
+  "tokenInvitacion" varchar(64) NOT NULL UNIQUE,
+  "enlaceInvitacionActivo" boolean NOT NULL DEFAULT false,
   "idEvento" integer NOT NULL REFERENCES evento("idEvento"),
   "idRecinto" integer NOT NULL REFERENCES recinto("idRecinto"),
   "idFecha" integer NOT NULL REFERENCES fecha("idFecha")
@@ -183,10 +185,10 @@ CREATE TABLE "solicitudModificacion" (
 -- 22. Invitación Evento Privado
 CREATE TABLE "invitacionEvento" (
   "idInvitacionEvento" integer GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-  "idEvento" integer NOT NULL REFERENCES evento("idEvento") ON DELETE CASCADE,
+  "idSubEvento" integer NOT NULL REFERENCES "subEvento"("idSubEvento") ON DELETE CASCADE,
   "idUsuario" integer NOT NULL REFERENCES usuario("idUsuario"),
   "fechaUltimoEnvio" timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  UNIQUE ("idEvento", "idUsuario")
+  UNIQUE ("idSubEvento", "idUsuario")
 );
 
 -- 23. Retención Asiento (Temporal para modalidad QR con mapa de asientos)

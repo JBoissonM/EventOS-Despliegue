@@ -1,5 +1,6 @@
 import pg from 'pg';
 import bcrypt from 'bcrypt';
+import { randomUUID } from 'crypto';
 import { JwtService } from '@nestjs/jwt';
 import {
   AlcanceEvento,
@@ -1099,22 +1100,6 @@ export async function runSeed() {
         }
       }
 
-      // Registrar invitados para eventos privados
-      if (ev.invitados && ev.invitados.length > 0) {
-        for (const correoInvitado of ev.invitados) {
-          const idInvitado = idsUsuarios[correoInvitado];
-          if (idInvitado) {
-            await client.query(
-              `INSERT INTO "invitacionEvento" ("idEvento", "idUsuario")
-               VALUES ($1, $2)
-               ON CONFLICT ("idEvento", "idUsuario") DO NOTHING;`,
-              [idEvento, idInvitado],
-            );
-            console.log(`      -> Invitado privado: ${correoInvitado}`);
-          }
-        }
-      }
-
       const subeventosCreados: {
         idSubEvento: number;
         nombre: string;
@@ -1136,14 +1121,16 @@ export async function runSeed() {
         const idFecha = resFecha.rows[0].idFecha;
 
         const resSub = await client.query(
-          `INSERT INTO "subEvento" ("idModalidadAcceso", estado, nombre, descripcion, "idEvento", "idRecinto", "idFecha")
-           VALUES ($1, $2, $3, $4, $5, $6, $7)
+          `INSERT INTO "subEvento" ("idModalidadAcceso", estado, nombre, descripcion, "tokenInvitacion", "enlaceInvitacionActivo", "idEvento", "idRecinto", "idFecha")
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
            RETURNING "idSubEvento";`,
           [
             sub.idModalidadAcceso,
             sub.estado,
             sub.nombre,
             sub.descripcion,
+            randomUUID(),
+            false,
             idEvento,
             sub.idRecinto,
             idFecha,
@@ -1164,6 +1151,21 @@ export async function runSeed() {
           horaInicio: sub.horaInicio,
           horaFin: sub.horaFin,
         });
+
+        if (ev.invitados && ev.invitados.length > 0 && sub.estado !== EstadoSubEvento.CANCELADO) {
+          for (const correoInvitado of ev.invitados) {
+            const idInvitado = idsUsuarios[correoInvitado];
+            if (idInvitado) {
+              await client.query(
+                `INSERT INTO "invitacionEvento" ("idSubEvento", "idUsuario")
+                 VALUES ($1, $2)
+                 ON CONFLICT ("idSubEvento", "idUsuario") DO NOTHING;`,
+                [idSubEvento, idInvitado],
+              );
+              console.log(`      -> Invitado privado en subevento ${idSubEvento}: ${correoInvitado}`);
+            }
+          }
+        }
 
         // Registrar ponentes si están definidos
         if (sub.ponentes && sub.ponentes.length > 0) {
