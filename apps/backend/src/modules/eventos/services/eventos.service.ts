@@ -88,8 +88,12 @@ export class EventosService {
     let eventosPrivadosInvitados = new Set<number>();
     if (tieneSesion) {
       const invitadosRaw = await this.dataSource.query(
-        `SELECT "idEvento" FROM "invitacionEvento" WHERE "idUsuario" = $1`,
-        [usuarioActual!.sub],
+        `SELECT DISTINCT se."idEvento"
+         FROM "invitacionEvento" ie
+         INNER JOIN "subEvento" se ON ie."idSubEvento" = se."idSubEvento"
+         WHERE ie."idUsuario" = $1
+           AND se.estado <> $2`,
+        [usuarioActual!.sub, EstadoSubEvento.CANCELADO],
       );
       eventosPrivadosInvitados = new Set(
         invitadosRaw.map((r: any) => Number(r.idEvento)),
@@ -205,6 +209,8 @@ export class EventosService {
           sub.idModalidadAcceso === ModalidadAcceso.ACCESO_LIBRE,
       );
 
+    let subEventosVisibles = subEventos;
+
     if (evento.idAlcance === AlcanceEvento.PRIVADO) {
       if (!tieneSesion) {
         throw new ForbiddenException(
@@ -217,10 +223,18 @@ export class EventosService {
         usuarioActual?.tipoCuenta === TipoCuentaUsuario.ADMINISTRADOR;
 
       const invitadoRaw = await this.dataSource.query(
-        `SELECT 1 FROM "invitacionEvento" WHERE "idEvento" = $1 AND "idUsuario" = $2 LIMIT 1`,
-        [evento.idEvento, usuarioActual!.sub],
+        `SELECT ie."idSubEvento"
+         FROM "invitacionEvento" ie
+         INNER JOIN "subEvento" se ON ie."idSubEvento" = se."idSubEvento"
+         WHERE se."idEvento" = $1
+           AND ie."idUsuario" = $2
+           AND se.estado <> $3`,
+        [evento.idEvento, usuarioActual!.sub, EstadoSubEvento.CANCELADO],
       );
-      const estaInvitado = invitadoRaw.length > 0;
+      const subEventosInvitados = new Set<number>(
+        invitadoRaw.map((r: any) => Number(r.idSubEvento)),
+      );
+      const estaInvitado = subEventosInvitados.size > 0;
 
       const logisticaRaw = await this.dataSource.query(
         `SELECT 1 FROM "eventoPersonalLogistica" WHERE "idEvento" = $1 AND "idUsuario" = $2 LIMIT 1`,
@@ -231,6 +245,12 @@ export class EventosService {
       if (!esOrganizador && !esDirectivo && !estaInvitado && !esLogistica) {
         throw new ForbiddenException(
           'No tienes permiso para consultar este evento. Si recibiste una invitación en otra cuenta, inicia sesión con ella.',
+        );
+      }
+
+      if (!esOrganizador && !esDirectivo && !esLogistica) {
+        subEventosVisibles = subEventos.filter((sub) =>
+          subEventosInvitados.has(sub.idSubEvento),
         );
       }
     }
@@ -270,7 +290,7 @@ export class EventosService {
     const fechaRepository = this.dataSource.getRepository(FechaEntity);
     const recintoRepository = this.dataSource.getRepository('recinto');
 
-    for (const sub of subEventos) {
+    for (const sub of subEventosVisibles) {
       const [fecha, recinto, ponentes, totalAsientosRecinto] =
         await Promise.all([
           fechaRepository.findOne({ where: { idFecha: sub.idFecha } }),

@@ -11,9 +11,10 @@ import { EventosService } from './eventos.service';
 
 function crearEventosServiceTest(params: {
   idAlcance: AlcanceEvento;
-  estaInvitado?: boolean;
+  subEventosInvitadosIds?: number[];
   esLogistica?: boolean;
   tieneBoletoPrevio?: boolean;
+  subEventosCustom?: Array<Record<string, any>>;
 }) {
   const eventoMock = {
     idEvento: 20,
@@ -25,7 +26,7 @@ function crearEventosServiceTest(params: {
     poster: 'poster.jpg',
   };
 
-  const subEventosMock = [
+  const subEventosMock = params.subEventosCustom ?? [
     {
       idSubEvento: 201,
       idEvento: 20,
@@ -41,7 +42,9 @@ function crearEventosServiceTest(params: {
   const dataSourceMock = {
     query: async (sql: string) => {
       if (sql.includes('FROM "invitacionEvento"')) {
-        return params.estaInvitado ? [{ '?column?': 1 }] : [];
+        return (params.subEventosInvitadosIds ?? []).map((idSubEvento) => ({
+          idSubEvento,
+        }));
       }
       if (sql.includes('FROM "eventoPersonalLogistica"')) {
         return params.esLogistica ? [{ '?column?': 1 }] : [];
@@ -88,7 +91,7 @@ describe('EventosService - Acceso a Eventos Privados e Internos con boleto previ
   it('lanza ForbiddenException (403) cuando un usuario autenticado sin invitación consulta evento privado', async () => {
     const service = crearEventosServiceTest({
       idAlcance: AlcanceEvento.PRIVADO,
-      estaInvitado: false,
+      subEventosInvitadosIds: [],
       esLogistica: false,
     });
 
@@ -100,10 +103,32 @@ describe('EventosService - Acceso a Eventos Privados e Internos con boleto previ
     ).rejects.toThrow(ForbiddenException);
   });
 
-  it('permite acceso al evento privado cuando el usuario está invitado', async () => {
+  it('permite acceso al evento privado cuando el usuario está invitado y filtra solo sus subeventos invitados', async () => {
     const service = crearEventosServiceTest({
       idAlcance: AlcanceEvento.PRIVADO,
-      estaInvitado: true,
+      subEventosInvitadosIds: [202],
+      subEventosCustom: [
+        {
+          idSubEvento: 201,
+          idEvento: 20,
+          nombre: 'Actividad Privada A',
+          descripcion: 'Desc A',
+          estado: EstadoSubEvento.ACEPTADO,
+          idModalidadAcceso: ModalidadAcceso.QR_GENERAL,
+          idFecha: 1,
+          idRecinto: 1,
+        },
+        {
+          idSubEvento: 202,
+          idEvento: 20,
+          nombre: 'Actividad Privada B',
+          descripcion: 'Desc B',
+          estado: EstadoSubEvento.ACEPTADO,
+          idModalidadAcceso: ModalidadAcceso.QR_GENERAL,
+          idFecha: 1,
+          idRecinto: 1,
+        },
+      ],
     });
 
     const detalle = await service.obtenerDetalleEventoPublico(20, {
@@ -112,6 +137,8 @@ describe('EventosService - Acceso a Eventos Privados e Internos con boleto previ
     });
 
     expect(detalle.idEvento).toBe(20);
+    expect(detalle.subEventos).toHaveLength(1);
+    expect(detalle.subEventos[0].idSubEvento).toBe(202);
   });
 
   it('bloquea a un usuario externo en evento INTERNO si no tiene boleto previo', async () => {

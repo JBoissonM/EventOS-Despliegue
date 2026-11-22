@@ -46,6 +46,7 @@ export class AuthService {
     token: string;
     correo: string;
     idEvento: number;
+    idSubEvento?: number;
     nombreEvento: string;
     descripcionEvento: string;
     tipo: TipoInvitacionCorreo;
@@ -95,6 +96,7 @@ export class AuthService {
       token,
       correo,
       idEvento,
+      idSubEvento: payload.idSubEvento ? Number(payload.idSubEvento) : undefined,
       nombreEvento: String(evento[0].nombre),
       descripcionEvento: String(evento[0].descripcion ?? ''),
       tipo: payload.tipo as TipoInvitacionCorreo,
@@ -117,8 +119,54 @@ export class AuthService {
       valido: true,
       correo: invitacion.correo,
       idEvento: invitacion.idEvento,
+      idSubEvento: invitacion.idSubEvento,
       nombreEvento: invitacion.nombreEvento,
       tipo: invitacion.tipo,
+    };
+  }
+
+  private async resolverSubEventoInvitacion(
+    idEvento: number,
+    idSubEvento?: number,
+  ): Promise<{
+    idSubEvento: number;
+    nombre: string;
+    aforo: number;
+    fecha?: string;
+    horaInicio?: string;
+    horaFin?: string;
+    nombreRecinto?: string;
+  } | null> {
+    const filtro = idSubEvento
+      ? `s."idSubEvento" = $1 AND s."idEvento" = $2`
+      : `s."idEvento" = $1`;
+    const params = idSubEvento ? [idSubEvento, idEvento] : [idEvento];
+
+    const rows = await this.dataSource.query(
+      `SELECT s."idSubEvento", s.nombre, COALESCE(r.aforo, 0)::int AS aforo,
+              r.nombre AS "nombreRecinto", f.fecha::text AS fecha,
+              f."horaInicio"::text AS "horaInicio", f."horaFin"::text AS "horaFin"
+       FROM "subEvento" s
+       INNER JOIN recinto r ON r."idRecinto" = s."idRecinto"
+       LEFT JOIN fecha f ON f."idFecha" = s."idFecha"
+       WHERE ${filtro}
+         AND s.estado <> 'Cancelado'
+       ORDER BY s."idSubEvento" ASC
+       LIMIT 1`,
+      params,
+    );
+
+    if (!rows.length) return null;
+    return {
+      idSubEvento: Number(rows[0].idSubEvento),
+      nombre: String(rows[0].nombre ?? ''),
+      aforo: Number(rows[0].aforo ?? 0),
+      fecha: rows[0].fecha ? String(rows[0].fecha).slice(0, 10) : undefined,
+      horaInicio: rows[0].horaInicio ? String(rows[0].horaInicio) : undefined,
+      horaFin: rows[0].horaFin ? String(rows[0].horaFin) : undefined,
+      nombreRecinto: rows[0].nombreRecinto
+        ? String(rows[0].nombreRecinto)
+        : undefined,
     };
   }
 
@@ -126,6 +174,7 @@ export class AuthService {
     idEvento: number,
     tipo: TipoInvitacionCorreo,
     estricto: boolean,
+    idSubEvento?: number,
   ): Promise<boolean> {
     if (tipo === 'INVITACION_LOGISTICA') {
       const conteo = await this.dataSource.query(
@@ -143,22 +192,20 @@ export class AuthService {
       return true;
     }
 
-    const recintoRaw = await this.dataSource.query(
-      `SELECT COALESCE(r.aforo, 0)::int AS aforo
-       FROM "subEvento" s
-       INNER JOIN recinto r ON r."idRecinto" = s."idRecinto"
-       WHERE s."idEvento" = $1
-       ORDER BY s."idSubEvento" ASC
-       LIMIT 1`,
-      [idEvento],
-    );
-    const cupoMaximo = recintoRaw[0]?.aforo ?? 0;
-    if (cupoMaximo > 0) {
+    const sub = await this.resolverSubEventoInvitacion(idEvento, idSubEvento);
+    if (!sub) {
+      if (estricto) {
+        throw new ConflictException('Subevento no encontrado o cancelado.');
+      }
+      return false;
+    }
+
+    if (sub.aforo > 0) {
       const conteoInvitados = await this.dataSource.query(
-        `SELECT COUNT(*)::int AS total FROM "invitacionEvento" WHERE "idEvento" = $1`,
-        [idEvento],
+        `SELECT COUNT(*)::int AS total FROM "invitacionEvento" WHERE "idSubEvento" = $1`,
+        [sub.idSubEvento],
       );
-      if ((conteoInvitados[0]?.total ?? 0) >= cupoMaximo) {
+      if ((conteoInvitados[0]?.total ?? 0) >= sub.aforo) {
         if (estricto) {
           throw new ConflictException(
             'La cantidad solicitada excede el límite disponible.',
@@ -175,6 +222,7 @@ export class AuthService {
     idEvento: number,
     tipo: TipoInvitacionCorreo,
     estricto: boolean,
+    idSubEvento?: number,
   ): Promise<void> {
     const eventoRaw = await this.dataSource.query(
       `SELECT e."idEvento", e.nombre, e.descripcion, e."idEstadoEvento",
@@ -242,9 +290,17 @@ export class AuthService {
       return;
     }
 
+    const sub = await this.resolverSubEventoInvitacion(idEvento, idSubEvento);
+    if (!sub) {
+      if (estricto) {
+        throw new ConflictException('Subevento no encontrado o cancelado.');
+      }
+      return;
+    }
+
     const yaInvitado = await this.dataSource.query(
-      `SELECT 1 FROM "invitacionEvento" WHERE "idEvento" = $1 AND "idUsuario" = $2 LIMIT 1`,
-      [idEvento, usuario.idUsuario],
+      `SELECT 1 FROM "invitacionEvento" WHERE "idSubEvento" = $1 AND "idUsuario" = $2 LIMIT 1`,
+      [sub.idSubEvento, usuario.idUsuario],
     );
     if (yaInvitado.length > 0) return;
 
@@ -252,12 +308,13 @@ export class AuthService {
       idEvento,
       tipo,
       estricto,
+      sub.idSubEvento,
     );
     if (!tieneCupo) return;
 
     await this.dataSource.query(
-      `INSERT INTO "invitacionEvento" ("idEvento", "idUsuario", "fechaUltimoEnvio") VALUES ($1, $2, NOW())`,
-      [idEvento, usuario.idUsuario],
+      `INSERT INTO "invitacionEvento" ("idSubEvento", "idUsuario", "fechaUltimoEnvio") VALUES ($1, $2, NOW())`,
+      [sub.idSubEvento, usuario.idUsuario],
     );
 
     const frontendUrl = (
@@ -270,7 +327,12 @@ export class AuthService {
         nombreEvento: evento.nombre,
         descripcionEvento: evento.descripcion ?? '',
         organizador: `${evento.nombreOrg} ${evento.apellidoPaOrg}`.trim(),
-        enlaceEvento: `${frontendUrl}/eventos/${idEvento}`,
+        enlaceEvento: `${frontendUrl}/eventos/${idEvento}/actividades/${sub.idSubEvento}`,
+        nombreSubEvento: sub.nombre,
+        fecha: sub.fecha,
+        horaInicio: sub.horaInicio,
+        horaFin: sub.horaFin,
+        nombreRecinto: sub.nombreRecinto,
       });
     } catch {
       // Confirmación secundaria no bloquea la vinculación persistida
@@ -279,24 +341,29 @@ export class AuthService {
 
   private async aplicarInvitacionesPendientesUsuario(
     usuario: UsuarioEntity,
-    invitacionToken?: { idEvento: number; tipo: TipoInvitacionCorreo },
+    invitacionToken?: {
+      idEvento: number;
+      idSubEvento?: number;
+      tipo: TipoInvitacionCorreo;
+    },
   ): Promise<void> {
     const pendientes = consumirInvitacionesPendientes(usuario.correo);
     const procesadas = new Set<string>();
 
     if (invitacionToken) {
-      const clave = `${invitacionToken.tipo}:${invitacionToken.idEvento}`;
+      const clave = `${invitacionToken.tipo}:${invitacionToken.idEvento}:${invitacionToken.idSubEvento ?? ''}`;
       procesadas.add(clave);
       await this.vincularUsuarioAInvitacion(
         usuario,
         invitacionToken.idEvento,
         invitacionToken.tipo,
         true,
+        invitacionToken.idSubEvento,
       );
     }
 
     for (const pendiente of pendientes) {
-      const clave = `${pendiente.tipo}:${pendiente.idEvento}`;
+      const clave = `${pendiente.tipo}:${pendiente.idEvento}:${pendiente.idSubEvento ?? ''}`;
       if (procesadas.has(clave)) continue;
       procesadas.add(clave);
       await this.vincularUsuarioAInvitacion(
@@ -304,6 +371,7 @@ export class AuthService {
         pendiente.idEvento,
         pendiente.tipo,
         false,
+        pendiente.idSubEvento,
       );
     }
   }
@@ -405,6 +473,7 @@ export class AuthService {
         invitacion.idEvento,
         invitacion.tipo,
         true,
+        invitacion.idSubEvento,
       );
 
       const nuevoUsuario = this.usuarioRepository.create({
@@ -422,6 +491,7 @@ export class AuthService {
       const guardado = await this.usuarioRepository.save(nuevoUsuario);
       await this.aplicarInvitacionesPendientesUsuario(guardado, {
         idEvento: invitacion.idEvento,
+        idSubEvento: invitacion.idSubEvento,
         tipo: invitacion.tipo,
       });
       TOKEN_BLACKLIST.add(invitacion.token);

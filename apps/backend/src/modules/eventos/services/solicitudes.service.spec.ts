@@ -125,12 +125,14 @@ describe('SolicitudesService - Sincronización FIFO de invitados en eventos priv
       q.sql.includes('DELETE FROM "invitacionEvento" ie'),
     );
     expect(deleteExcedentes).toBeDefined();
+    expect(deleteExcedentes?.params?.[0]).toBe(100);
     expect(deleteExcedentes?.params?.[1]).toEqual([13]);
 
     const trimInvitaciones = queriesEjecutadas.find((q) =>
-      q.sql.includes('OFFSET $5'),
+      q.sql.includes('OFFSET $4'),
     );
     expect(trimInvitaciones).toBeDefined();
-    expect(trimInvitaciones?.params?.[4]).toBe(2);
+    expect(trimInvitaciones?.params?.[0]).toBe(100);
+    expect(trimInvitaciones?.params?.[3]).toBe(2);
   });
 });

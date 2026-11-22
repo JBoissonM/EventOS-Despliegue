@@ -237,8 +237,8 @@ export class ReservationsService {
 
         if (eventoPrincipal.idAlcance === AlcanceEvento.PRIVADO) {
             const invitacionRaw = await manager.query(
-                `SELECT 1 FROM "invitacionEvento" WHERE "idEvento" = $1 AND "idUsuario" = $2 LIMIT 1`,
-                [eventoPrincipal.idEvento, idUsuario],
+                `SELECT 1 FROM "invitacionEvento" WHERE "idSubEvento" = $1 AND "idUsuario" = $2 LIMIT 1`,
+                [subEvento.idSubEvento, idUsuario],
             );
             const esOrganizador = eventoPrincipal.idOrganizador === idUsuario;
             if (invitacionRaw.length === 0 && !esOrganizador) {

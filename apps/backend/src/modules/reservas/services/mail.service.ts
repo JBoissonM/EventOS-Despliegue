@@ -630,12 +630,31 @@ export class MailService {
     enlaceEvento: string;
     requiereRegistro?: boolean;
     enlaceRegistro?: string;
+    nombreSubEvento?: string;
+    fecha?: string;
+    horaInicio?: string;
+    horaFin?: string;
+    nombreRecinto?: string;
+    esAccesoLibre?: boolean;
   }): Promise<void> {
     const nombreUsuarioHtml = this.escaparHtml(datos.nombreUsuario);
     const organizadorHtml = this.escaparHtml(datos.organizador);
     const nombreEventoHtml = this.escaparHtml(datos.nombreEvento);
     const descripcionEventoHtml = this.escaparHtml(datos.descripcionEvento);
-    const requiereRegistro = Boolean(datos.requiereRegistro);
+    const nombreSubEventoHtml = datos.nombreSubEvento
+      ? this.escaparHtml(datos.nombreSubEvento)
+      : '';
+    const fechaHtml = datos.fecha ? this.escaparHtml(datos.fecha) : '';
+    const horarioHtml =
+      datos.horaInicio && datos.horaFin
+        ? `${this.escaparHtml(datos.horaInicio.slice(0, 5))} - ${this.escaparHtml(datos.horaFin.slice(0, 5))}`
+        : '';
+    const recintoHtml = datos.nombreRecinto
+      ? this.escaparHtml(datos.nombreRecinto)
+      : '';
+
+    const esAccesoLibre = Boolean(datos.esAccesoLibre);
+    const requiereRegistro = Boolean(datos.requiereRegistro) && !esAccesoLibre;
     const enlaceDestino =
       requiereRegistro && datos.enlaceRegistro
         ? datos.enlaceRegistro
@@ -643,15 +662,33 @@ export class MailService {
     const saludoHtml = nombreUsuarioHtml
       ? `Hola <strong>${nombreUsuarioHtml}</strong>,`
       : 'Hola,';
-    const instruccionHtml = requiereRegistro
-      ? 'Para visualizar este evento privado y tramitar tu boleto digital, completa tu registro en EventOS con este correo electrónico mediante el siguiente botón:'
-      : 'Al estar registrado en la lista de invitados, este evento ahora se encuentra disponible en tu cartelera para que puedas consultar sus actividades y reservar tu lugar.';
-    const textoBoton = requiereRegistro
-      ? 'Completar mi registro y acceder al evento'
-      : 'Ver detalles y reservar mi lugar';
-    const notaPieHtml = requiereRegistro
-      ? 'Este enlace de registro es de un solo uso y expirará en <strong>48 horas naturales</strong>. Si no reconoces esta invitación, puedes ignorar este mensaje con seguridad.'
-      : 'Inicia sesión con tu cuenta en EventOS para acceder a la cartelera y tramitar tu boleto digital.';
+    const instruccionHtml = esAccesoLibre
+      ? 'Esta actividad privada es de <strong>acceso libre</strong>, por lo que no requiere crear una cuenta ni reservar boleto previo. Puedes consultar la ficha informativa en el siguiente enlace:'
+      : requiereRegistro
+        ? 'Para visualizar esta actividad privada y tramitar tu boleto digital, completa tu registro en EventOS con este correo electrónico mediante el siguiente botón:'
+        : 'Al estar registrado en la lista de invitados, esta actividad ahora se encuentra disponible para ti en EventOS para que puedas consultar sus detalles y reservar tu lugar.';
+    const textoBoton = esAccesoLibre
+      ? 'Ver detalles de la actividad'
+      : requiereRegistro
+        ? 'Completar mi registro y acceder al evento'
+        : 'Ver detalles y reservar mi lugar';
+    const notaPieHtml = esAccesoLibre
+      ? 'Este correo es informativo con los datos de fecha, horario y recinto de la actividad.'
+      : requiereRegistro
+        ? 'Este enlace de registro es de un solo uso y expirará en <strong>48 horas naturales</strong>. Si no reconoces esta invitación, puedes ignorar este mensaje con seguridad.'
+        : 'Inicia sesión con tu cuenta en EventOS para acceder a la cartelera y tramitar tu boleto digital.';
+
+    const detallesSubeventoHtml =
+      nombreSubEventoHtml || fechaHtml || horarioHtml || recintoHtml
+        ? `
+          <div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid #e2e8f0; font-size: 13px; color: #334155;">
+            ${nombreSubEventoHtml ? `<p style="margin: 4px 0;"><strong>Actividad:</strong> ${nombreSubEventoHtml}</p>` : ''}
+            ${fechaHtml ? `<p style="margin: 4px 0;"><strong>Fecha:</strong> ${fechaHtml}</p>` : ''}
+            ${horarioHtml ? `<p style="margin: 4px 0;"><strong>Horario:</strong> ${horarioHtml}</p>` : ''}
+            ${recintoHtml ? `<p style="margin: 4px 0;"><strong>Recinto:</strong> ${recintoHtml}</p>` : ''}
+          </div>
+        `
+        : '';
 
     const html = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden;">
@@ -661,11 +698,12 @@ export class MailService {
         
         <div style="padding: 24px; color: #334155;">
           <p>${saludoHtml}</p>
-          <p>El organizador <strong>${organizadorHtml}</strong> te ha invitado a participar en el siguiente evento privado institucional:</p>
+          <p>El organizador <strong>${organizadorHtml}</strong> te ha invitado a participar en la siguiente actividad privada institucional:</p>
           
           <div style="margin: 20px 0; padding: 16px; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px;">
             <h3 style="margin: 0 0 8px 0; color: #6b1d2f; font-size: 18px;">${nombreEventoHtml}</h3>
             <p style="margin: 0; color: #475569; font-size: 14px;">${descripcionEventoHtml}</p>
+            ${detallesSubeventoHtml}
           </div>
 
           <p>${instruccionHtml}</p>

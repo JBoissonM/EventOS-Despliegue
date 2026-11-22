@@ -190,19 +190,21 @@ export class OrganizadorController {
 
   @ApiOperation({
     summary:
-      'Agregar un invitado con cuenta activa al padrón de un evento privado',
+      'Agregar un invitado al padrón de un subevento en un evento privado',
   })
   @Throttle({ default: { limit: 10, ttl: 60000 } })
-  @Post(':idEvento/invitados')
+  @Post(':idEvento/subeventos/:idSubEvento/invitados')
   @UsePipes(new ValidationPipe({ transform: true, whitelist: true }))
   async agregarInvitadoPrivado(
     @Param('idEvento', ParseIntPipe) idEvento: number,
+    @Param('idSubEvento', ParseIntPipe) idSubEvento: number,
     @Body() dto: AgregarInvitadoDto,
     @Req() req: any,
   ) {
     const idUsuario = this.obtenerIdUsuarioAutenticado(req);
     return await this.organizadorService.agregarInvitadoPrivado(
       idEvento,
+      idSubEvento,
       idUsuario,
       dto,
     );
@@ -210,35 +212,39 @@ export class OrganizadorController {
 
   @ApiOperation({
     summary:
-      'Reenviar invitación de evento privado respetando cooldown de 8 horas',
+      'Reenviar invitación de un subevento privado respetando cooldown de 8 horas',
   })
   @Throttle({ default: { limit: 5, ttl: 60000 } })
-  @Post(':idEvento/invitados/:idInvitacion/reenviar')
+  @Post(':idEvento/subeventos/:idSubEvento/invitados/:idInvitacion/reenviar')
   async reenviarInvitacionPrivada(
     @Param('idEvento', ParseIntPipe) idEvento: number,
+    @Param('idSubEvento', ParseIntPipe) idSubEvento: number,
     @Param('idInvitacion', ParseIntPipe) idInvitacion: number,
     @Req() req: any,
   ) {
     const idUsuario = this.obtenerIdUsuarioAutenticado(req);
     return await this.organizadorService.reenviarInvitacionPrivada(
       idEvento,
+      idSubEvento,
       idInvitacion,
       idUsuario,
     );
   }
 
   @ApiOperation({
-    summary: 'Revocar la invitación de un invitado en un evento privado',
+    summary: 'Revocar la invitación de un invitado en un subevento privado',
   })
-  @Delete(':idEvento/invitados/:idInvitacion')
+  @Delete(':idEvento/subeventos/:idSubEvento/invitados/:idInvitacion')
   async revocarInvitacionPrivada(
     @Param('idEvento', ParseIntPipe) idEvento: number,
+    @Param('idSubEvento', ParseIntPipe) idSubEvento: number,
     @Param('idInvitacion', ParseIntPipe) idInvitacion: number,
     @Req() req: any,
   ) {
     const idUsuario = this.obtenerIdUsuarioAutenticado(req);
     return await this.organizadorService.revocarInvitacionPrivada(
       idEvento,
+      idSubEvento,
       idInvitacion,
       idUsuario,
     );

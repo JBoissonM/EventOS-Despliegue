@@ -1,8 +1,17 @@
-import { describe, expect, it } from 'bun:test';
+import { describe, expect, it, mock } from 'bun:test';
+
+mock.module('dns/promises', () => ({
+  resolveMx: async (domain: string) =>
+    domain === 'invalido.invalid'
+      ? []
+      : [{ exchange: `mx.${domain}`, priority: 10 }],
+}));
 import {
   AlcanceEvento,
   EstadoBoleto,
   EstadoEvento,
+  EstadoSubEvento,
+  ModalidadAcceso,
   TipoCuentaUsuario,
 } from '@eventos/shared';
 import { OrganizadorService } from './organizador.service';
@@ -11,12 +20,16 @@ function crearOrganizadorServiceTest(overrides?: {
   evento?: Record<string, any>;
   usuario?: Record<string, any> | null;
   invitacion?: Record<string, any> | null;
+  invitacionPrevia?: Record<string, any> | null;
+  invitacionesCount?: number;
   boletosCancelados?: Array<{ idBoleto: number }>;
   subeventos?: Array<Record<string, any>>;
+  subeventoEncontrado?: Record<string, any> | null;
 }) {
   const queriesEjecutadas: Array<{ sql: string; params?: any[] }> = [];
   const correosEnviados: Array<{ tipo: string; payload: any }> = [];
   const ponentesGuardados: any[] = [];
+  const invitacionesGuardadas: any[] = [];
   let transaccionConfirmada = false;
   let transaccionRevertida = false;
 
@@ -29,6 +42,24 @@ function crearOrganizadorServiceTest(overrides?: {
     idEstadoEvento: EstadoEvento.ACEPTADO,
     idOrganizador: 1,
     poster: 'poster.jpg',
+  };
+
+  const subeventoDefault = {
+    idSubEvento: 100,
+    idEvento: 10,
+    nombre: 'Sub 1',
+    descripcion: 'Desc',
+    estado: EstadoSubEvento.ACEPTADO,
+    idModalidadAcceso: ModalidadAcceso.QR_GENERAL,
+    tokenInvitacion: 'token-sub-100',
+    enlaceInvitacionActivo: false,
+    recinto: { idRecinto: 4, nombre: 'Sala 14', aforo: 40 },
+    fecha: {
+      idFecha: 1,
+      fecha: '2026-12-10',
+      horaInicio: '10:00:00',
+      horaFin: '12:00:00',
+    },
   };
 
   const managerMock = {
@@ -87,12 +118,25 @@ function crearOrganizadorServiceTest(overrides?: {
   };
 
   const subEventoRepositoryMock = {
-    find: async () =>
-      overrides?.subeventos ?? [
-        { idSubEvento: 100, idEvento: 10, nombre: 'Sub 1', descripcion: 'Desc' },
-      ],
-    findOne: async () => null,
+    find: async () => overrides?.subeventos ?? [subeventoDefault],
+    findOne: async () =>
+      overrides?.subeventoEncontrado !== undefined
+        ? overrides.subeventoEncontrado
+        : subeventoDefault,
     save: async (s: any) => s,
+  };
+
+  const invitacionRepositoryMock = {
+    find: async () => [],
+    findOne: async () => overrides?.invitacionPrevia ?? null,
+    count: async () => overrides?.invitacionesCount ?? 0,
+    create: (data: any) => data,
+    save: async (data: any) => {
+      const saved = { idInvitacionEvento: 501, ...data };
+      invitacionesGuardadas.push(saved);
+      return saved;
+    },
+    delete: async () => {},
   };
 
   const usuarioRepositoryMock = {
@@ -110,6 +154,9 @@ function crearOrganizadorServiceTest(overrides?: {
     enviarNotificacionBoletoCanceladoPorRevocacion: async (payload: any) => {
       correosEnviados.push({ tipo: 'cancelacion_revocacion', payload });
     },
+    enviarInvitacionEventoPrivado: async (payload: any) => {
+      correosEnviados.push({ tipo: 'invitacion_privado', payload });
+    },
   };
 
   const service = new OrganizadorService(
@@ -117,7 +164,7 @@ function crearOrganizadorServiceTest(overrides?: {
     ponenteRepositoryMock as any,
     subEventoRepositoryMock as any,
     { findOne: async () => null } as any,
-    { findOne: async () => null, delete: async () => {} } as any,
+    invitacionRepositoryMock as any,
     usuarioRepositoryMock as any,
     {} as any,
     { resolvePublicUrl: (k: string) => k } as any,
@@ -131,6 +178,7 @@ function crearOrganizadorServiceTest(overrides?: {
     queriesEjecutadas,
     correosEnviados,
     ponentesGuardados,
+    invitacionesGuardadas,
     getTransaccionEstado: () => ({
       transaccionConfirmada,
       transaccionRevertida,
@@ -203,7 +251,7 @@ describe('OrganizadorService - Flujos diferidos, revocación y alcances', () => 
       crearOrganizadorServiceTest({
         invitacion: {
           idInvitacionEvento: 77,
-          idEvento: 10,
+          idSubEvento: 100,
           idUsuario: 55,
           usuario: {
             idUsuario: 55,
@@ -215,9 +263,10 @@ describe('OrganizadorService - Flujos diferidos, revocación y alcances', () => 
         boletosCancelados: [{ idBoleto: 901 }],
       });
 
-    const res = await service.revocarInvitacionPrivada(10, 77, 1);
+    const res = await service.revocarInvitacionPrivada(10, 100, 77, 1);
 
     expect(res.boletosCancelados).toBe(1);
+    expect(res.idSubEvento).toBe(100);
     expect(getTransaccionEstado().transaccionConfirmada).toBe(true);
     const updateBoleto = queriesEjecutadas.find((q) =>
       q.sql.includes('UPDATE "boleto"'),
@@ -240,7 +289,7 @@ describe('OrganizadorService - Flujos diferidos, revocación y alcances', () => 
       crearOrganizadorServiceTest({
         invitacion: {
           idInvitacionEvento: 78,
-          idEvento: 10,
+          idSubEvento: 100,
           idUsuario: 56,
           usuario: {
             idUsuario: 56,
@@ -252,11 +301,89 @@ describe('OrganizadorService - Flujos diferidos, revocación y alcances', () => 
         boletosCancelados: [],
       });
 
-    const res = await service.revocarInvitacionPrivada(10, 78, 1);
+    const res = await service.revocarInvitacionPrivada(10, 100, 78, 1);
 
     expect(res.boletosCancelados).toBe(0);
     expect(getTransaccionEstado().transaccionConfirmada).toBe(true);
     expect(correosEnviados).toHaveLength(0);
+  });
+
+  it('agregarInvitadoPrivado registra invitación ligada al idSubEvento y envía datos reales de fecha y recinto', async () => {
+    const { service, correosEnviados, invitacionesGuardadas } =
+      crearOrganizadorServiceTest({
+        evento: {
+          idEvento: 10,
+          nombre: 'Evento Privado',
+          descripcion: 'Desc privada',
+          idAlcance: AlcanceEvento.PRIVADO,
+          idEstadoEvento: EstadoEvento.ACEPTADO,
+          idOrganizador: 1,
+          poster: 'p.jpg',
+        },
+        usuario: {
+          idUsuario: 88,
+          nombre: 'Ana',
+          apellidoPa: 'Torres',
+          correo: 'ana@ipn.mx',
+          estatus: true,
+        },
+      });
+
+    const res = await service.agregarInvitadoPrivado(10, 100, 1, {
+      correo: 'ana@ipn.mx',
+    });
+
+    expect(invitacionesGuardadas).toHaveLength(1);
+    expect(invitacionesGuardadas[0].idSubEvento).toBe(100);
+    expect(res.invitado?.idSubEvento).toBe(100);
+    expect(correosEnviados).toHaveLength(1);
+    expect(correosEnviados[0].payload.nombreRecinto).toBe('Sala 14');
+    expect(correosEnviados[0].payload.fecha).toBe('2026-12-10');
+  });
+
+  it('agregarInvitadoPrivado en modalidad Acceso libre para correo sin cuenta envía correo informativo sin enlace de registro', async () => {
+    const { service, correosEnviados } = crearOrganizadorServiceTest({
+      evento: {
+        idEvento: 10,
+        nombre: 'Evento Privado Libre',
+        descripcion: 'Desc',
+        idAlcance: AlcanceEvento.PRIVADO,
+        idEstadoEvento: EstadoEvento.ACEPTADO,
+        idOrganizador: 1,
+        poster: 'p.jpg',
+      },
+      usuario: null,
+      subeventoEncontrado: {
+        idSubEvento: 100,
+        idEvento: 10,
+        nombre: 'Plática Informativa',
+        descripcion: 'Desc',
+        estado: EstadoSubEvento.ACEPTADO,
+        idModalidadAcceso: ModalidadAcceso.ACCESO_LIBRE,
+        tokenInvitacion: 'token-libre-100',
+        enlaceInvitacionActivo: false,
+        recinto: { idRecinto: 4, nombre: 'Sala 14', aforo: 40 },
+        fecha: {
+          idFecha: 1,
+          fecha: '2026-12-10',
+          horaInicio: '10:00:00',
+          horaFin: '12:00:00',
+        },
+      },
+    });
+
+    const res = await service.agregarInvitadoPrivado(10, 100, 1, {
+      correo: 'externo@gmail.com',
+    });
+
+    expect(res.invitacionEnviada).toBe(true);
+    expect((res as any).esAccesoLibre).toBe(true);
+    expect(correosEnviados).toHaveLength(1);
+    expect(correosEnviados[0].payload.esAccesoLibre).toBe(true);
+    expect(correosEnviados[0].payload.requiereRegistro).toBe(false);
+    expect(correosEnviados[0].payload.enlaceEvento).toContain(
+      '/eventos/privado/token-libre-100',
+    );
   });
 
   it('actualizarInfoGeneral permite guardar múltiples ponentes distintos sin correo', async () => {
