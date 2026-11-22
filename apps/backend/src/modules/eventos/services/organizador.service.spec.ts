@@ -19,12 +19,15 @@ import { OrganizadorService } from './organizador.service';
 function crearOrganizadorServiceTest(overrides?: {
   evento?: Record<string, any>;
   usuario?: Record<string, any> | null;
+  usuariosPorCorreo?: Record<string, Record<string, any>>;
+  invitacionesPreviasPorUsuario?: number[];
   invitacion?: Record<string, any> | null;
   invitacionPrevia?: Record<string, any> | null;
   invitacionesCount?: number;
   boletosCancelados?: Array<{ idBoleto: number }>;
   subeventos?: Array<Record<string, any>>;
   subeventoEncontrado?: Record<string, any> | null;
+  fallarEnvioParaCorreos?: string[];
 }) {
   const queriesEjecutadas: Array<{ sql: string; params?: any[] }> = [];
   const correosEnviados: Array<{ tipo: string; payload: any }> = [];
@@ -128,11 +131,18 @@ function crearOrganizadorServiceTest(overrides?: {
 
   const invitacionRepositoryMock = {
     find: async () => [],
-    findOne: async () => overrides?.invitacionPrevia ?? null,
+    findOne: async (opts?: any) => {
+      if (overrides?.invitacionPrevia) return overrides.invitacionPrevia;
+      const idUsr = opts?.where?.idUsuario;
+      if (idUsr && overrides?.invitacionesPreviasPorUsuario?.includes(idUsr)) {
+        return { idInvitacionEvento: 999, idSubEvento: 100, idUsuario: idUsr };
+      }
+      return null;
+    },
     count: async () => overrides?.invitacionesCount ?? 0,
     create: (data: any) => data,
     save: async (data: any) => {
-      const saved = { idInvitacionEvento: 501, ...data };
+      const saved = { idInvitacionEvento: 501 + invitacionesGuardadas.length, ...data };
       invitacionesGuardadas.push(saved);
       return saved;
     },
@@ -141,7 +151,13 @@ function crearOrganizadorServiceTest(overrides?: {
 
   const usuarioRepositoryMock = {
     findOneBy: async () => overrides?.usuario ?? null,
-    findOne: async () => overrides?.usuario ?? null,
+    findOne: async (opts?: any) => {
+      const correo = opts?.where?.correo;
+      if (correo && overrides?.usuariosPorCorreo) {
+        return overrides.usuariosPorCorreo[correo] ?? null;
+      }
+      return overrides?.usuario ?? null;
+    },
   };
 
   const mailServiceMock = {
@@ -155,6 +171,9 @@ function crearOrganizadorServiceTest(overrides?: {
       correosEnviados.push({ tipo: 'cancelacion_revocacion', payload });
     },
     enviarInvitacionEventoPrivado: async (payload: any) => {
+      if (overrides?.fallarEnvioParaCorreos?.includes(payload.destinatario)) {
+        throw new Error('SMTP error simulado');
+      }
       correosEnviados.push({ tipo: 'invitacion_privado', payload });
     },
   };
@@ -453,5 +472,95 @@ describe('OrganizadorService - Flujos diferidos, revocación y alcances', () => 
         q.sql.includes('DELETE FROM "invitacionEvento"'),
       ),
     ).toBe(true);
+  });
+
+  it('agregarInvitadosMasivo procesa lote mixto, respeta aforo del subevento y reporta fallidos exactos', async () => {
+    const { service, invitacionesGuardadas, correosEnviados } =
+      crearOrganizadorServiceTest({
+        evento: {
+          idEvento: 10,
+          nombre: 'Evento Masivo',
+          descripcion: 'Desc',
+          idAlcance: AlcanceEvento.PRIVADO,
+          idEstadoEvento: EstadoEvento.ACEPTADO,
+          idOrganizador: 1,
+          poster: 'p.jpg',
+        },
+        subeventoEncontrado: {
+          idSubEvento: 100,
+          idEvento: 10,
+          nombre: 'Taller Privado',
+          descripcion: 'Desc',
+          estado: EstadoSubEvento.ACEPTADO,
+          idModalidadAcceso: ModalidadAcceso.QR_GENERAL,
+          tokenInvitacion: 'token-100',
+          enlaceInvitacionActivo: false,
+          recinto: { idRecinto: 4, nombre: 'Sala 14', aforo: 3 },
+          fecha: {
+            idFecha: 1,
+            fecha: '2026-12-10',
+            horaInicio: '10:00:00',
+            horaFin: '12:00:00',
+          },
+        },
+        invitacionesCount: 1,
+        invitacionesPreviasPorUsuario: [20],
+        usuariosPorCorreo: {
+          'registrado@ipn.mx': {
+            idUsuario: 21,
+            nombre: 'Luis',
+            apellidoPa: 'Mora',
+            correo: 'registrado@ipn.mx',
+            estatus: true,
+          },
+          'yainvitado@ipn.mx': {
+            idUsuario: 20,
+            nombre: 'Previo',
+            apellidoPa: 'User',
+            correo: 'yainvitado@ipn.mx',
+            estatus: true,
+          },
+          'fallasmtp@ipn.mx': {
+            idUsuario: 22,
+            nombre: 'Falla',
+            apellidoPa: 'SMTP',
+            correo: 'fallasmtp@ipn.mx',
+            estatus: true,
+          },
+        },
+        fallarEnvioParaCorreos: ['fallasmtp@ipn.mx'],
+      });
+
+    const res = await service.agregarInvitadosMasivo(
+      10,
+      100,
+      1,
+      {
+        correos: [
+          'correo-invalido',
+          'yainvitado@ipn.mx',
+          'fallasmtp@ipn.mx',
+          'registrado@ipn.mx',
+          'nuevo@gmail.com',
+          'excedente@gmail.com',
+        ],
+      },
+      0,
+    );
+
+    expect(res.totalProcesados).toBe(6);
+    expect(res.exitosos.map((e) => e.correo)).toEqual(['registrado@ipn.mx']);
+    expect(res.pendientesRegistro).toEqual(['nuevo@gmail.com']);
+    expect(res.omitidos.map((o) => o.correo)).toEqual([
+      'yainvitado@ipn.mx',
+      'excedente@gmail.com',
+    ]);
+    expect(res.fallidos.map((f) => f.correo)).toEqual([
+      'correo-invalido',
+      'fallasmtp@ipn.mx',
+    ]);
+    expect(res.cupoRestante).toBe(0);
+    expect(invitacionesGuardadas).toHaveLength(1);
+    expect(correosEnviados).toHaveLength(2);
   });
 });

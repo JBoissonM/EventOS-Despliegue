@@ -20,10 +20,13 @@ import {
   TipoCuentaUsuario,
   type EventoOrganizadorDetalle,
   type EventoOrganizadorDetalleSubevento,
+  type FalloEnvioInvitacionItem,
   type ImpactoCambioSubevento,
   type InvitadoEventoItem,
   type MisEventosItem,
+  type OmitidoInvitacionItem,
   type Ponente,
+  type ResultadoCargaMasivaInvitados,
   type SubEventoResumen,
 } from '@eventos/shared';
 import { EventoEntity } from '../entities/evento.entity';
@@ -36,10 +39,12 @@ import { SolicitudesService } from './solicitudes.service';
 import { ModificarLogisticaDto } from '../dto/modificarLogistica.dto';
 import { ActualizarInfoGeneralDto } from '../dto/actualizarInfoGeneral.dto';
 import { AgregarInvitadoDto } from '../dto/invitadoPrivado.dto';
+import { AgregarInvitadosMasivoDto } from '../dto/agregarInvitadosMasivo.dto';
 import { StorageService } from '../../../common/storage/storage.service';
 import { JwtService } from '@nestjs/jwt';
 import { MailService } from '../../reservas/services/mail.service';
 import {
+  EMAIL_REGEX,
   registrarInvitacionPendiente,
   verificarDominioCorreoValido,
 } from '../../../common/utils/correo.util';
@@ -1177,6 +1182,235 @@ export class OrganizadorService {
         puedeReenviar: false,
         horasRestantesCooldown: 8,
       },
+    };
+  }
+
+  private async esperarPausaEnvio(ms: number): Promise<void> {
+    if (ms <= 0) return;
+    await new Promise((resolve) => setTimeout(resolve, ms));
+  }
+
+  async agregarInvitadosMasivo(
+    idEvento: number,
+    idSubEvento: number,
+    idUsuario: number,
+    dto: AgregarInvitadosMasivoDto,
+    pausaEnvioMs = Number(process.env.INVITACION_MASIVA_DELAY_MS ?? 350),
+  ): Promise<ResultadoCargaMasivaInvitados> {
+    const { evento, subEvento, nombreOrganizador, frontendBaseUrl } =
+      await this.obtenerContextoSubeventoPrivado(
+        idEvento,
+        idSubEvento,
+        idUsuario,
+      );
+
+    const correosUnicos: string[] = [];
+    const vistos = new Set<string>();
+    for (const raw of dto.correos ?? []) {
+      const normalizado = typeof raw === 'string' ? raw.trim().toLowerCase() : '';
+      if (!normalizado || vistos.has(normalizado)) continue;
+      vistos.add(normalizado);
+      correosUnicos.push(normalizado);
+    }
+
+    const cupoMaximo = subEvento.recinto?.aforo ?? 0;
+    const totalInvitadosActual = await this.invitacionRepository.count({
+      where: { idSubEvento },
+    });
+    let cupoRestante =
+      cupoMaximo > 0 ? Math.max(0, cupoMaximo - totalInvitadosActual) : -1;
+
+    const esAccesoLibre =
+      subEvento.idModalidadAcceso === ModalidadAcceso.ACCESO_LIBRE;
+    const baseCorreo = this.construirDatosCorreoSubEvento(
+      evento,
+      subEvento,
+      nombreOrganizador,
+      frontendBaseUrl,
+    );
+
+    const exitosos: InvitadoEventoItem[] = [];
+    const pendientesRegistro: string[] = [];
+    const omitidos: OmitidoInvitacionItem[] = [];
+    const fallidos: FalloEnvioInvitacionItem[] = [];
+
+    for (let idx = 0; idx < correosUnicos.length; idx++) {
+      const correo = correosUnicos[idx];
+
+      if (!EMAIL_REGEX.test(correo) || correo.length > 254) {
+        fallidos.push({
+          correo,
+          motivo: 'Formato de correo electrónico inválido.',
+        });
+        continue;
+      }
+
+      const usuarioDestinatario = await this.usuarioRepository.findOne({
+        where: { correo },
+      });
+
+      if (usuarioDestinatario && !usuarioDestinatario.estatus) {
+        omitidos.push({
+          correo,
+          motivo: 'La cuenta del usuario se encuentra inactiva.',
+        });
+        continue;
+      }
+
+      if (usuarioDestinatario) {
+        const invitacionPrevia = await this.invitacionRepository.findOne({
+          where: {
+            idSubEvento,
+            idUsuario: usuarioDestinatario.idUsuario,
+          },
+        });
+        if (invitacionPrevia) {
+          omitidos.push({
+            correo,
+            motivo: 'El usuario ya se encuentra en la lista de invitados.',
+          });
+          continue;
+        }
+      }
+
+      if (
+        cupoMaximo > 0 &&
+        (!esAccesoLibre || Boolean(usuarioDestinatario)) &&
+        cupoRestante <= 0
+      ) {
+        omitidos.push({
+          correo,
+          motivo: 'Se alcanzó el aforo máximo del recinto.',
+        });
+        continue;
+      }
+
+      let intentoEnvio = false;
+
+      if (!usuarioDestinatario) {
+        try {
+          await verificarDominioCorreoValido(correo);
+        } catch (err: any) {
+          fallidos.push({
+            correo,
+            motivo:
+              err?.message ??
+              'El dominio del correo no es válido o no tiene servidor de correo.',
+          });
+          continue;
+        }
+
+        intentoEnvio = true;
+
+        if (esAccesoLibre) {
+          try {
+            await this.mailService.enviarInvitacionEventoPrivado({
+              ...baseCorreo,
+              destinatario: correo,
+              nombreUsuario: '',
+              requiereRegistro: false,
+            });
+            pendientesRegistro.push(correo);
+          } catch {
+            fallidos.push({
+              correo,
+              motivo:
+                'No se pudo enviar el correo informativo mediante el servidor SMTP.',
+            });
+          }
+        } else {
+          const token = this.jwtService.sign(
+            {
+              correo,
+              idEvento,
+              idSubEvento,
+              tipo: 'INVITACION_EVENTO_PRIVADO',
+            },
+            {
+              expiresIn: '48h',
+              secret: process.env.JWT_PASS || 'clave_secreta',
+            },
+          );
+          const enlaceRegistro = `${frontendBaseUrl}/registro?token=${encodeURIComponent(token)}`;
+
+          try {
+            await this.mailService.enviarInvitacionEventoPrivado({
+              ...baseCorreo,
+              destinatario: correo,
+              nombreUsuario: '',
+              requiereRegistro: true,
+              enlaceRegistro,
+            });
+            registrarInvitacionPendiente(
+              correo,
+              idEvento,
+              'INVITACION_EVENTO_PRIVADO',
+              idSubEvento,
+            );
+            pendientesRegistro.push(correo);
+            if (cupoMaximo > 0) {
+              cupoRestante = Math.max(0, cupoRestante - 1);
+            }
+          } catch {
+            fallidos.push({
+              correo,
+              motivo:
+                'No se pudo enviar el correo de invitación mediante el servidor SMTP.',
+            });
+          }
+        }
+      } else {
+        intentoEnvio = true;
+        try {
+          await this.mailService.enviarInvitacionEventoPrivado({
+            ...baseCorreo,
+            destinatario: usuarioDestinatario.correo,
+            nombreUsuario:
+              `${usuarioDestinatario.nombre} ${usuarioDestinatario.apellidoPa}`.trim(),
+          });
+
+          const nuevaInvitacion = this.invitacionRepository.create({
+            idSubEvento,
+            idUsuario: usuarioDestinatario.idUsuario,
+            fechaUltimoEnvio: new Date(),
+          });
+          const guardada =
+            await this.invitacionRepository.save(nuevaInvitacion);
+
+          if (cupoMaximo > 0) {
+            cupoRestante = Math.max(0, cupoRestante - 1);
+          }
+
+          exitosos.push({
+            ...this.mapearInvitadoItem({
+              ...guardada,
+              usuario: usuarioDestinatario,
+            }),
+            puedeReenviar: false,
+            horasRestantesCooldown: 8,
+          });
+        } catch {
+          fallidos.push({
+            correo,
+            motivo:
+              'No se pudo enviar el correo de invitación mediante el servidor SMTP.',
+          });
+        }
+      }
+
+      if (intentoEnvio && idx < correosUnicos.length - 1) {
+        await this.esperarPausaEnvio(pausaEnvioMs);
+      }
+    }
+
+    return {
+      mensaje: 'Carga masiva procesada.',
+      totalProcesados: correosUnicos.length,
+      cupoRestante: cupoMaximo > 0 ? Math.max(0, cupoRestante) : 0,
+      exitosos,
+      pendientesRegistro,
+      omitidos,
+      fallidos,
     };
   }
 
