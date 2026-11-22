@@ -1,4 +1,5 @@
-import { ReactNode } from "react";
+import { type ReactNode } from "react";
+import { InfoTooltip } from "../atoms/InfoTooltip/InfoTooltip";
 import { Label } from "../atoms/Label/Label";
 
 interface FormFieldProps {
@@ -11,6 +12,8 @@ interface FormFieldProps {
   readOnly?: boolean;
   className?: string;
   info?: ReactNode;
+  tooltip?: ReactNode;
+  tooltipLabel?: string;
 }
 
 export function FormField({
@@ -21,22 +24,30 @@ export function FormField({
   children,
   mensajeAyuda,
   readOnly,
-  className,
+  className = "",
   info,
+  tooltip,
+  tooltipLabel,
 }: FormFieldProps) {
   return (
     <div className="flex min-w-0 flex-col justify-end gap-0">
       {label && (
-        <div className="flex items-center gap-1.5">
-          {info}
+        <div className="mb-1 flex items-center gap-1.5">
           <Label
-            className={className}
+            className={`!mb-0 ${className}`}
             htmlFor={htmlFor}
             required={required}
             readOnly={readOnly}
           >
             {label}
           </Label>
+          {tooltip && (
+            <InfoTooltip
+              content={tooltip}
+              ariaLabel={tooltipLabel ?? `Información sobre ${label}`}
+            />
+          )}
+          {info}
         </div>
       )}
       {children}

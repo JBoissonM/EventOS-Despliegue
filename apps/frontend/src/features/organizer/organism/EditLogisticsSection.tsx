@@ -1,4 +1,4 @@
-import { Pencil, Info } from "lucide-react";
+import { Pencil } from "lucide-react";
 import {
   AlcanceEvento,
   ETIQUETAS_MODALIDAD,
@@ -16,6 +16,10 @@ import { Select } from "../../../components/atoms/Select/Select";
 import { TextArea } from "../../../components/atoms/TextArea/TextArea";
 import { InputFile } from "../../../components/atoms/InputFile/InputFile";
 import { FeedbackNotice } from "../../../components/molecules/FeedbackNotice";
+import {
+  TOOLTIP_ALCANCE_EVENTO,
+  TOOLTIP_BANNER_EVENTO,
+} from "../../../components/molecules/EventoTooltipsContent";
 import { FormField } from "../../../components/molecules/FormField";
 import { ModalidadAccesoHelp } from "../../../components/molecules/ModalidadAccesoHelp";
 
@@ -282,6 +286,7 @@ export function EditLogisticsSection({
             <FormField
               className="!font-bold !text-black"
               label="Banner del evento"
+              tooltip={TOOLTIP_BANNER_EVENTO}
               mensajeAyuda="Resolución: 2048 x 1152 y en formato .jpg"
             >
               <InputFile
@@ -300,6 +305,14 @@ export function EditLogisticsSection({
           <FormField
             className="!font-bold !text-black"
             label="Espacio"
+            tooltipLabel="Información del espacio seleccionado"
+            tooltip={
+              <ModalidadAccesoHelp
+                idRecinto={recintoSeleccionado?.idRecinto}
+                emptyText="Selecciona un espacio para consultar las modalidades de acceso disponibles según el recinto."
+                embedded
+              />
+            }
             errorMessage={intentoGuardar ? errores?.idRecinto : undefined}
           >
             <Select
@@ -468,27 +481,17 @@ export function EditLogisticsSection({
             label="Modalidad de acceso"
             htmlFor="campoAcceso"
             className="!font-bold !text-black"
-            info={
-              <div className="relative inline-flex items-center group mb-1">
-                <button
-                  type="button"
-                  aria-label="Información de modalidad de acceso"
-                  className="text-blue-500 hover:text-blue-700 transition-colors p-0.5 rounded-full hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-300"
-                >
-                  <Info size={15} />
-                </button>
-                <div className="absolute top-full right-0 mt-2 w-72 sm:w-80 opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-all duration-200 ease-out z-50">
-                  <ModalidadAccesoHelp
-                    idRecinto={recintoSeleccionado?.idRecinto}
-                    idModalidadAcceso={
-                      valores.idModalidadAcceso
-                        ? (Number(valores.idModalidadAcceso) as ModalidadAcceso)
-                        : undefined
-                    }
-                    className="shadow-xl bg-white border border-gray-200"
-                  />
-                </div>
-              </div>
+            tooltipLabel="Información de modalidad de acceso"
+            tooltip={
+              <ModalidadAccesoHelp
+                idModalidadAcceso={
+                  valores.idModalidadAcceso
+                    ? (Number(valores.idModalidadAcceso) as ModalidadAcceso)
+                    : undefined
+                }
+                emptyText="Selecciona una modalidad para ver cómo funcionará el registro y el acceso al evento."
+                embedded
+              />
             }
           >
             <Select
@@ -511,26 +514,31 @@ export function EditLogisticsSection({
         </div>
         {mostrarBanner && (
           <div className="flex min-w-0 flex-col gap-2">
-            <label htmlFor="campoAlcance" className="font-bold">
-              Alcance
-            </label>
-            <Select
-              id="campoAlcance"
-              placeholder="Selecciona una opción"
-              options={ALCANCES}
-              value={alcance === "" ? "" : String(alcance)}
-              disabled={deshabilitado}
-              onChange={(event) => {
-                const valor = Number(event.currentTarget.value);
-                if (
-                  valor === AlcanceEvento.PUBLICO ||
-                  valor === AlcanceEvento.INTERNO ||
-                  valor === AlcanceEvento.PRIVADO
-                ) {
-                  onCambioAlcance(valor);
-                }
-              }}
-            />
+            <FormField
+              label="Alcance"
+              htmlFor="campoAlcance"
+              className="!font-bold !text-black"
+              tooltipLabel="Información sobre el alcance del evento"
+              tooltip={TOOLTIP_ALCANCE_EVENTO}
+            >
+              <Select
+                id="campoAlcance"
+                placeholder="Selecciona una opción"
+                options={ALCANCES}
+                value={alcance === "" ? "" : String(alcance)}
+                disabled={deshabilitado}
+                onChange={(event) => {
+                  const valor = Number(event.currentTarget.value);
+                  if (
+                    valor === AlcanceEvento.PUBLICO ||
+                    valor === AlcanceEvento.INTERNO ||
+                    valor === AlcanceEvento.PRIVADO
+                  ) {
+                    onCambioAlcance(valor);
+                  }
+                }}
+              />
+            </FormField>
           </div>
         )}
         <div className="flex min-w-0 flex-col gap-2">

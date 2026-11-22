@@ -24,7 +24,7 @@ import { FormField } from "../../components/molecules/FormField";
 import { TextArea } from "../../components/atoms/TextArea/TextArea";
 import { apiRequest } from "../../lib/apiClient";
 import { EventBanner } from "../event-details/components/molecules/EventBanner";
-import { Info } from "lucide-react";
+import { InfoTooltip } from "../../components/atoms/InfoTooltip/InfoTooltip";
 import { PageHeader } from "../../components/organisms/PageHeader/PageHeader";
 
 export interface SubeventoDetalleItem {
@@ -301,7 +301,6 @@ export function DetallesSolicitud() {
 
   const [mostrarModalCancelar, setMostrarModalCancelar] = useState(false);
   const [motivoCancelacion, setMotivoCancelacion] = useState("");
-  const [Tooltip, setTooltip] = useState(false);
 
   const [procesando, setProcesando] = useState(false);
   const [errorAccion, setErrorAccion] = useState<string | null>(null);
@@ -677,21 +676,15 @@ export function DetallesSolicitud() {
                       <span className="mt-1 font-merriweather text-sm sm:text-md text-gray-700">
                         {obtenerEtiquetaModalidad(subevento.idModalidadAcceso)}
                       </span>
-                      <div className="relative inline-flex items-center group">
-                        <button
-                          type="button"
-                          aria-label="Información de modalidad de acceso"
-                          className="text-secondary hover:text-[#134045] transition-colors p-0.5 rounded-full hover:bg-secondary/10 focus:outline-none focus:ring-secondary/30 focus:ring-blue-300"
-                        >
-                          <Info size={15} />
-                        </button>
-                        <div className="absolute top-full right-0 mb-2 w-72 sm:w-80 opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-all duration-200 ease-out z-50">
+                      <InfoTooltip
+                        ariaLabel="Información de modalidad de acceso"
+                        content={
                           <ModalidadAccesoHelp
                             idModalidadAcceso={subevento.idModalidadAcceso}
-                            className="shadow-xl bg-white border border-gray-200"
+                            embedded
                           />
-                        </div>
-                      </div>{" "}
+                        }
+                      />
                     </div>
                     {cambioModalidad && (
                       <p className="mt-0.5 text-xs text-eventos-muted-text">

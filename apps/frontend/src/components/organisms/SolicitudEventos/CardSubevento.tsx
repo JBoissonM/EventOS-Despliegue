@@ -6,6 +6,7 @@ import {
   RecintoId,
 } from "@eventos/shared";
 import { FormField } from "../../molecules/FormField";
+import { TOOLTIP_FECHA_ANTICIPACION } from "../../molecules/EventoTooltipsContent";
 import { ModalidadAccesoHelp } from "../../molecules/ModalidadAccesoHelp";
 import { Select } from "../../atoms/Select/Select";
 import type {
@@ -21,7 +22,6 @@ import { SpaceRequerimentsDialog } from "../../organisms/SpaceRequirementsDialog
 import { useEffect, useRef, useState } from "react";
 import { ModalSubevento } from "../ModalSubevento/ModalSubevento";
 import { apiRequest } from "../../../lib/apiClient";
-import { Info } from "lucide-react";
 
 interface CardSubeventoBaseProps {
   subevento: SubeventoFormData;
@@ -385,6 +385,7 @@ export function CardSubevento(props: CardSubeventoProps) {
         htmlFor={`selectFecha-${index}`}
         readOnly={readOnly}
         required
+        tooltip={TOOLTIP_FECHA_ANTICIPACION}
         mensajeAyuda={
           index > 0 && !fechaInicio
             ? "Selecciona primero la fecha del primer bloque"
@@ -419,25 +420,15 @@ export function CardSubevento(props: CardSubeventoProps) {
         htmlFor={`selectRecinto-${index}`}
         readOnly={readOnly}
         required
-        info={
-          <div className="relative inline-flex items-center group mb-1">
-            <button
-              type="button"
-              aria-label="Información de modalidad de acceso"
-              className="text-secondary hover:text-[#134045] transition-colors p-0.5 rounded-full hover:bg-secondary/10 focus:outline-none focus:ring-secondary/30 focus:ring-blue-300"
-            >
-              <Info size={15} />
-            </button>
-            <div className="absolute top-full left-0 mt-2 w-72 sm:w-80 opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-all duration-200 ease-out z-50">
-              <ModalidadAccesoHelp
-                idRecinto={
-                  subevento.idRecinto ? Number(subevento.idRecinto) : undefined
-                }
-                idModalidadAcceso={subevento.idModalidadAcceso}
-                className="shadow-xl bg-white border border-gray-200 font-normal"
-              />
-            </div>
-          </div>
+        tooltipLabel="Información del espacio seleccionado"
+        tooltip={
+          <ModalidadAccesoHelp
+            idRecinto={
+              subevento.idRecinto ? Number(subevento.idRecinto) : undefined
+            }
+            emptyText="Selecciona un espacio para consultar las modalidades de acceso disponibles según el recinto (Auditorio, Sala 14 o Laboratorios)."
+            embedded
+          />
         }
         mensajeAyuda={
           recintoSeleccionado
@@ -556,6 +547,18 @@ export function CardSubevento(props: CardSubeventoProps) {
         htmlFor={`selectBoleto-${index}`}
         readOnly={readOnly}
         required
+        tooltipLabel="Información de modalidad de acceso"
+        tooltip={
+          <ModalidadAccesoHelp
+            idModalidadAcceso={subevento.idModalidadAcceso}
+            emptyText={
+              subevento.idRecinto
+                ? "Selecciona una modalidad para ver cómo funcionará el registro y el acceso al evento."
+                : "Primero selecciona un espacio. Después elige una modalidad para ver cómo funcionará el registro y acceso."
+            }
+            embedded
+          />
+        }
         errorMessage={
           touched.idModalidadAcceso ? errors.idModalidadAcceso : undefined
         }

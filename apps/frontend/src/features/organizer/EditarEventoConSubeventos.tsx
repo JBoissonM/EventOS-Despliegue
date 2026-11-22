@@ -31,6 +31,11 @@ import { Select } from "../../components/atoms/Select/Select";
 import { TextArea } from "../../components/atoms/TextArea/TextArea";
 import Button from "../../components/atoms/Button/Button";
 import { FeedbackNotice } from "../../components/molecules/FeedbackNotice";
+import {
+  TOOLTIP_ALCANCE_EVENTO,
+  TOOLTIP_BANNER_EVENTO,
+  TOOLTIP_FECHA_ANTICIPACION,
+} from "../../components/molecules/EventoTooltipsContent";
 import { FormField } from "../../components/molecules/FormField";
 import { Modal } from "../../components/molecules/Modal";
 import { ModalidadAccesoHelp } from "../../components/molecules/ModalidadAccesoHelp";
@@ -494,6 +499,7 @@ function FilaActividadEditable({
         label="Fecha"
         htmlFor={`selectFecha-${indice}`}
         required
+        tooltip={TOOLTIP_FECHA_ANTICIPACION}
         mensajeAyuda={
           primeraFecha
             ? "Máximo 15 días a partir de la fecha de inicio"
@@ -519,6 +525,14 @@ function FilaActividadEditable({
         label="Espacio deseado"
         htmlFor={`selectRecinto-${indice}`}
         required
+        tooltipLabel="Información del espacio seleccionado"
+        tooltip={
+          <ModalidadAccesoHelp
+            idRecinto={Number(actividad.idRecinto) || undefined}
+            emptyText="Selecciona un espacio para consultar las modalidades de acceso disponibles según el recinto (Auditorio, Sala 14 o Laboratorios)."
+            embedded
+          />
+        }
         mensajeAyuda={
           recintoSeleccionado && recintoSeleccionado.aforo > 0
             ? `Capacidad: ${recintoSeleccionado.aforo} ${
@@ -607,42 +621,48 @@ function FilaActividadEditable({
         />
       </FormField>
 
-      <div className="space-y-2">
-        <FormField
-          label="Modalidad de acceso"
-          htmlFor={`selectBoleto-${indice}`}
-          required={!esLaboratorioRecinto(Number(actividad.idRecinto))}
-        >
-          <Select
-            id={`selectBoleto-${indice}`}
-            placeholder="Selecciona una opción"
-            options={obtenerModalidadesPermitidasPorRecinto(
-              Number(actividad.idRecinto) || RecintoId.AUDITORIO,
-            ).map((modalidad) => ({
-              value: String(modalidad),
-              label: ETIQUETAS_MODALIDAD[modalidad],
-            }))}
-            className="disabled:cursor-not-allowed disabled:text-gray-500"
-            value={
-              actividad.idModalidadAcceso !== undefined
-                ? String(actividad.idModalidadAcceso)
-                : ""
+      <FormField
+        label="Modalidad de acceso"
+        htmlFor={`selectBoleto-${indice}`}
+        required={!esLaboratorioRecinto(Number(actividad.idRecinto))}
+        tooltipLabel="Información de modalidad de acceso"
+        tooltip={
+          <ModalidadAccesoHelp
+            idModalidadAcceso={actividad.idModalidadAcceso}
+            emptyText={
+              actividad.idRecinto
+                ? "Selecciona una modalidad para ver cómo funcionará el registro y el acceso al evento."
+                : "Primero selecciona un espacio. Después elige una modalidad para ver cómo funcionará el registro y acceso."
             }
-            disabled={esLaboratorioRecinto(Number(actividad.idRecinto))}
-            onChange={(e) =>
-              actualizarActividad(
-                actividad.llave,
-                "idModalidadAcceso",
-                Number(e.target.value) as ModalidadAcceso,
-              )
-            }
+            embedded
           />
-        </FormField>
-        <ModalidadAccesoHelp
-          idRecinto={Number(actividad.idRecinto) || undefined}
-          idModalidadAcceso={actividad.idModalidadAcceso}
+        }
+      >
+        <Select
+          id={`selectBoleto-${indice}`}
+          placeholder="Selecciona una opción"
+          options={obtenerModalidadesPermitidasPorRecinto(
+            Number(actividad.idRecinto) || RecintoId.AUDITORIO,
+          ).map((modalidad) => ({
+            value: String(modalidad),
+            label: ETIQUETAS_MODALIDAD[modalidad],
+          }))}
+          className="disabled:cursor-not-allowed disabled:text-gray-500"
+          value={
+            actividad.idModalidadAcceso !== undefined
+              ? String(actividad.idModalidadAcceso)
+              : ""
+          }
+          disabled={esLaboratorioRecinto(Number(actividad.idRecinto))}
+          onChange={(e) =>
+            actualizarActividad(
+              actividad.llave,
+              "idModalidadAcceso",
+              Number(e.target.value) as ModalidadAcceso,
+            )
+          }
         />
-      </div>
+      </FormField>
 
       <FormField label={undefined} htmlFor={`botonEspacio-${indice}`}>
         <Button
@@ -1480,6 +1500,7 @@ export function EditarEventoConSubeventos() {
                   <FormField
                     className="!font-bold !text-black"
                     label="Banner del evento"
+                    tooltip={TOOLTIP_BANNER_EVENTO}
                     mensajeAyuda="Resolución: 2048 x 1152"
                   >
                     <InputFile
@@ -1501,6 +1522,8 @@ export function EditarEventoConSubeventos() {
                     label="Alcance"
                     htmlFor="campoAlcance"
                     className="!font-bold !text-black"
+                    tooltipLabel="Información sobre el alcance del evento"
+                    tooltip={TOOLTIP_ALCANCE_EVENTO}
                   >
                     <Select
                       id="campoAlcance"

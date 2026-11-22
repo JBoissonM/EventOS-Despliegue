@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParams } from "react-router";
-import { Info } from "lucide-react";
+import { InfoTooltip } from "../../components/atoms/InfoTooltip/InfoTooltip";
 import {
   AlcanceEvento,
   esModalidadConQr,
@@ -682,21 +682,15 @@ export function AdministracionEvento() {
                       <span>
                         {obtenerEtiquetaModalidad(subevento.idModalidadAcceso)}
                       </span>
-                      <div className="relative inline-flex items-center group">
-                        <button
-                          type="button"
-                          aria-label="Información de modalidad de acceso"
-                          className="text-blue-500 hover:text-blue-700 transition-colors p-0.5 rounded-full hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-300"
-                        >
-                          <Info size={15} />
-                        </button>
-                        <div className="absolute top-full left-0 mt-2 w-72 sm:w-80 opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-all duration-200 ease-out z-50">
+                      <InfoTooltip
+                        ariaLabel="Información de modalidad de acceso"
+                        content={
                           <ModalidadAccesoHelp
                             idModalidadAcceso={subevento.idModalidadAcceso}
-                            className="shadow-xl bg-white border border-gray-200"
+                            embedded
                           />
-                        </div>
-                      </div>
+                        }
+                      />
                     </div>
                   </div>
 
