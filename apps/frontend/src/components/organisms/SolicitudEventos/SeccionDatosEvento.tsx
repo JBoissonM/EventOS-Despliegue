@@ -1,4 +1,8 @@
 import { AlcanceEvento } from "@eventos/shared";
+import {
+  TOOLTIP_ALCANCE_EVENTO,
+  TOOLTIP_BANNER_EVENTO,
+} from "../../molecules/EventoTooltipsContent";
 import { FormField } from "../../molecules/FormField";
 import { FormHeader } from "../../molecules/FormHeader";
 import { Select } from "../../atoms/Select/Select";
@@ -72,6 +76,8 @@ export function SeccionDatosEvento({
             label="Alcance del evento"
             htmlFor="selectCategoria"
             required
+            tooltipLabel="Información sobre el alcance del evento"
+            tooltip={TOOLTIP_ALCANCE_EVENTO}
             errorMessage={touched.idAlcance ? errors.idAlcance : undefined}
           >
             <Select
@@ -89,6 +95,7 @@ export function SeccionDatosEvento({
             label="Banner del evento"
             htmlFor="campoPoster"
             required
+            tooltip={TOOLTIP_BANNER_EVENTO}
             mensajeAyuda="El banner debe estar en formato jpg y con una resolución de 2048 x 1152 píxeles"
             errorMessage={touched.rutaPoster ? errors.rutaPoster : undefined}
           >

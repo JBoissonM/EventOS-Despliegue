@@ -148,6 +148,7 @@ export function ModalInvitados({
           <FormField
             htmlFor="campoCorreo"
             label="Correo electrónico"
+            tooltip="Al guardar los cambios, las personas agregadas recibirán su invitación por correo para acceder al evento privado, respetando el aforo del recinto."
             errorMessage={errorCorreo ?? undefined}
           >
             <Input

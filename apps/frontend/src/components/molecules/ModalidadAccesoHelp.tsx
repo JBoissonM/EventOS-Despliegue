@@ -11,6 +11,8 @@ interface ModalidadAccesoHelpProps {
   idRecinto?: number;
   idModalidadAcceso?: ModalidadAcceso;
   className?: string;
+  embedded?: boolean;
+  emptyText?: string;
 }
 
 function obtenerNotaRecinto(idRecinto?: number): string | null {
@@ -31,6 +33,8 @@ export function ModalidadAccesoHelp({
   idRecinto,
   idModalidadAcceso,
   className = "",
+  embedded = false,
+  emptyText,
 }: ModalidadAccesoHelpProps) {
   const descripcion =
     idModalidadAcceso !== undefined
@@ -41,15 +45,24 @@ export function ModalidadAccesoHelp({
       ? ETIQUETAS_MODALIDAD[idModalidadAcceso]
       : null;
   const notaRecinto = obtenerNotaRecinto(idRecinto);
+  const textoVacio =
+    emptyText ??
+    (embedded
+      ? "Selecciona un espacio para consultar su aforo y las modalidades de acceso disponibles."
+      : null);
 
-  if (!descripcion && !notaRecinto) {
+  if (!descripcion && !notaRecinto && !textoVacio) {
     return null;
   }
 
   return (
     <div
       role="note"
-      className={`flex items-start gap-2.5 rounded-md border border-eventos-panel-border bg-eventos-panel-surface px-3.5 py-2.5 text-xs leading-relaxed text-eventos-body-text ${className}`}
+      className={
+        embedded
+          ? `flex items-start gap-2 text-xs leading-relaxed text-eventos-body-text ${className}`
+          : `flex items-start gap-2.5 rounded-md border border-eventos-panel-border bg-eventos-panel-surface px-3.5 py-2.5 text-xs leading-relaxed text-eventos-body-text ${className}`
+      }
     >
       <Info
         size={16}
@@ -64,8 +77,11 @@ export function ModalidadAccesoHelp({
           </p>
         )}
         {notaRecinto && (!etiqueta || esLaboratorioRecinto(idRecinto)) && (
-          <p className="text-eventos-muted-text">{notaRecinto}</p>
+          <p className={etiqueta ? "text-eventos-muted-text" : undefined}>
+            {notaRecinto}
+          </p>
         )}
+        {!descripcion && !notaRecinto && textoVacio && <p>{textoVacio}</p>}
       </div>
     </div>
   );
