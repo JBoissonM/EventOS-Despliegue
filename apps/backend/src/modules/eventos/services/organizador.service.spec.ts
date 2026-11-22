@@ -563,4 +563,26 @@ describe('OrganizadorService - Flujos diferidos, revocación y alcances', () => 
     expect(invitacionesGuardadas).toHaveLength(1);
     expect(correosEnviados).toHaveLength(2);
   });
+
+  it('actualizarEnlaceInvitacion y regenerarEnlaceInvitacion actualizan el switch y rotan el token del subevento', async () => {
+    const { service } = crearOrganizadorServiceTest({
+      evento: {
+        idEvento: 10,
+        nombre: 'Evento Privado',
+        descripcion: 'Desc',
+        idAlcance: AlcanceEvento.PRIVADO,
+        idEstadoEvento: EstadoEvento.ACEPTADO,
+        idOrganizador: 1,
+        poster: 'p.jpg',
+      },
+    });
+
+    const activado = await service.actualizarEnlaceInvitacion(10, 100, 1, true);
+    expect(activado.enlaceInvitacionActivo).toBe(true);
+    expect(activado.tokenInvitacion).toBe('token-sub-100');
+
+    const regenerado = await service.regenerarEnlaceInvitacion(10, 100, 1);
+    expect(regenerado.tokenInvitacion).not.toBe('token-sub-100');
+    expect(regenerado.tokenInvitacion.length).toBeGreaterThan(10);
+  });
 });

@@ -4,6 +4,7 @@ import {
   Get,
   Param,
   ParseIntPipe,
+  Post,
   Query,
   Req,
   Res,
@@ -98,6 +99,45 @@ export class EventosController {
     );
 
     return res.status(200).send(reporte.contenidoCsv);
+  }
+
+  @ApiOperation({
+    summary:
+      'Consultar ficha informativa de un subevento privado mediante token compartible',
+  })
+  @Get('privado/:tokenSubEvento')
+  async obtenerDetalleSubEventoPrivadoPorToken(
+    @Param('tokenSubEvento') tokenSubEvento: string,
+    @Req() req: any,
+  ) {
+    const usuario = await this.extraerUsuarioOpcional(req);
+    return await this.eventosService.obtenerDetalleSubEventoPrivadoPorToken(
+      tokenSubEvento,
+      usuario,
+    );
+  }
+
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary:
+      'Autorizar al usuario autenticado mediante el enlace compartible de un subevento privado',
+  })
+  @Post('privado/:tokenSubEvento/aceptar')
+  @UseGuards(RolesGuard)
+  async aceptarEnlaceSubEventoPrivado(
+    @Param('tokenSubEvento') tokenSubEvento: string,
+    @Req() req: any,
+  ) {
+    const idUsuario = Number(req.user?.sub ?? req.user?.idUsuario);
+    if (!idUsuario) {
+      throw new ForbiddenException(
+        'No se pudo identificar al usuario en el token.',
+      );
+    }
+    return await this.eventosService.aceptarEnlaceSubEventoPrivado(
+      tokenSubEvento,
+      idUsuario,
+    );
   }
 
   // Obtener detalle de un evento con subeventos, fechas, recintos y ponentes
