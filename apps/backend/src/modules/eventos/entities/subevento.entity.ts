@@ -1,4 +1,6 @@
+import { randomUUID } from 'crypto';
 import {
+  BeforeInsert,
   Column,
   Entity,
   JoinColumn,
@@ -40,12 +42,25 @@ export class SubEventoEntity implements SubEvento {
   idModalidadAcceso: ModalidadAcceso;
 
   @Column({
-      name: 'estado',
-      type: 'varchar',
-      length: 50,
-      default: EstadoSubEvento.ACEPTADO,
-    })
-    estado: EstadoSubEvento;
+    name: 'estado',
+    type: 'varchar',
+    length: 50,
+    default: EstadoSubEvento.ACEPTADO,
+  })
+  estado: EstadoSubEvento;
+
+  @Column({ name: 'tokenInvitacion', type: 'varchar', length: 64, unique: true })
+  tokenInvitacion: string;
+
+  @Column({ name: 'enlaceInvitacionActivo', type: 'boolean', default: false })
+  enlaceInvitacionActivo: boolean;
+
+  @BeforeInsert()
+  asignarTokenInvitacion(): void {
+    if (!this.tokenInvitacion) {
+      this.tokenInvitacion = randomUUID();
+    }
+  }
 
   // ==========================================
   // RELACIONES (Foreign Keys)

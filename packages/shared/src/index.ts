@@ -24,6 +24,8 @@ export interface SubEvento {
   descripcion: string;
   idModalidadAcceso: ModalidadAcceso;
   estado: EstadoSubEvento;
+  tokenInvitacion?: string;
+  enlaceInvitacionActivo?: boolean;
 }
 
 export interface Fecha {
@@ -226,12 +228,15 @@ export interface EventoOrganizadorDetalleSubevento {
   descripcion: string;
   idModalidadAcceso: ModalidadAcceso;
   estado: EstadoSubEvento;
+  tokenInvitacion?: string;
+  enlaceInvitacionActivo?: boolean;
   fecha: Fecha | null;
   recinto: Recinto | null;
   ponentes: Ponente[];
   boletosEmitidos: number;
   inscritosCount?: number;
   ingresadosCount?: number | null;
+  invitados?: InvitadoEventoItem[];
 }
 
 export interface EventoOrganizadorDetalle {
@@ -284,6 +289,7 @@ export interface ActivarCuentaLogisticaPayload {
 
 export interface InvitadoEventoItem {
   idInvitacionEvento: number;
+  idSubEvento?: number;
   idUsuario: number;
   nombreCompleto: string;
   correo: string;
@@ -294,6 +300,61 @@ export interface InvitadoEventoItem {
 
 export interface AgregarInvitadoPayload {
   correo: string;
+}
+
+export interface AgregarInvitadosMasivoPayload {
+  correos: string[];
+}
+
+export interface FalloEnvioInvitacionItem {
+  correo: string;
+  motivo: string;
+}
+
+export interface OmitidoInvitacionItem {
+  correo: string;
+  motivo: string;
+}
+
+export interface ResultadoCargaMasivaInvitados {
+  mensaje: string;
+  totalProcesados: number;
+  cupoRestante: number;
+  exitosos: InvitadoEventoItem[];
+  pendientesRegistro: string[];
+  omitidos: OmitidoInvitacionItem[];
+  fallidos: FalloEnvioInvitacionItem[];
+}
+
+export interface ActualizarEnlaceInvitacionPayload {
+  activo: boolean;
+}
+
+export interface DetalleSubEventoPrivadoResponse {
+  idEvento: number;
+  nombreEvento: string;
+  descripcionEvento: string;
+  posterUrl: string | null;
+  idAlcance: AlcanceEvento;
+  idSubEvento: number;
+  nombreSubEvento: string;
+  descripcionSubEvento: string;
+  idModalidadAcceso: ModalidadAcceso;
+  esAccesoLibre: boolean;
+  requiereCuenta: boolean;
+  enlaceInvitacionActivo: boolean;
+  usuarioAutenticado: boolean;
+  yaAutorizado: boolean;
+  cupoDisponible: number;
+  sinCupo: boolean;
+  fecha: Fecha | null;
+  recinto: Recinto | null;
+  ponentes: Array<{
+    idPonente: number;
+    nombre: string;
+    apellidoPa: string;
+    apellidoMa: string | null;
+  }>;
 }
 
 export interface SubEventoLogisticaPayload extends SubeventoPayload {
