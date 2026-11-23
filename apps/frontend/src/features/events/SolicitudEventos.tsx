@@ -420,8 +420,6 @@ export function SolicitudEvento() {
           return {
             ...subevento,
             fecha: value,
-            horaInicio: "",
-            horaFin: "",
           };
         }
 
@@ -439,10 +437,6 @@ export function SolicitudEvento() {
             ...subevento,
             idRecinto,
           };
-          if (idRecinto !== subevento.idRecinto) {
-            updated.horaInicio = "";
-            updated.horaFin = "";
-          }
           updated.idModalidadAcceso = esLaboratorioRecinto(idRecinto)
             ? ModalidadAcceso.QR_GENERAL
             : undefined;

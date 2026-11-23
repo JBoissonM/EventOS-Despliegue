@@ -46,6 +46,7 @@ import {
   OrganizerSubeventCard,
   type OrganizerSubeventCardData,
 } from "./components/OrganizerSubeventCard";
+import { EnlaceInvitacionSubevento } from "./components/EnlaceInvitacionSubevento";
 import { Table, type Columna } from "../../components/organisms/Table/Table";
 import Badge from "../../components/atoms/Badge/Badge";
 import { MARCADOR_MOTIVO_URGENCIA, ModalMotivo } from "./organism/ModalMotivo";
@@ -1930,6 +1931,9 @@ export function EditarEventoConSubeventos() {
 
                   const invitadosSubevento =
                     invitadosPorSubevento[actividad.idSubEvento] ?? [];
+                  const subeventoDetalle = evento?.subEventos.find(
+                    (s) => s.idSubEvento === actividad.idSubEvento,
+                  );
                   const esPrivado =
                     datosGenerales?.idAlcance === AlcanceEvento.PRIVADO ||
                     evento?.idAlcance === AlcanceEvento.PRIVADO;
@@ -1950,17 +1954,50 @@ export function EditarEventoConSubeventos() {
                             <h3 className="text-base font-semibold text-eventos-ink">
                               Invitados de la actividad
                             </h3>
-                            <Button
-                              text="Agregar invitados"
-                              variant="primary"
-                              type="button"
-                              className="w-full sm:w-auto"
-                              onClick={() =>
-                                setSubeventoModalInvitados(
-                                  actividad.idSubEvento!,
-                                )
-                              }
-                            />
+                            <div className="flex flex-wrap items-center gap-2">
+                              <Button
+                                text="Agregar invitados"
+                                variant="primary"
+                                type="button"
+                                className="w-full sm:w-auto"
+                                onClick={() =>
+                                  setSubeventoModalInvitados(
+                                    actividad.idSubEvento!,
+                                  )
+                                }
+                              />
+                              <EnlaceInvitacionSubevento
+                                idEvento={Number(idEvento)}
+                                idSubEvento={actividad.idSubEvento}
+                                tokenInvitacion={
+                                  subeventoDetalle?.tokenInvitacion
+                                }
+                                enlaceInvitacionActivo={
+                                  subeventoDetalle?.enlaceInvitacionActivo
+                                }
+                                disabled={guardando}
+                                onActualizado={(datos) => {
+                                  setEvento((prev) =>
+                                    prev
+                                      ? {
+                                          ...prev,
+                                          subEventos: prev.subEventos.map((s) =>
+                                            s.idSubEvento === datos.idSubEvento
+                                              ? {
+                                                  ...s,
+                                                  tokenInvitacion:
+                                                    datos.tokenInvitacion,
+                                                  enlaceInvitacionActivo:
+                                                    datos.enlaceInvitacionActivo,
+                                                }
+                                              : s,
+                                          ),
+                                        }
+                                      : prev,
+                                  );
+                                }}
+                              />
+                            </div>
                           </div>
                           {invitadosSubevento.length > 0 ? (
                             <div className="w-full max-w-full overflow-x-auto rounded-lg border border-gray-200 shadow-sm">

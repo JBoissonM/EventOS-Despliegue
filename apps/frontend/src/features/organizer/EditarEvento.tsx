@@ -18,7 +18,10 @@ import { TextArea } from "../../components/atoms/TextArea/TextArea";
 import { Table } from "../../components/organisms/Table/Table";
 import type { Columna } from "../../components/organisms/Table/Table";
 import Button from "../../components/atoms/Button/Button";
-import { EditLogisticsSection } from "./organism/EditLogisticsSection";
+import {
+  ajustarHorarioSegunAgenda,
+  EditLogisticsSection,
+} from "./organism/EditLogisticsSection";
 import type {
   EditLogisticsErrors,
   EditLogisticsValues,
@@ -32,6 +35,7 @@ import { Modal } from "../../components/molecules/Modal";
 import { MARCADOR_MOTIVO_URGENCIA, ModalMotivo } from "./organism/ModalMotivo";
 import { ModalMotivoUrgente } from "../../components/organisms/ModalMotivoUrgente/ModalMotivoUrgente";
 import { ModalPonentes } from "./organism/ModalPonentes";
+import { EnlaceInvitacionSubevento } from "./components/EnlaceInvitacionSubevento";
 import {
   ModalInvitados,
   type TablaInvitados as TablaInvitadosModal,
@@ -87,7 +91,7 @@ function crearColumnasLogistica(
       id: "correo",
       encabezado: "Correo",
       render: (personal) => personal.correo,
-      className: "min-w-[12rem] break-all px-3",
+      className: "min-w-[12rem] sm:min-w-[13rem] break-all px-3",
     },
     {
       id: "acciones",
@@ -105,7 +109,7 @@ function crearColumnasLogistica(
         );
       },
       className:
-        "text-center w-[8rem] min-w-[8rem] max-w-[8rem] break-all px-3",
+        "text-center w-[8rem] min-w-[8rem] sm:min-w-[15rem] break-all px-3",
     },
   ];
 }
@@ -304,8 +308,9 @@ export function EditarEvento() {
                   ? "Pendiente de envío"
                   : invitado.puedeReenviar
                     ? "Reenviar invitación"
-                    : `Reenviar (${invitado.horasRestantesCooldown ?? 8} horas restantes)`
+                    : `Reenviar en ${invitado.horasRestantesCooldown ?? 8} hrs`
               }
+              className={invitado.horasRestantesCooldown > 0 ? "px-6" : ""}
               variant={
                 invitado.idInvitacionEvento && invitado.puedeReenviar
                   ? "primary"
@@ -483,13 +488,26 @@ export function EditarEvento() {
           { signal: controller.signal },
         );
         if (!controller.signal.aborted) {
-          setAgendaOcupada(
-            respuesta.agenda.filter((horario) =>
-              idSubEventoSeleccionado !== undefined && horario.idSubEvento
-                ? horario.idSubEvento !== Number(idSubEventoSeleccionado)
-                : horario.idEvento !== Number(idEvento),
-            ),
+          const agendaFiltrada = respuesta.agenda.filter((horario) =>
+            idSubEventoSeleccionado !== undefined && horario.idSubEvento
+              ? horario.idSubEvento !== Number(idSubEventoSeleccionado)
+              : horario.idEvento !== Number(idEvento),
           );
+          setAgendaOcupada(agendaFiltrada);
+          setLogistica((actual) => {
+            const { horaInicio, horaFin } = ajustarHorarioSegunAgenda(
+              actual.horaInicio,
+              actual.horaFin,
+              agendaFiltrada,
+            );
+            if (
+              horaInicio === actual.horaInicio &&
+              horaFin === actual.horaFin
+            ) {
+              return actual;
+            }
+            return { ...actual, horaInicio, horaFin };
+          });
         }
       } catch (errorConsulta) {
         if (!controller.signal.aborted) {
@@ -553,8 +571,7 @@ export function EditarEvento() {
           />
         );
       },
-      className:
-        "w-[8rem] min-w-[8rem] max-w-[8rem] break-all px-3 text-center",
+      className: "w-[8rem] min-w-[8rem] sm:min-w-[15rem] px-3 text-center",
     },
   ];
 
@@ -1450,12 +1467,45 @@ export function EditarEvento() {
                           No hay invitados registrados para este evento.
                         </p>
                       )}
-                      <Button
-                        text="Agregar invitados"
-                        variant="primary"
-                        type="button"
-                        onClick={() => setModalinvitados(true)}
-                      />
+                      <div className="flex flex-wrap items-center gap-3">
+                        <Button
+                          text="Agregar invitados"
+                          variant="primary"
+                          type="button"
+                          onClick={() => setModalinvitados(true)}
+                        />
+                        {subevento && (
+                          <EnlaceInvitacionSubevento
+                            idEvento={evento.idEvento}
+                            idSubEvento={subevento.idSubEvento}
+                            tokenInvitacion={subevento.tokenInvitacion}
+                            enlaceInvitacionActivo={
+                              subevento.enlaceInvitacionActivo
+                            }
+                            disabled={guardando}
+                            onActualizado={(datos) => {
+                              setEvento((prev) =>
+                                prev
+                                  ? {
+                                      ...prev,
+                                      subEventos: prev.subEventos.map((s) =>
+                                        s.idSubEvento === datos.idSubEvento
+                                          ? {
+                                              ...s,
+                                              tokenInvitacion:
+                                                datos.tokenInvitacion,
+                                              enlaceInvitacionActivo:
+                                                datos.enlaceInvitacionActivo,
+                                            }
+                                          : s,
+                                      ),
+                                    }
+                                  : prev,
+                              );
+                            }}
+                          />
+                        )}
+                      </div>
                     </div>
                   )}
                   {modalInvitados && (
