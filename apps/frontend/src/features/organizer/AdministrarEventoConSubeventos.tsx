@@ -80,7 +80,13 @@ function esRegistro(valor: unknown): valor is Record<string, unknown> {
   return typeof valor === "object" && valor !== null;
 }
 
-function convertirSubevento(valor: unknown): OrganizerSubeventCardData {
+type SubeventoAdministracion = OrganizerSubeventCardData & {
+  invitados?: InvitadoEventoItem[];
+  tokenInvitacion?: string;
+  enlaceInvitacionActivo?: boolean;
+};
+
+function convertirSubevento(valor: unknown): SubeventoAdministracion {
   if (
     !esRegistro(valor) ||
     typeof valor.idSubEvento !== "number" ||
@@ -145,6 +151,17 @@ function convertirSubevento(valor: unknown): OrganizerSubeventCardData {
         : typeof valor.ingresadosCount === "number"
           ? valor.ingresadosCount
           : undefined,
+    tokenInvitacion:
+      typeof valor.tokenInvitacion === "string"
+        ? valor.tokenInvitacion
+        : undefined,
+    enlaceInvitacionActivo:
+      typeof valor.enlaceInvitacionActivo === "boolean"
+        ? valor.enlaceInvitacionActivo
+        : undefined,
+    invitados: Array.isArray(valor.invitados)
+      ? (valor.invitados as InvitadoEventoItem[])
+      : [],
   };
 }
 
@@ -322,7 +339,6 @@ export function AdministracionEventoConSubeventos() {
         subevento.nombre.trim().length > 0 &&
         subevento.descripcion.trim().length > 0,
     ) ?? [];
-  const invitados = datosEvento?.invitados ?? [];
 
   return (
     <section className="mx-auto w-full max-w-7xl space-y-8 px-4 sm:px-6 lg:space-y-10 lg:px-8">
@@ -454,47 +470,24 @@ export function AdministracionEventoConSubeventos() {
             )}
           </div>
 
-          {datosEvento.idAlcance === AlcanceEvento.PRIVADO && (
-            <div id="contenedorInvitados" className="space-y-4">
-              <h2 className="text-xl font-bold sm:text-2xl">Tus invitados</h2>
-              {invitados.length > 0 ? (
-                <div className="shadow-md w-fit overflow-x-auto rounded-md">
-                  <Table
-                    columnas={columnasInvitados}
-                    filas={invitados}
-                    obtenerClave={(invitado) =>
-                      invitado.correo ||
-                      (invitado.idInvitacionEvento
-                        ? String(invitado.idInvitacionEvento)
-                        : "") ||
-                      String(invitado.idUsuario)
-                    }
-                    encabezadoClassName="h-10 border-b border-gray-300"
-                    filaClassName="h-12"
-                    className="bg-white text-left text-sm [&_th]:py-2 [&_td]:py-2"
-                  />
-                </div>
-              ) : (
-                <p className="rounded-lg bg-gray-50 px-4 py-6 text-gray-600">
-                  No hay invitados registrados para este evento.
-                </p>
-              )}
-            </div>
-          )}
-
           <div className="space-y-4">
             <h2 className="text-xl font-bold sm:text-2xl">Actividades</h2>
             {subeventosCompletos.length > 0 ? (
-              <div className="space-y-4">
-                {subeventosCompletos.map((subevento) => (
-                  <OrganizerSubeventCard
-                    key={subevento.idSubEvento}
-                    idEvento={datosEvento.idEvento}
-                    subevento={subevento}
-                    detailsPath={`/organizador/administrar-evento/${datosEvento.idEvento}/subevento/${subevento.idSubEvento}`}
-                    detailsLabel="Mostrar detalles"
-                  />
-                ))}
+              <div className="space-y-4 px-10">
+                {subeventosCompletos.map((subevento) => {
+                  const sub = subevento as SubeventoAdministracion;
+                  const invitadosSub = sub.invitados ?? [];
+                  return (
+                    <div key={subevento.idSubEvento} className="space-y-3">
+                      <OrganizerSubeventCard
+                        idEvento={datosEvento.idEvento}
+                        subevento={subevento}
+                        detailsPath={`/organizador/administrar-evento/${datosEvento.idEvento}/subevento/${subevento.idSubEvento}`}
+                        detailsLabel="Mostrar detalles"
+                      />
+                    </div>
+                  );
+                })}
               </div>
             ) : (
               <p className="rounded-lg bg-gray-50 px-4 py-6 text-gray-600">
