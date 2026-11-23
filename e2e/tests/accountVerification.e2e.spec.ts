@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import path from "node:path";
 import { By, WebDriver, until } from "selenium-webdriver";
 import { LoginPage } from "../pages/LoginPage";
+import { logQaAnnotation } from "../utils/qaAnnotations";
 import {
   API_URL,
   BASE_URL,
@@ -297,6 +298,8 @@ async function runAccountVerificationSuite(): Promise<void> {
       8000,
     );
     assert.equal(await verifiedBadge.isDisplayed(), true);
+    logQaAnnotation("ERR-02", "Paso 6 (Correo verificación aprobada): Pie muestra 'ID Solicitud: <timestamp>' sin utilidad");
+    logQaAnnotation("ERR-08", "Paso 6 (Duda abierta UI32 -> UI04): Cuenta Gmail verificada como Estudiante no visualiza eventos Interno");
 
     const warningBanners = await driver.findElements(
       By.xpath(

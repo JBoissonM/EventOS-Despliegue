@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { Builder, By, WebDriver, until } from "selenium-webdriver";
 import chrome from "selenium-webdriver/chrome";
 import { LoginPage } from "../pages/LoginPage";
+import { logQaAnnotation } from "../utils/qaAnnotations";
 
 async function runAdminPerfilSuite(): Promise<void> {
   const options = new chrome.Options();
@@ -34,6 +35,7 @@ async function runAdminPerfilSuite(): Promise<void> {
     const profileBtn = await driver.findElement(
       By.css("[aria-label='Perfil de usuario']"),
     );
+    logQaAnnotation("ERR-10", "Paso 1 (NavBar): Enlace 'Control de Acceso' en cuentas Asistente sin asignaciones de logística");
     await profileBtn.click();
 
     await driver.wait(until.urlContains("/perfil"), 10000);
@@ -105,6 +107,7 @@ async function runAdminPerfilSuite(): Promise<void> {
       ),
       5000,
     );
+    logQaAnnotation("ERR-11", "Paso 3 (UI28 /perfil): Botón 'Cerrar sesión' debe usar variante danger (rojo)");
     await logoutBtn.click();
 
     await driver.wait(until.urlContains("/login"), 5000);

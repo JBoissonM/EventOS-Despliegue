@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { By, Key, WebDriver, until } from "selenium-webdriver";
 import { LoginPage } from "../pages/LoginPage";
+import { logQaAnnotation } from "../utils/qaAnnotations";
 import {
   API_URL,
   BASE_URL,
@@ -279,6 +280,7 @@ async function runOrganizerEventsSuite(): Promise<void> {
       until.urlContains(`/organizador/editar-evento/${seeded.idEvento}`),
       8000,
     );
+    logQaAnnotation("ERR-09", "Paso 4 (UI16 Editar evento): Faltan ayudas/tooltips (general, Ponentes, Logística) y Pencil traslapado en TextArea");
 
     const campoNombre = await driver.wait(
       until.elementLocated(By.id("campoNombre")),
