@@ -123,6 +123,72 @@ export interface HorarioOcupado {
   horaFin: string;
 }
 
+function puedeTerminarEn(
+  horaInicio: string,
+  horaFin: string,
+  agendaOcupada: HorarioOcupado[],
+): boolean {
+  return (
+    horaEnMinutos(horaFin) > horaEnMinutos(horaInicio) &&
+    !agendaOcupada.some((ocupado) => seTraslapa(horaInicio, horaFin, ocupado))
+  );
+}
+
+function obtenerHorasInicioDisponibles(
+  horaInicioActual: string,
+  horaFinActual: string,
+  agendaOcupada: HorarioOcupado[],
+) {
+  const horasFinCandidatas = [
+    ...new Set([...HORASFIN, horaFinActual].filter(Boolean)),
+  ];
+  return opcionesHora(HORASINICIO, horaInicioActual).filter(
+    ({ value }) =>
+      !agendaOcupada.some(
+        (ocupado) =>
+          horaEnMinutos(value) >= horaEnMinutos(ocupado.horaInicio) &&
+          horaEnMinutos(value) < horaEnMinutos(ocupado.horaFin),
+      ) &&
+      horasFinCandidatas.some((horaFin) =>
+        puedeTerminarEn(value, horaFin, agendaOcupada),
+      ),
+  );
+}
+
+/**
+ * Conserva la hora de inicio y fin tras un cambio de fecha o recinto cuando
+ * siguen disponibles en la agenda del espacio; limpia solo las que ya no
+ * son válidas.
+ */
+export function ajustarHorarioSegunAgenda(
+  horaInicio: string,
+  horaFin: string,
+  agendaOcupada: HorarioOcupado[],
+): { horaInicio: string; horaFin: string } {
+  if (!horaInicio) {
+    return { horaInicio: "", horaFin: "" };
+  }
+
+  const iniciosDisponibles = obtenerHorasInicioDisponibles(
+    horaInicio,
+    horaFin,
+    agendaOcupada,
+  );
+  const inicioValido = iniciosDisponibles.some(
+    (opcion) => opcion.value === horaInicio,
+  );
+  if (!inicioValido) {
+    return { horaInicio: "", horaFin: "" };
+  }
+
+  const finValido =
+    Boolean(horaFin) && puedeTerminarEn(horaInicio, horaFin, agendaOcupada);
+  return {
+    horaInicio,
+    horaFin: finValido ? horaFin : "",
+  };
+}
+
 function sumarDias(fechaStr: string, dias: number): string {
   if (!fechaStr) return "";
   const [y, m, d] = fechaStr.split("-").map(Number);
@@ -241,26 +307,13 @@ export function EditLogisticsSection({
   );
   const accesoFijo = esLaboratorioRecinto(recintoSeleccionado?.idRecinto);
 
-  const horasFinCandidatas = [
-    ...new Set([...HORASFIN, valores.horaFin].filter(Boolean)),
-  ];
-  const puedeTerminarEn = (horaInicio: string, horaFin: string): boolean =>
-    horaEnMinutos(horaFin) > horaEnMinutos(horaInicio) &&
-    !agendaOcupada.some((ocupado) => seTraslapa(horaInicio, horaFin, ocupado));
-
   const horasInicioDisponibles =
     cargandoAgenda || errorAgenda || !valores.idRecinto || !valores.fecha
       ? []
-      : opcionesHora(HORASINICIO, valores.horaInicio).filter(
-          ({ value }) =>
-            !agendaOcupada.some(
-              (ocupado) =>
-                horaEnMinutos(value) >= horaEnMinutos(ocupado.horaInicio) &&
-                horaEnMinutos(value) < horaEnMinutos(ocupado.horaFin),
-            ) &&
-            horasFinCandidatas.some((horaFin) =>
-              puedeTerminarEn(value, horaFin),
-            ),
+      : obtenerHorasInicioDisponibles(
+          valores.horaInicio,
+          valores.horaFin,
+          agendaOcupada,
         );
   const horasFinDisponibles =
     !cargandoAgenda &&
@@ -269,7 +322,7 @@ export function EditLogisticsSection({
     valores.fecha &&
     valores.horaInicio
       ? opcionesHora(HORASFIN, valores.horaFin).filter(({ value }) =>
-          puedeTerminarEn(valores.horaInicio, value),
+          puedeTerminarEn(valores.horaInicio, value, agendaOcupada),
         )
       : [];
   const horaFinInvalida = Boolean(
@@ -327,10 +380,6 @@ export function EditLogisticsSection({
               hasError={Boolean(intentoGuardar && errores?.idRecinto)}
               onChange={(event) => {
                 const idRecinto = Number(event.currentTarget.value);
-                if (String(idRecinto) !== valores.idRecinto) {
-                  onCambioLogistica("horaInicio", "");
-                  onCambioLogistica("horaFin", "");
-                }
                 onCambioLogistica("idRecinto", String(idRecinto));
                 const permitidas =
                   obtenerModalidadesPermitidasPorRecinto(idRecinto);
@@ -373,10 +422,6 @@ export function EditLogisticsSection({
               disabled={deshabilitado}
               hasError={Boolean(intentoGuardar && errores?.fecha)}
               onValueChange={(fecha) => {
-                if (fecha !== valores.fecha) {
-                  onCambioLogistica("horaInicio", "");
-                  onCambioLogistica("horaFin", "");
-                }
                 onCambioLogistica("fecha", fecha);
               }}
             />
