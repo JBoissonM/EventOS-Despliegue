@@ -1,4 +1,5 @@
 import { useEffect, useId, useRef, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 
 interface ModalProps {
   titulo: string;
@@ -27,14 +28,16 @@ export function Modal({
 
     if (mostrarModal && !dialog.open) {
       dialog.showModal();
+      dialog.focus();
     } else if (!mostrarModal && dialog.open) {
       dialog.close();
     }
   }, [mostrarModal]);
 
-  return (
+  const dialogNode = (
     <dialog
       ref={dialogRef}
+      tabIndex={-1}
       aria-labelledby={tituloId}
       aria-describedby={contenidoId}
       onCancel={cerrarModal}
@@ -62,4 +65,8 @@ export function Modal({
       </div>
     </dialog>
   );
+
+  return typeof document !== "undefined"
+    ? createPortal(dialogNode, document.body)
+    : dialogNode;
 }
