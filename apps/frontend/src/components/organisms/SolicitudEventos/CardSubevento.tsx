@@ -227,6 +227,8 @@ export function CardSubevento(props: CardSubeventoProps) {
   horaInicioRef.current = subevento.horaInicio;
   const horaFinRef = useRef(subevento.horaFin);
   horaFinRef.current = subevento.horaFin;
+  const otrosSubeventosRef = useRef(otrosSubeventos);
+  otrosSubeventosRef.current = otrosSubeventos;
   const updateSubeventoRef = useRef(
     readOnly ? undefined : props.updateSubevento,
   );
@@ -278,11 +280,18 @@ export function CardSubevento(props: CardSubeventoProps) {
 
         const inicioActual = horaInicioRef.current;
         const finActual = horaFinRef.current;
-        if (inicioActual && agenda.length > 0) {
+        const bloquesOcupadosActuales: HorarioOcupadoAgenda[] = [
+          ...agenda,
+          ...otrosSubeventosRef.current.map((otro) => ({
+            horaInicio: otro.horaInicio,
+            horaFin: otro.horaFin,
+          })),
+        ];
+        if (inicioActual && bloquesOcupadosActuales.length > 0) {
           const inicioSigueDisponible = HORASFIN.some(
             ({ value: horaFin }) =>
               horaEnMinutos(horaFin) > horaEnMinutos(inicioActual) &&
-              !agenda.some((bloque) =>
+              !bloquesOcupadosActuales.some((bloque) =>
                 seTraslapan(
                   inicioActual,
                   horaFin,
@@ -296,7 +305,7 @@ export function CardSubevento(props: CardSubeventoProps) {
             updateSubeventoRef.current?.(index, "horaInicio", "");
           } else if (
             finActual &&
-            agenda.some((bloque) =>
+            bloquesOcupadosActuales.some((bloque) =>
               seTraslapan(
                 inicioActual,
                 finActual,
