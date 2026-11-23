@@ -58,7 +58,13 @@ export function CardMenuPrincipal({
           className="flex flex-wrap justify-between gap-2"
         >
           <Badge variant="primary">
-            {idAlcance !== undefined ? AlcanceEvento[idAlcance] : "Sin alcance"}
+            {idAlcance !== undefined && idAlcance === 1
+              ? "PÚBLICO"
+              : idAlcance !== undefined && idAlcance === 2
+                ? "INTERNO"
+                : idAlcance !== undefined && idAlcance === 3
+                  ? "PRIVADO"
+                  : "Sin alcance"}
           </Badge>
           <Badge
             variant={
