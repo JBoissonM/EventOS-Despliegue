@@ -6,7 +6,7 @@ export interface InputFileProps extends Omit<
   InputHTMLAttributes<HTMLInputElement>,
   "type" | "placeholder"
 > {
-  accept: "image/*" | ".pdf" | ".docx" | ".jpg";
+  accept: "image/*" | ".pdf" | ".docx" | ".jpg" | ".csv";
   placeholder?: string;
   hasError?: boolean;
 }
@@ -45,15 +45,20 @@ export function InputFile({
         hasError
           ? "border-eventos-error focus:border-eventos-error focus:ring-red-200"
           : "border-secondary focus-within:ring-blue-100"
-      } ${className}`}>
+      } ${className}`}
+    >
       <div className="flex w-full min-w-0 items-center justify-between gap-3">
         <span
           className={`min-w-0 truncate ${
             fileName && !disabled ? "text-gray-900" : "text-gray-400"
-          }`}>
+          }`}
+        >
           {fileName || placeholder}
         </span>
-        <ArrowUpCircle className="h-6 w-6 shrink-0 text-current" aria-hidden="true" />
+        <ArrowUpCircle
+          className="h-6 w-6 shrink-0 text-current"
+          aria-hidden="true"
+        />
       </div>
       <input
         type="file"
