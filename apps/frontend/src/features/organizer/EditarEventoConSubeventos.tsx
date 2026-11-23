@@ -735,6 +735,7 @@ function FilaActividadEditable({
 
 export function EditarEventoConSubeventos() {
   const { idEvento } = useParams();
+
   const navigate = useNavigate();
   const [evento, setEvento] = useState<EventoOrganizadorDetalle | null>(null);
   const [datosGenerales, setDatosGenerales] = useState<DatosGenerales | null>(
@@ -777,11 +778,14 @@ export function EditarEventoConSubeventos() {
   >([]);
   const [personalAEliminar, setPersonalAEliminar] =
     useState<PersonalLogisticaItem | null>(null);
-  const [modalInvitados, setModalInvitados] = useState(false);
-  const [invitados, setInvitados] = useState<InvitadoEventoItem[]>([]);
-  const [invitadosIniciales, setInvitadosIniciales] = useState<
-    InvitadoEventoItem[]
-  >([]);
+  const [subeventoModalInvitados, setSubeventoModalInvitados] = useState<
+    number | null
+  >(null);
+  const [invitadosPorSubevento, setInvitadosPorSubevento] = useState<
+    Record<number, InvitadoEventoItem[]>
+  >({});
+  const [invitadosInicialesPorSubevento, setInvitadosInicialesPorSubevento] =
+    useState<Record<number, InvitadoEventoItem[]>>({});
   const [invitadoAEliminar, setInvitadoAEliminar] =
     useState<InvitadoEventoItem | null>(null);
 
@@ -799,27 +803,42 @@ export function EditarEventoConSubeventos() {
   };
 
   const handleGuardarInvitados = (nuevosInvitados: TablaInvitadosModal[]) => {
+    if (subeventoModalInvitados === null) return;
     setError(null);
-    setInvitados((prev) => agregarInvitadosLocales(prev, nuevosInvitados));
+    const idSub = subeventoModalInvitados;
+    setInvitadosPorSubevento((prev) => ({
+      ...prev,
+      [idSub]: agregarInvitadosLocales(
+        prev[idSub] ?? [],
+        nuevosInvitados,
+        idSub,
+      ),
+    }));
   };
 
   const handleReenviarInvitado = async (invitado: InvitadoEventoItem) => {
     if (!idEvento) return;
     setError(null);
+    const idSub = invitado.idSubEvento;
+    if (!idSub) {
+      setError("No se pudo determinar el subevento de la invitación.");
+      return;
+    }
     try {
       if (invitado.idInvitacionEvento) {
         await apiRequest(
-          `eventos/${idEvento}/invitados/${invitado.idInvitacionEvento}/reenviar`,
+          `eventos/${idEvento}/subeventos/${idSub}/invitados/${invitado.idInvitacionEvento}/reenviar`,
           { method: "POST" },
         );
         setMensaje(`Invitación reenviada correctamente a ${invitado.correo}.`);
-        setInvitados((prev) =>
-          prev.map((i) =>
+        setInvitadosPorSubevento((prev) => ({
+          ...prev,
+          [idSub]: (prev[idSub] ?? []).map((i) =>
             i.idInvitacionEvento === invitado.idInvitacionEvento
               ? { ...i, puedeReenviar: false, horasRestantesCooldown: 8 }
               : i,
           ),
-        );
+        }));
       }
     } catch (err) {
       setError(obtenerMensajeError(err));
@@ -828,10 +847,18 @@ export function EditarEventoConSubeventos() {
 
   const confirmarEliminarInvitado = () => {
     if (!invitadoAEliminar) return;
+    const idSub = invitadoAEliminar.idSubEvento;
+    if (!idSub) {
+      setInvitadoAEliminar(null);
+      return;
+    }
     const correoObjetivo = normalizarCorreo(invitadoAEliminar.correo);
-    setInvitados((prev) =>
-      prev.filter((i) => normalizarCorreo(i.correo) !== correoObjetivo),
-    );
+    setInvitadosPorSubevento((prev) => ({
+      ...prev,
+      [idSub]: (prev[idSub] ?? []).filter(
+        (i) => normalizarCorreo(i.correo) !== correoObjetivo,
+      ),
+    }));
     setInvitadoAEliminar(null);
   };
 
@@ -916,8 +943,17 @@ export function EditarEventoConSubeventos() {
         setDatosGeneralesIniciales(generales);
         setActividades(listaActividades);
         setActividadesIniciales(listaActividades);
-        setInvitados(detalle.invitados ?? []);
-        setInvitadosIniciales(detalle.invitados ?? []);
+        const mapaInvitados = Object.fromEntries(
+          detalle.subEventos.map((sub) => [
+            sub.idSubEvento,
+            (sub.invitados ?? []).map((inv) => ({
+              ...inv,
+              idSubEvento: inv.idSubEvento ?? sub.idSubEvento,
+            })),
+          ]),
+        );
+        setInvitadosPorSubevento(mapaInvitados);
+        setInvitadosInicialesPorSubevento(mapaInvitados);
         setPersonalLogistica(detalle.personalLogistica ?? []);
         setPersonalLogisticaInicial(detalle.personalLogistica ?? []);
         setRecintos(listaRecintos);
@@ -955,10 +991,20 @@ export function EditarEventoConSubeventos() {
   const maxFecha =
     maxFecha15 < FECHA_FIN_SEMESTRE ? maxFecha15 : FECHA_FIN_SEMESTRE;
 
-  const invitadosModificados = tienenCambiosInvitados(
-    invitados,
-    invitadosIniciales,
-  );
+  const subeventosConCambiosInvitados = useMemo(() => {
+    const ids = new Set<number>([
+      ...Object.keys(invitadosPorSubevento).map(Number),
+      ...Object.keys(invitadosInicialesPorSubevento).map(Number),
+    ]);
+    return Array.from(ids).filter((idSub) =>
+      tienenCambiosInvitados(
+        invitadosPorSubevento[idSub] ?? [],
+        invitadosInicialesPorSubevento[idSub] ?? [],
+      ),
+    );
+  }, [invitadosPorSubevento, invitadosInicialesPorSubevento]);
+
+  const invitadosModificados = subeventosConCambiosInvitados.length > 0;
 
   const personalLogisticaModificado = tienenCambiosPersonalLogistica(
     personalLogistica,
@@ -1204,7 +1250,10 @@ export function EditarEventoConSubeventos() {
     let generalesGuardados = false;
     let logisticaEnviada = false;
     let erroresDiferidos: string[] = [];
-    let invitadosFallidos: InvitadoEventoItem[] = [];
+    const invitadosFallidosPorSubevento: Record<
+      number,
+      InvitadoEventoItem[]
+    > = {};
 
     try {
       if (soloCamposGeneralesModificados) {
@@ -1258,11 +1307,35 @@ export function EditarEventoConSubeventos() {
       const sincronizarInvitados =
         invitadosModificados && alcanceFinal === AlcanceEvento.PRIVADO;
 
-      if (sincronizarInvitados || personalLogisticaModificado) {
+      if (sincronizarInvitados) {
+        for (let i = 0; i < subeventosConCambiosInvitados.length; i += 1) {
+          const idSub = subeventosConCambiosInvitados[i];
+          const resultadoSync = await sincronizarInvitadosYLogistica({
+            idEvento,
+            idSubEvento: idSub,
+            invitadosActuales: invitadosPorSubevento[idSub] ?? [],
+            invitadosIniciales: invitadosInicialesPorSubevento[idSub] ?? [],
+            personalActual:
+              i === 0 && personalLogisticaModificado ? personalLogistica : [],
+            personalInicial:
+              i === 0 && personalLogisticaModificado
+                ? personalLogisticaInicial
+                : [],
+          });
+          if (resultadoSync.huboCambiosAplicados) {
+            generalesGuardados = true;
+          }
+          erroresDiferidos = [...erroresDiferidos, ...resultadoSync.errores];
+          if (resultadoSync.invitadosNuevosFallidos.length > 0) {
+            invitadosFallidosPorSubevento[idSub] =
+              resultadoSync.invitadosNuevosFallidos;
+          }
+        }
+      } else if (personalLogisticaModificado) {
         const resultadoSync = await sincronizarInvitadosYLogistica({
           idEvento,
-          invitadosActuales: sincronizarInvitados ? invitados : [],
-          invitadosIniciales: sincronizarInvitados ? invitadosIniciales : [],
+          invitadosActuales: [],
+          invitadosIniciales: [],
           personalActual: personalLogistica,
           personalInicial: personalLogisticaInicial,
         });
@@ -1270,7 +1343,6 @@ export function EditarEventoConSubeventos() {
           generalesGuardados = true;
         }
         erroresDiferidos = resultadoSync.errores;
-        invitadosFallidos = resultadoSync.invitadosNuevosFallidos;
       }
 
       if (enviarLogistica && cambiosActividades) {
@@ -1296,9 +1368,26 @@ export function EditarEventoConSubeventos() {
         `eventos/${idEvento}/detalle-organizador`,
       );
       setEvento(detalleActualizado);
-      const invitadosServidor = detalleActualizado.invitados ?? [];
-      setInvitados([...invitadosServidor, ...invitadosFallidos]);
-      setInvitadosIniciales(invitadosServidor);
+      const mapaServidor = Object.fromEntries(
+        detalleActualizado.subEventos.map((sub) => [
+          sub.idSubEvento,
+          (sub.invitados ?? []).map((inv) => ({
+            ...inv,
+            idSubEvento: inv.idSubEvento ?? sub.idSubEvento,
+          })),
+        ]),
+      );
+      const mapaConFallidos = Object.fromEntries(
+        detalleActualizado.subEventos.map((sub) => [
+          sub.idSubEvento,
+          [
+            ...(mapaServidor[sub.idSubEvento] ?? []),
+            ...(invitadosFallidosPorSubevento[sub.idSubEvento] ?? []),
+          ],
+        ]),
+      );
+      setInvitadosPorSubevento(mapaConFallidos);
+      setInvitadosInicialesPorSubevento(mapaServidor);
       setPersonalLogistica(detalleActualizado.personalLogistica ?? []);
       setPersonalLogisticaInicial(detalleActualizado.personalLogistica ?? []);
       const listaActividades = obtenerActividades(detalleActualizado);
@@ -1727,51 +1816,54 @@ export function EditarEventoConSubeventos() {
               />
             </div>
 
-            {(datosGenerales?.idAlcance === AlcanceEvento.PRIVADO ||
-              evento?.idAlcance === AlcanceEvento.PRIVADO) && (
-              <div id="contenedorInvitados" className="space-y-4 pt-2">
-                <h3 className="text-lg font-bold sm:text-xl md:text-2xl">
-                  Tus invitados
-                </h3>
-                {invitados.length > 0 ? (
-                  <div className="w-full max-w-full overflow-x-auto rounded-lg border border-gray-200 shadow-sm lg:w-150">
-                    <Table
-                      columnas={columnasInvitados}
-                      filas={invitados}
-                      obtenerClave={(invitado) =>
-                        invitado.correo ||
-                        (invitado.idInvitacionEvento
-                          ? String(invitado.idInvitacionEvento)
-                          : "") ||
-                        String(invitado.idUsuario)
-                      }
-                      encabezadoClassName="h-10 border-b border-gray-300"
-                      filaClassName="h-12"
-                      className="w-full min-w-full bg-white text-left text-sm [&_th]:py-2 [&_td]:py-2"
-                    />
-                  </div>
-                ) : (
-                  <p className="text-gray-600">
-                    No hay invitados registrados para este evento.
-                  </p>
-                )}
-                <Button
-                  text="Agregar invitados"
-                  variant="primary"
-                  type="button"
-                  className="w-full sm:w-auto"
-                  onClick={() => setModalInvitados(true)}
-                />
-              </div>
-            )}
+            {subeventoModalInvitados !== null && (() => {
+              const actividadModal = actividades.find(
+                (a) => a.idSubEvento === subeventoModalInvitados,
+              );
+              const recintoModal = recintos.find(
+                (r) => String(r.idRecinto) === actividadModal?.idRecinto,
+              );
+              const invitadosActualesModal =
+                invitadosPorSubevento[subeventoModalInvitados] ?? [];
 
-            {modalInvitados && (
-              <ModalInvitados
-                mostrarModal={modalInvitados}
-                cerrarModal={() => setModalInvitados(false)}
-                guardar={handleGuardarInvitados}
-              />
-            )}
+              return (
+                <ModalInvitados
+                  mostrarModal={subeventoModalInvitados !== null}
+                  idEvento={idEvento}
+                  idSubEvento={subeventoModalInvitados}
+                  numeroInvitados={invitadosActualesModal.length}
+                  foroRecinto={recintoModal?.aforo}
+                  correosExistentes={invitadosActualesModal.map((i) => i.correo)}
+                  cerrarModal={() => setSubeventoModalInvitados(null)}
+                  guardar={handleGuardarInvitados}
+                  onEnvioCompletado={(exitosos) => {
+                    const idSub = subeventoModalInvitados;
+                    const fusionar = (prev: InvitadoEventoItem[]) => {
+                      const existentes = new Set(
+                        prev.map((i) => normalizarCorreo(i.correo)),
+                      );
+                      const nuevos = exitosos
+                        .map((ex) => ({
+                          ...ex,
+                          idSubEvento: ex.idSubEvento ?? idSub,
+                        }))
+                        .filter(
+                          (ex) => !existentes.has(normalizarCorreo(ex.correo)),
+                        );
+                      return nuevos.length > 0 ? [...prev, ...nuevos] : prev;
+                    };
+                    setInvitadosPorSubevento((prev) => ({
+                      ...prev,
+                      [idSub]: fusionar(prev[idSub] ?? []),
+                    }));
+                    setInvitadosInicialesPorSubevento((prev) => ({
+                      ...prev,
+                      [idSub]: fusionar(prev[idSub] ?? []),
+                    }));
+                  }}
+                />
+              );
+            })()}
 
             {invitadoAEliminar && (
               <Modal
@@ -1836,16 +1928,67 @@ export function EditarEventoConSubeventos() {
                       : null,
                   };
 
+                  const invitadosSubevento =
+                    invitadosPorSubevento[actividad.idSubEvento] ?? [];
+                  const esPrivado =
+                    datosGenerales?.idAlcance === AlcanceEvento.PRIVADO ||
+                    evento?.idAlcance === AlcanceEvento.PRIVADO;
+
                   return (
-                    <OrganizerSubeventCard
-                      key={actividad.llave}
-                      idEvento={Number(idEvento)}
-                      subevento={subevento}
-                      onCancel={(motivoCancelacion) => {
-                        setMotivo(motivoCancelacion);
-                        quitarActividad(actividad.llave);
-                      }}
-                    />
+                    <div key={actividad.llave} className="space-y-3">
+                      <OrganizerSubeventCard
+                        idEvento={Number(idEvento)}
+                        subevento={subevento}
+                        onCancel={(motivoCancelacion) => {
+                          setMotivo(motivoCancelacion);
+                          quitarActividad(actividad.llave);
+                        }}
+                      />
+                      {esPrivado && (
+                        <div className="space-y-3 rounded-md border border-gray-200 bg-white p-4">
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <h3 className="text-base font-semibold text-eventos-ink">
+                              Invitados de la actividad
+                            </h3>
+                            <Button
+                              text="Agregar invitados"
+                              variant="primary"
+                              type="button"
+                              className="w-full sm:w-auto"
+                              onClick={() =>
+                                setSubeventoModalInvitados(
+                                  actividad.idSubEvento!,
+                                )
+                              }
+                            />
+                          </div>
+                          {invitadosSubevento.length > 0 ? (
+                            <div className="w-full max-w-full overflow-x-auto rounded-lg border border-gray-200 shadow-sm">
+                              <Table
+                                columnas={columnasInvitados}
+                                filas={invitadosSubevento}
+                                obtenerClave={(invitado) =>
+                                  `${actividad.idSubEvento}-${
+                                    invitado.correo ||
+                                    (invitado.idInvitacionEvento
+                                      ? String(invitado.idInvitacionEvento)
+                                      : "") ||
+                                    String(invitado.idUsuario)
+                                  }`
+                                }
+                                encabezadoClassName="h-10 border-b border-gray-300"
+                                filaClassName="h-12"
+                                className="w-full min-w-full bg-white text-left text-sm [&_th]:py-2 [&_td]:py-2"
+                              />
+                            </div>
+                          ) : (
+                            <p className="text-sm text-gray-600">
+                              No hay invitados registrados para esta actividad.
+                            </p>
+                          )}
+                        </div>
+                      )}
+                    </div>
                   );
                 }
 

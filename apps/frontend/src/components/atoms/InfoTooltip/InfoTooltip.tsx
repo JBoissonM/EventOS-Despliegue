@@ -226,7 +226,7 @@ export function InfoTooltip({
           >
             {content}
           </div>,
-          document.body,
+          triggerRef.current?.closest("dialog") ?? document.body,
         )}
     </span>
   );

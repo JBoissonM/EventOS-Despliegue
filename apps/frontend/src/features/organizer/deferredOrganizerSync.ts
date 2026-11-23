@@ -1,4 +1,7 @@
-import type { InvitadoEventoItem, PersonalLogisticaItem } from "@eventos/shared";
+import type {
+  InvitadoEventoItem,
+  PersonalLogisticaItem,
+} from "@eventos/shared";
 import { apiRequest } from "../../lib/apiClient";
 import type { TablaInvitados as TablaInvitadosModal } from "./organism/ModalInvitados";
 
@@ -9,6 +12,7 @@ export function normalizarCorreo(correo: string): string {
 export function agregarInvitadosLocales(
   actuales: InvitadoEventoItem[],
   nuevos: TablaInvitadosModal[],
+  idSubEvento = 0,
 ): InvitadoEventoItem[] {
   const existentes = new Set(actuales.map((i) => normalizarCorreo(i.correo)));
   const agregados: InvitadoEventoItem[] = [];
@@ -21,6 +25,7 @@ export function agregarInvitadosLocales(
     offset += 1;
     agregados.push({
       idInvitacionEvento: 0,
+      idSubEvento,
       idUsuario: -(Date.now() + offset),
       nombreCompleto: "",
       correo,
@@ -53,6 +58,7 @@ export function tienenCambiosPersonalLogistica(
 
 export async function sincronizarInvitadosYLogistica(params: {
   idEvento: string;
+  idSubEvento?: number | string;
   invitadosActuales: InvitadoEventoItem[];
   invitadosIniciales: InvitadoEventoItem[];
   personalActual: PersonalLogisticaItem[];
@@ -64,6 +70,7 @@ export async function sincronizarInvitadosYLogistica(params: {
 }> {
   const {
     idEvento,
+    idSubEvento,
     invitadosActuales,
     invitadosIniciales,
     personalActual,
@@ -93,11 +100,21 @@ export async function sincronizarInvitadosYLogistica(params: {
   let huboCambiosAplicados = false;
 
   for (const inv of invitadosNuevos) {
+    const subEventoId =
+      inv.idSubEvento && inv.idSubEvento > 0 ? inv.idSubEvento : idSubEvento;
+    if (!subEventoId) {
+      errores.push(`${inv.correo}: No se pudo determinar el subevento.`);
+      invitadosNuevosFallidos.push(inv);
+      continue;
+    }
     try {
-      await apiRequest(`eventos/${idEvento}/invitados`, {
-        method: "POST",
-        body: JSON.stringify({ correo: normalizarCorreo(inv.correo) }),
-      });
+      await apiRequest(
+        `eventos/${idEvento}/subeventos/${subEventoId}/invitados`,
+        {
+          method: "POST",
+          body: JSON.stringify({ correo: normalizarCorreo(inv.correo) }),
+        },
+      );
       huboCambiosAplicados = true;
     } catch (err) {
       const msg =
@@ -108,10 +125,17 @@ export async function sincronizarInvitadosYLogistica(params: {
   }
 
   for (const inv of invitadosEliminados) {
+    const subEventoId =
+      inv.idSubEvento && inv.idSubEvento > 0 ? inv.idSubEvento : idSubEvento;
+    if (!subEventoId) {
+      errores.push(`${inv.correo}: No se pudo determinar el subevento.`);
+      invitadosNuevosFallidos.push(inv);
+      continue;
+    }
     if (!inv.idInvitacionEvento) continue;
     try {
       await apiRequest(
-        `eventos/${idEvento}/invitados/${inv.idInvitacionEvento}`,
+        `eventos/${idEvento}/subeventos/${subEventoId}/invitados/${inv.idInvitacionEvento}`,
         { method: "DELETE" },
       );
       huboCambiosAplicados = true;

@@ -244,6 +244,17 @@ function convertirSubevento(valor: unknown): EventoOrganizadorDetalleSubevento {
         : typeof valor.ingresadosCount === "number"
           ? valor.ingresadosCount
           : undefined,
+    tokenInvitacion:
+      typeof valor.tokenInvitacion === "string"
+        ? valor.tokenInvitacion
+        : undefined,
+    enlaceInvitacionActivo:
+      typeof valor.enlaceInvitacionActivo === "boolean"
+        ? valor.enlaceInvitacionActivo
+        : undefined,
+    invitados: Array.isArray(valor.invitados)
+      ? (valor.invitados as InvitadoEventoItem[])
+      : [],
   };
 }
 
@@ -357,7 +368,9 @@ export function AdministracionEvento() {
     : (datosEvento?.subEventos ?? []);
   const personalLogistica =
     subevento && datosEvento ? (datosEvento.personalLogistica ?? []) : [];
-  const invitados = datosEvento?.invitados ?? [];
+  const invitados = subevento
+    ? (subevento.invitados ?? datosEvento?.invitados ?? [])
+    : [];
   const navigate = useNavigate();
 
   const [mostrarModalCancelar, setMostrarModalCancelar] = useState(false);
@@ -622,7 +635,7 @@ export function AdministracionEvento() {
                   )}
                 </div>
               )}
-              {datosEvento.idAlcance === AlcanceEvento.PRIVADO && (
+              {datosEvento.idAlcance === AlcanceEvento.PRIVADO && subevento && (
                 <div id="contenedorInvitados" className="space-y-4">
                   <h2 className="text-xl font-bold sm:text-2xl">
                     Tus invitados

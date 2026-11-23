@@ -12,7 +12,7 @@ import {
   type InvitadoEventoItem,
   type Recinto,
 } from "@eventos/shared";
-import { ArrowLeft, Pencil } from "lucide-react";
+import { Pencil } from "lucide-react";
 import { Input } from "../../components/atoms/Input/Input";
 import { TextArea } from "../../components/atoms/TextArea/TextArea";
 import { Table } from "../../components/organisms/Table/Table";
@@ -45,6 +45,8 @@ import {
   tienenCambiosInvitados,
   tienenCambiosPersonalLogistica,
 } from "./deferredOrganizerSync";
+import { InfoTooltip } from "../../components/atoms/InfoTooltip/InfoTooltip";
+import { ModalidadAccesoHelp } from "../../components/molecules/ModalidadAccesoHelp";
 
 function separarMotivoUrgencia(motivo: string) {
   const indice = motivo.lastIndexOf(MARCADOR_MOTIVO_URGENCIA);
@@ -92,12 +94,14 @@ function crearColumnasLogistica(
       encabezado: "Acción",
       render: (personal) => {
         return (
-          <Button
-            text="Eliminar"
-            variant="danger"
-            type="button"
-            onClick={() => onEliminar(personal)}
-          />
+          <div id="contenedorEncabezado">
+            <Button
+              text="Eliminar"
+              variant="danger"
+              type="button"
+              onClick={() => onEliminar(personal)}
+            />
+          </div>
         );
       },
       className:
@@ -230,7 +234,13 @@ export function EditarEvento() {
 
   const handleGuardarInvitados = (nuevosInvitados: TablaInvitadosModal[]) => {
     setError(null);
-    setInvitados((prev) => agregarInvitadosLocales(prev, nuevosInvitados));
+    setInvitados((prev) =>
+      agregarInvitadosLocales(
+        prev,
+        nuevosInvitados,
+        subevento?.idSubEvento ?? 0,
+      ),
+    );
   };
 
   const confirmarEliminarInvitado = () => {
@@ -245,10 +255,18 @@ export function EditarEvento() {
   const handleReenviarInvitado = async (invitado: InvitadoEventoItem) => {
     if (!idEvento) return;
     setError(null);
+    const idSub =
+      invitado.idSubEvento && invitado.idSubEvento > 0
+        ? invitado.idSubEvento
+        : subevento?.idSubEvento;
+    if (!idSub) {
+      setError("No se pudo determinar el subevento de la invitación.");
+      return;
+    }
     try {
       if (invitado.idInvitacionEvento) {
         await apiRequest(
-          `eventos/${idEvento}/invitados/${invitado.idInvitacionEvento}/reenviar`,
+          `eventos/${idEvento}/subeventos/${idSub}/invitados/${invitado.idInvitacionEvento}/reenviar`,
           { method: "POST" },
         );
         setMensaje(`Invitación reenviada correctamente a ${invitado.correo}.`);
@@ -286,7 +304,7 @@ export function EditarEvento() {
                   ? "Pendiente de envío"
                   : invitado.puedeReenviar
                     ? "Reenviar invitación"
-                    : `Reenviar (${invitado.horasRestantesCooldown ?? 8}h)`
+                    : `Reenviar (${invitado.horasRestantesCooldown ?? 8} horas restantes)`
               }
               variant={
                 invitado.idInvitacionEvento && invitado.puedeReenviar
@@ -391,8 +409,11 @@ export function EditarEvento() {
         );
         setJustificacion(detalle.justificacion ?? "");
         setAlcance(detalle.idAlcance ?? "");
-        setInvitados(detalle.invitados ?? []);
-        setInvitadosIniciales(detalle.invitados ?? []);
+        const subeventoActivo = subeventoSeleccionado ?? detalle.subEventos[0];
+        const invitadosDelSub =
+          subeventoActivo?.invitados ?? detalle.invitados ?? [];
+        setInvitados(invitadosDelSub);
+        setInvitadosIniciales(invitadosDelSub);
         setPersonalLogistica(detalle.personalLogistica ?? []);
         setPersonalLogisticaInicial(detalle.personalLogistica ?? []);
         const valoresLogistica = obtenerValoresLogistica(
@@ -846,6 +867,7 @@ export function EditarEvento() {
       if (sincronizarInvitados || personalLogisticaModificado) {
         const resultadoSync = await sincronizarInvitadosYLogistica({
           idEvento,
+          idSubEvento: subevento.idSubEvento,
           invitadosActuales: sincronizarInvitados ? invitados : [],
           invitadosIniciales: sincronizarInvitados ? invitadosIniciales : [],
           personalActual: personalLogistica,
@@ -939,7 +961,8 @@ export function EditarEvento() {
             )
           : undefined;
       setEvento(detalleActualizado);
-      const invitadosServidor = detalleActualizado.invitados ?? [];
+      const invitadosServidor =
+        subeventoActualizado?.invitados ?? detalleActualizado.invitados ?? [];
       setInvitados([...invitadosServidor, ...invitadosFallidos]);
       setInvitadosIniciales(invitadosServidor);
       setPersonalLogistica(detalleActualizado.personalLogistica ?? []);
@@ -1394,9 +1417,17 @@ export function EditarEvento() {
                   )}
                   {alcance === AlcanceEvento.PRIVADO && (
                     <div id="contenedorInvitados" className="space-y-5">
-                      <h2 className="text-xl font-bold sm:text-2xl">
-                        Tus invitados
-                      </h2>
+                      <div className="flex flex-row gap-2">
+                        <h2 className="text-xl font-bold sm:text-2xl">
+                          Tus invitados
+                        </h2>
+                        <InfoTooltip
+                          ariaLabel="Atencion"
+                          content={
+                            "Las invitaciones pueden enviarse cada 8 horas"
+                          }
+                        />
+                      </div>
                       {invitados.length > 0 ? (
                         <div className="mt-4 w-full min-w-0 overflow-x-auto overflow-y-auto max-h-[225px] rounded-md border border-gray-200 shadow-md">
                           <Table
@@ -1430,8 +1461,29 @@ export function EditarEvento() {
                   {modalInvitados && (
                     <ModalInvitados
                       mostrarModal={modalInvitados}
+                      idEvento={idEvento}
+                      idSubEvento={subevento?.idSubEvento}
+                      numeroInvitados={invitados.length}
+                      foroRecinto={recintoActual?.aforo}
+                      correosExistentes={invitados.map((i) => i.correo)}
                       cerrarModal={() => setModalinvitados(false)}
                       guardar={handleGuardarInvitados}
+                      onEnvioCompletado={(exitosos) => {
+                        const fusionar = (prev: InvitadoEventoItem[]) => {
+                          const existentes = new Set(
+                            prev.map((i) => normalizarCorreo(i.correo)),
+                          );
+                          const nuevos = exitosos.filter(
+                            (ex) =>
+                              !existentes.has(normalizarCorreo(ex.correo)),
+                          );
+                          return nuevos.length > 0
+                            ? [...prev, ...nuevos]
+                            : prev;
+                        };
+                        setInvitados(fusionar);
+                        setInvitadosIniciales(fusionar);
+                      }}
                     />
                   )}
                 </div>
