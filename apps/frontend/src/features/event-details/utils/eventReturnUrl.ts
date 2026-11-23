@@ -1,7 +1,10 @@
 export function getEventReturnPath(value: string | null): string | null {
   if (!value) return null;
 
-  const validPath = /^\/eventos\/[1-9]\d*(?:\/actividades\/[1-9]\d*)?\/?$/.test(value);
+  const validPath =
+    /^\/eventos\/(?:[1-9]\d*(?:\/actividades\/[1-9]\d*)?|privado\/[a-zA-Z0-9-]+)\/?$/.test(
+      value,
+    );
   return validPath ? value.replace(/\/$/, "") : null;
 }
 

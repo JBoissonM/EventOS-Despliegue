@@ -6,6 +6,7 @@ import { getAuthPathWithReturnUrl, getEventReturnPath } from "../../event-detail
 interface DatosInvitacionRegistro {
   nombreEvento: string;
   tipo: "INVITACION_LOGISTICA" | "INVITACION_EVENTO_PRIVADO";
+  idSubEvento?: number;
 }
 
 export function useRegistro() {

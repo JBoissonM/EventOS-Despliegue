@@ -28,6 +28,7 @@ import { apiRequest } from "../../lib/apiClient";
 import { Badge } from "../../components/atoms/Badge/Badge";
 import { ModalidadAccesoHelp } from "../../components/molecules/ModalidadAccesoHelp";
 import { PageHeader } from "../../components/organisms/PageHeader/PageHeader";
+import { EnlaceInvitacionSubevento } from "./components/EnlaceInvitacionSubevento";
 
 type TablaPonente = {
   id: number;
@@ -52,7 +53,7 @@ const columnasLogistica: Columna<TablaPersonalLogistica>[] = [
     id: "correo",
     encabezado: "Correo",
     render: (personal) => personal.correo,
-    className: "min-w-[12rem] break-all px-3",
+    className: "min-w-[12rem] sm:min-w-[13rem] break-all px-3",
   },
 ];
 
@@ -662,6 +663,31 @@ export function AdministracionEvento() {
                       No hay invitados registrados para este evento.
                     </p>
                   )}
+                  <EnlaceInvitacionSubevento
+                    idEvento={datosEvento.idEvento}
+                    idSubEvento={subevento.idSubEvento}
+                    tokenInvitacion={subevento.tokenInvitacion}
+                    enlaceInvitacionActivo={subevento.enlaceInvitacionActivo}
+                    onActualizado={(datos) => {
+                      setDatosEvento((prev) =>
+                        prev
+                          ? {
+                              ...prev,
+                              subEventos: prev.subEventos.map((s) =>
+                                s.idSubEvento === datos.idSubEvento
+                                  ? {
+                                      ...s,
+                                      tokenInvitacion: datos.tokenInvitacion,
+                                      enlaceInvitacionActivo:
+                                        datos.enlaceInvitacionActivo,
+                                    }
+                                  : s,
+                              ),
+                            }
+                          : prev,
+                      );
+                    }}
+                  />
                 </div>
               )}
             </div>

@@ -21,6 +21,7 @@ import {
 } from "./components/OrganizerSubeventCard";
 import { Badge } from "../../components/atoms/Badge/Badge";
 import { PageHeader } from "../../components/organisms/PageHeader/PageHeader";
+import { EnlaceInvitacionSubevento } from "./components/EnlaceInvitacionSubevento";
 
 interface EventoSubeventosVista {
   idEvento: number;
@@ -464,13 +465,13 @@ export function AdministracionEventoConSubeventos() {
                 />
               </div>
             ) : (
-              <p className="rounded-lg bg-gray-50 py-6 text-gray-600">
+              <p className="rounded-lg bg-gray-50 py-5 text-gray-600">
                 No hay personal de logística registrado para este evento.
               </p>
             )}
           </div>
 
-          <div className="space-y-4">
+          <div className="space-y-3">
             <h2 className="text-xl font-bold sm:text-2xl">Actividades</h2>
             {subeventosCompletos.length > 0 ? (
               <div className="space-y-4 px-10">
@@ -495,7 +496,6 @@ export function AdministracionEventoConSubeventos() {
               </p>
             )}
           </div>
-
           {mensajeExito && (
             <p
               role="status"
@@ -504,7 +504,6 @@ export function AdministracionEventoConSubeventos() {
               {mensajeExito}
             </p>
           )}
-
           {datosEvento.idEstadoEvento !== EstadoEvento.RECHAZADO &&
             datosEvento.idEstadoEvento !== EstadoEvento.CANCELADO && (
               <div className="flex flex-wrap justify-end gap-3">
