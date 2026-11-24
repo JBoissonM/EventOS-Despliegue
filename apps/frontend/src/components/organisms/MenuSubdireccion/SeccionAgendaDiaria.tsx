@@ -201,7 +201,7 @@ export function AgendaDiaria() {
   }, [actividades, busquedaNormalizada, filtroRecinto]);
 
   return (
-    <div className="w-full min-w-0 space-y-3 xl:max-w-7xl">
+    <div className="mx-auto w-full max-w-7xl min-w-0 space-y-3">
       <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center justify-end">
         <div className="w-full sm:max-w-md">
           <SearchField
@@ -235,7 +235,7 @@ export function AgendaDiaria() {
         ) : error ? (
           <div className="py-12 text-center text-red-500">{error}</div>
         ) : actividades.length === 0 ? (
-          <div className="py-12 text-center text-gray-500">
+          <div className="py-12 text-sm px-4 md:text-base text-center text-gray-500">
             No hay actividades programadas para el día de hoy.
           </div>
         ) : actividadesFiltradas.length === 0 ? (

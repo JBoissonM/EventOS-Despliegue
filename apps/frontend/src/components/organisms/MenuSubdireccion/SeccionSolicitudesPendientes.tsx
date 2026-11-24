@@ -197,10 +197,11 @@ export function SeccionSolicitudesPendientes() {
       encabezado: "Prioridad",
       className: "text-center w-[7rem]",
       render: (solicitud) => (
-        <div className="min-w-[8rem] lg:min-w-[5rem] flex w-fit mx-auto justify-center">
+        <div className="min-w-[10rem] lg:min-w-[8rem] flex w-fit mx-auto justify-center">
           <Badge
             size="sm"
             variant={solicitud.urgente === true ? "error" : "success"}
+            className={solicitud.urgente === false ? "px-5 !py-1" : "!py-1"}
           >
             <div className="flex gap-1">
               {solicitud.urgente == true && (
@@ -222,6 +223,9 @@ export function SeccionSolicitudesPendientes() {
           <Badge
             size="sm"
             variant={solicitud.esModificacion === true ? "warning" : "primary"}
+            className={
+              solicitud.esModificacion === false ? "px-5 !py-1" : "!py-1"
+            }
           >
             <div className="flex gap-1">
               {solicitud.esModificacion === true ? "Modificación" : "Solicitud"}
@@ -260,7 +264,7 @@ export function SeccionSolicitudesPendientes() {
       id: "nombreSolicitante",
       encabezado: "Solicitante",
       render: (solicitud) => solicitud.nombreSolicitante,
-      className: "min-w-[12rem] max-w-[10rem] px-4 text-center sm:text-left",
+      className: "min-w-[10rem] lg:min-w-[12rem] px-4 text-center sm:text-left",
     },
     {
       id: "fechaInicio",
@@ -279,7 +283,7 @@ export function SeccionSolicitudesPendientes() {
     {
       id: "acciones",
       encabezado: "Acciones",
-      className: " px-4 md:w-[10rem]",
+      className: "whitespace-nowrap px-4 md:w-[10rem]",
       render: (solicitud) => {
         return (
           <Button

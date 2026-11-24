@@ -380,36 +380,33 @@ export function SolicitudesAprobadas() {
       id: "nombre",
       encabezado: "Nombre del evento",
       render: (solicitud) => solicitud.nombre,
-      className: "min-w-[12rem] max-w-[18rem] px-4",
+      className: "min-w-[12rem] lg:min-w-[10rem] px-4 text-left",
     },
     {
-      id: "solicitante",
+      id: "nombreSolicitante",
       encabezado: "Solicitante",
       render: (solicitud) => solicitud.nombreSolicitante,
-      className: "min-w-[12rem] max-w-[12rem] px-4",
+      className: "min-w-[10rem] lg:min-w-[15rem] px-4 text-center sm:text-left",
     },
     {
       id: "fechaInicio",
       encabezado: "Fecha inicio",
       render: (solicitud) => mostrarFecha(solicitud.fechaInicio),
-      className: "min-w-[8rem] px-4 text-center",
+      className: "min-w-[10rem] px-3",
     },
     {
       id: "fechaFin",
       encabezado: "Fecha Fin",
       render: (solicitud) => mostrarFecha(solicitud.fechaFin),
-      className: "min-w-[8rem] px-4 text-center",
+      className: "min-w-[10rem] px-3",
     },
     {
       id: "acciones",
       encabezado: "Acciones",
-      className: "text-center",
+      className: "whitespace-nowrap px-4 md:w-[10rem] text-center",
       render: (solicitud) => {
         return (
-          <div
-            id="contenedorCeldaBotones"
-            className="flex gap-2 justify-center"
-          >
+          <div id="contenedorCeldaBotones">
             <Button
               text="Ver detalles"
               variant="primary"
