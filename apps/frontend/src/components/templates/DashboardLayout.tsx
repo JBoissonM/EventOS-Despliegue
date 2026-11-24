@@ -40,8 +40,11 @@ export function DashboardLayout({ perfilValidado }: DashboardLayoutProps) {
   }
 
   return (
-    <div className="min-w-0 min-h-screen bg-gray-50 flex flex-col font-merriweather">
-      <Navbar userRole={rolNavbar} />
+    <div className="min-h-screen bg-gray-50 flex flex-col font-merriweather">
+      <Navbar
+        userRole={rolNavbar}
+        userId={perfil.idUsuario}
+      />
       <main className="flex flex-1 flex-col px-4 py-6 sm:px-7 sm:py-8">
         <Outlet />
       </main>

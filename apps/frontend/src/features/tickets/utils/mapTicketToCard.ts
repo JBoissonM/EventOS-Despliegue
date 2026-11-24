@@ -22,7 +22,6 @@ export function mapTicketToCard(ticket: TicketSummaryResponse): TicketItem {
     startTime: ticket.horaInicio?.slice(0, 5) ?? "--:--",
     endTime: ticket.horaFin?.slice(0, 5) ?? "--:--",
     venue: ticket.recinto || "Recinto por confirmar",
-    speakers: (ticket.ponentes ?? []).map((speaker) => speaker.nombreCompleto),
     status: mapTicketStatus(ticket.estadoBoleto),
     visibility,
     modalityLabel: obtenerEtiquetaModalidad(ticket.idModalidadAcceso),
