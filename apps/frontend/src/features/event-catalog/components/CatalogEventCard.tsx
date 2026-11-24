@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link } from "react-router";
 import { ImageOff } from "lucide-react";
-import { AlcanceEvento } from "@eventos/shared";
+import { EventScopeBadge } from "../../../components/atoms/Badge/EventScopeBadge";
 
 import type { CatalogEventApi } from "../types/eventCatalog.types";
 import {
@@ -71,15 +71,7 @@ export function CatalogEventCard({
       </div>
 
       <div className="flex min-w-0 flex-1 flex-col gap-2">
-        <span className="w-fit rounded bg-eventos-primary-light px-2 py-0.5 text-xs font-medium text-eventos-primary">
-          {event.idAlcance === AlcanceEvento.PUBLICO
-            ? "Público"
-            : event.idAlcance === AlcanceEvento.INTERNO
-              ? "Interno"
-              : event.idAlcance === AlcanceEvento.PRIVADO
-                ? "Privado"
-                : "No especificado"}
-        </span>
+        <EventScopeBadge scope={event.idAlcance} />
 
         <Heading className="min-w-0 break-words font-merriweather text-lg font-semibold leading-snug text-eventos-ink">
           {event.nombre}

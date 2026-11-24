@@ -21,7 +21,6 @@ import {
 export interface TicketItem extends Omit<TicketCardProps, "onViewQr" | "onViewDetails" | "onCancel"> {
   id: string;
   dateIso?: string;
-  speakers?: string[];
 }
 
 export interface MyTicketsPageProps {

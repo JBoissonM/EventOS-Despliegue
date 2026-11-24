@@ -1,9 +1,17 @@
-import { useId, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { Link, NavLink } from "react-router";
-import { Bell, CircleUserRound, Menu, X } from "lucide-react";
+import { CircleUserRound, Menu, X } from "lucide-react";
+import { apiRequest } from "../../../lib/apiClient";
 
 interface NavbarProps {
   userRole: "asistente" | "subdireccion" | "admin";
+  userId: number;
+}
+
+interface LogisticsNavigationState {
+  userId: number;
+  token: string;
+  hasAssignments: boolean;
 }
 
 const linksByRole = {
@@ -33,11 +41,101 @@ const linksByRole = {
 const keyboardFocus =
   "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-eventos-navbar-focus";
 
-export function Navbar({ userRole }: NavbarProps) {
+
+export function Navbar({ userRole, userId }: NavbarProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const mobileMenuId = useId();
   const menuButtonRef = useRef<HTMLButtonElement>(null);
-  const navLinks = linksByRole[userRole] ?? [];
+
+  const token = localStorage.getItem("token");
+
+  const [logisticsNavigation, setLogisticsNavigation] =
+    useState<LogisticsNavigationState | null>(null);
+
+  useEffect(() => {
+    setLogisticsNavigation(null);
+
+    if (userRole !== "asistente" || !token) {
+      return;
+    }
+
+    const controller = new AbortController();
+    let lastRequestAt = 0;
+    let isLoading = false;
+
+    const loadAssignments = async () => {
+      if (controller.signal.aborted || isLoading) return;
+
+      if (localStorage.getItem("token") !== token) return;
+
+      isLoading = true;
+      lastRequestAt = Date.now();
+
+      try {
+        const data = await apiRequest<unknown>("logistica/mis-eventos", {
+          signal: controller.signal,
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        if (
+          controller.signal.aborted ||
+          localStorage.getItem("token") !== token
+        ) {
+          return;
+        }
+
+        setLogisticsNavigation({
+          userId,
+          token,
+          hasAssignments: Array.isArray(data) && data.length > 0,
+        });
+      } catch {
+        if (
+          !controller.signal.aborted &&
+          localStorage.getItem("token") === token
+        ) {
+          setLogisticsNavigation(null);
+        }
+      } finally {
+        isLoading = false;
+      }
+    };
+
+    const refreshIfDue = () => {
+      if (
+        document.visibilityState === "visible" &&
+        Date.now() - lastRequestAt >= 60000
+      ) {
+        void loadAssignments();
+      }
+    };
+
+    void loadAssignments();
+
+    window.addEventListener("focus", refreshIfDue);
+    document.addEventListener("visibilitychange", refreshIfDue);
+
+    return () => {
+      controller.abort();
+      window.removeEventListener("focus", refreshIfDue);
+      document.removeEventListener("visibilitychange", refreshIfDue);
+    };
+  }, [userRole, userId, token]);
+
+  const hasLogisticsAssignments =
+    userRole === "asistente" &&
+    logisticsNavigation !== null &&
+    logisticsNavigation.userId === userId &&
+    logisticsNavigation.token === token &&
+    logisticsNavigation.hasAssignments;
+
+  const navLinks = (linksByRole[userRole] ?? []).filter(
+    (link) =>
+      link.to !== "/panel-eventos-asignados" ||
+      hasLogisticsAssignments,
+  );
 
   return (
     <nav
