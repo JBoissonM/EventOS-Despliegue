@@ -474,7 +474,7 @@ export function AdministracionEventoConSubeventos() {
           <div className="space-y-3">
             <h2 className="text-xl font-bold sm:text-2xl">Actividades</h2>
             {subeventosCompletos.length > 0 ? (
-              <div className="space-y-4 px-10">
+              <div className="space-y-4">
                 {subeventosCompletos.map((subevento) => {
                   const sub = subevento as SubeventoAdministracion;
                   const invitadosSub = sub.invitados ?? [];

@@ -11,6 +11,7 @@ import { Button } from "../../../components/atoms/Button/Button";
 import { TextLink } from "../../../components/atoms/TextLink/TextLink";
 import { Modal } from "../../../components/molecules/Modal";
 import { apiRequest } from "../../../lib/apiClient";
+import { PageHeader } from "../../../components/organisms/PageHeader/PageHeader";
 
 type EstadoTarjeta = "pendiente" | "registrado" | "no_registrado" | "invitado";
 
@@ -281,9 +282,9 @@ export function AgregarLogistica() {
       estadosResueltos.set(card.id, resultado);
     }
 
-    const huboErroresPrevalidacion = Array.from(
-      estadosResueltos.values(),
-    ).some((estado) => estado === "error");
+    const huboErroresPrevalidacion = Array.from(estadosResueltos.values()).some(
+      (estado) => estado === "error",
+    );
     if (huboErroresPrevalidacion) {
       setGuardandoTodo(false);
       return;
@@ -366,32 +367,26 @@ export function AgregarLogistica() {
     );
   }
 
+  const ruta = `/organizador/editar-evento/${idEvento}`;
+
   return (
     <section id="seccionLogistica" className="space-y-10">
-      <button
-        type="button"
-        onClick={() => navigate(rutaRegreso)}
-        className="inline-flex cursor-pointer items-center gap-2 text-sm font-medium text-gray-900 hover:text-eventos-primary"
-      >
-        <ArrowLeft size={20} />
-        <span>Volver</span>
-      </button>
-
-      <div id="contenedorTitulos" className="space-y-5">
-        <h1 className="font-merriweather text-4xl font-bold">
-          Agregar personal de logística
-        </h1>
-        <h2 className="font-merriweather text-[20px]">
+      <div id="contenedorTitulos" className="space-y-4 sm:space-y-5">
+        <PageHeader
+          title="Agregar personal de logística"
+          back={{ to: ruta, label: "Volver a edición de mi evento" }}
+        />
+        <h2 className="font-merriweather text-sm lg:text-[16px]">
           Agrega el correo del personal de logística para el control de acceso
         </h2>
         <div
           id="contenedorSubtitulo"
           className="flex flex-col gap-2 sm:flex-row sm:justify-between"
         >
-          <span className="font-merriweather text-[16px]">
+          <span className="font-merriweather text-sm lg:text-[16px]">
             <strong>Evento:</strong> {nombreEvento || "No disponible"}
           </span>
-          <span className="font-merriweather text-[16px]">
+          <span className="font-merriweather text-sm lg:text-[16px]">
             <strong>Número de personal de logística agregado:</strong>{" "}
             {totalPersonalActual} / {LIMITE_LOGISTICA}
           </span>
@@ -420,7 +415,7 @@ export function AgregarLogistica() {
                 <div className="min-h-0">
                   <div
                     id={`contenedorCardAgregar-${personal.id}`}
-                    className="w-full space-y-3 bg-eventos-primary-light p-6 rounded-md shadow-md"
+                    className="w-full space-y-3 bg-white border border-gray-200 p-6 rounded-md shadow-md"
                   >
                     <div id="contenedorInput">
                       <FormField

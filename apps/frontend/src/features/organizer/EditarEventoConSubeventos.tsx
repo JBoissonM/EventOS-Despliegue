@@ -22,7 +22,6 @@ import {
   type Recinto,
   type SubEventoLogisticaPayload,
 } from "@eventos/shared";
-import { ArrowLeft, Pencil } from "lucide-react";
 import { EventBanner } from "../event-details/components/molecules/EventBanner";
 import { Input } from "../../components/atoms/Input/Input";
 import { DateInput } from "../../components/atoms/DateInput/DateInput";
@@ -1251,10 +1250,8 @@ export function EditarEventoConSubeventos() {
     let generalesGuardados = false;
     let logisticaEnviada = false;
     let erroresDiferidos: string[] = [];
-    const invitadosFallidosPorSubevento: Record<
-      number,
-      InvitadoEventoItem[]
-    > = {};
+    const invitadosFallidosPorSubevento: Record<number, InvitadoEventoItem[]> =
+      {};
 
     try {
       if (soloCamposGeneralesModificados) {
@@ -1500,7 +1497,7 @@ export function EditarEventoConSubeventos() {
           title="Modificar detalles de evento"
           back={{
             to: `/organizador/administrar-evento-subeventos/${idEvento}`,
-            label: "Volver a mi evento",
+            label: "Volver a detalles de mi evento",
           }}
         />
         {evento?.posterUrl && (
@@ -1643,14 +1640,10 @@ export function EditarEventoConSubeventos() {
                 </div>
               </div>
               <div id="contenedorNombre" className="relative">
-                <Pencil
-                  size={18}
-                  aria-hidden="true"
-                  className="absolute right-3 top-10 text-gray-500"
-                />
                 <FormField
                   label="Nombre del evento"
                   className="!font-bold !text-black"
+                  editable
                   errorMessage={
                     intentoGuardar && !datosGenerales.nombre.trim()
                       ? "El nombre del evento es obligatorio"
@@ -1680,14 +1673,10 @@ export function EditarEventoConSubeventos() {
               </div>
 
               <div id="contenedorDescripcion" className="relative">
-                <Pencil
-                  size={18}
-                  aria-hidden="true"
-                  className="absolute right-3 top-10 text-gray-500"
-                />
                 <FormField
                   label="Descripción del evento"
                   className="!font-bold !text-black"
+                  editable
                   errorMessage={
                     intentoGuardar && !datosGenerales.descripcion.trim()
                       ? "La descripción es obligatoria"
@@ -1716,14 +1705,10 @@ export function EditarEventoConSubeventos() {
               </div>
 
               <div id="contenedorJustificacion" className="relative">
-                <Pencil
-                  size={18}
-                  aria-hidden="true"
-                  className="absolute right-3 top-10 text-gray-500"
-                />
                 <FormField
                   label="Beneficio politécnico"
                   className="!font-bold !text-black"
+                  editable
                   errorMessage={
                     intentoGuardar && !datosGenerales.justificacion.trim()
                       ? "La justificación debe ser obligatoria"
@@ -1817,54 +1802,58 @@ export function EditarEventoConSubeventos() {
               />
             </div>
 
-            {subeventoModalInvitados !== null && (() => {
-              const actividadModal = actividades.find(
-                (a) => a.idSubEvento === subeventoModalInvitados,
-              );
-              const recintoModal = recintos.find(
-                (r) => String(r.idRecinto) === actividadModal?.idRecinto,
-              );
-              const invitadosActualesModal =
-                invitadosPorSubevento[subeventoModalInvitados] ?? [];
+            {subeventoModalInvitados !== null &&
+              (() => {
+                const actividadModal = actividades.find(
+                  (a) => a.idSubEvento === subeventoModalInvitados,
+                );
+                const recintoModal = recintos.find(
+                  (r) => String(r.idRecinto) === actividadModal?.idRecinto,
+                );
+                const invitadosActualesModal =
+                  invitadosPorSubevento[subeventoModalInvitados] ?? [];
 
-              return (
-                <ModalInvitados
-                  mostrarModal={subeventoModalInvitados !== null}
-                  idEvento={idEvento}
-                  idSubEvento={subeventoModalInvitados}
-                  numeroInvitados={invitadosActualesModal.length}
-                  foroRecinto={recintoModal?.aforo}
-                  correosExistentes={invitadosActualesModal.map((i) => i.correo)}
-                  cerrarModal={() => setSubeventoModalInvitados(null)}
-                  guardar={handleGuardarInvitados}
-                  onEnvioCompletado={(exitosos) => {
-                    const idSub = subeventoModalInvitados;
-                    const fusionar = (prev: InvitadoEventoItem[]) => {
-                      const existentes = new Set(
-                        prev.map((i) => normalizarCorreo(i.correo)),
-                      );
-                      const nuevos = exitosos
-                        .map((ex) => ({
-                          ...ex,
-                          idSubEvento: ex.idSubEvento ?? idSub,
-                        }))
-                        .filter(
-                          (ex) => !existentes.has(normalizarCorreo(ex.correo)),
+                return (
+                  <ModalInvitados
+                    mostrarModal={subeventoModalInvitados !== null}
+                    idEvento={idEvento}
+                    idSubEvento={subeventoModalInvitados}
+                    numeroInvitados={invitadosActualesModal.length}
+                    foroRecinto={recintoModal?.aforo}
+                    correosExistentes={invitadosActualesModal.map(
+                      (i) => i.correo,
+                    )}
+                    cerrarModal={() => setSubeventoModalInvitados(null)}
+                    guardar={handleGuardarInvitados}
+                    onEnvioCompletado={(exitosos) => {
+                      const idSub = subeventoModalInvitados;
+                      const fusionar = (prev: InvitadoEventoItem[]) => {
+                        const existentes = new Set(
+                          prev.map((i) => normalizarCorreo(i.correo)),
                         );
-                      return nuevos.length > 0 ? [...prev, ...nuevos] : prev;
-                    };
-                    setInvitadosPorSubevento((prev) => ({
-                      ...prev,
-                      [idSub]: fusionar(prev[idSub] ?? []),
-                    }));
-                    setInvitadosInicialesPorSubevento((prev) => ({
-                      ...prev,
-                      [idSub]: fusionar(prev[idSub] ?? []),
-                    }));
-                  }}
-                />
-              );
-            })()}
+                        const nuevos = exitosos
+                          .map((ex) => ({
+                            ...ex,
+                            idSubEvento: ex.idSubEvento ?? idSub,
+                          }))
+                          .filter(
+                            (ex) =>
+                              !existentes.has(normalizarCorreo(ex.correo)),
+                          );
+                        return nuevos.length > 0 ? [...prev, ...nuevos] : prev;
+                      };
+                      setInvitadosPorSubevento((prev) => ({
+                        ...prev,
+                        [idSub]: fusionar(prev[idSub] ?? []),
+                      }));
+                      setInvitadosInicialesPorSubevento((prev) => ({
+                        ...prev,
+                        [idSub]: fusionar(prev[idSub] ?? []),
+                      }));
+                    }}
+                  />
+                );
+              })()}
 
             {invitadoAEliminar && (
               <Modal
@@ -1948,83 +1937,6 @@ export function EditarEventoConSubeventos() {
                           quitarActividad(actividad.llave);
                         }}
                       />
-                      {esPrivado && (
-                        <div className="space-y-3 rounded-md border border-gray-200 bg-white p-4">
-                          <div className="flex flex-wrap items-center justify-between gap-2">
-                            <h3 className="text-base font-semibold text-eventos-ink">
-                              Invitados de la actividad
-                            </h3>
-                            <div className="flex flex-wrap items-center gap-2">
-                              <Button
-                                text="Agregar invitados"
-                                variant="primary"
-                                type="button"
-                                className="w-full sm:w-auto"
-                                onClick={() =>
-                                  setSubeventoModalInvitados(
-                                    actividad.idSubEvento!,
-                                  )
-                                }
-                              />
-                              <EnlaceInvitacionSubevento
-                                idEvento={Number(idEvento)}
-                                idSubEvento={actividad.idSubEvento}
-                                tokenInvitacion={
-                                  subeventoDetalle?.tokenInvitacion
-                                }
-                                enlaceInvitacionActivo={
-                                  subeventoDetalle?.enlaceInvitacionActivo
-                                }
-                                disabled={guardando}
-                                onActualizado={(datos) => {
-                                  setEvento((prev) =>
-                                    prev
-                                      ? {
-                                          ...prev,
-                                          subEventos: prev.subEventos.map((s) =>
-                                            s.idSubEvento === datos.idSubEvento
-                                              ? {
-                                                  ...s,
-                                                  tokenInvitacion:
-                                                    datos.tokenInvitacion,
-                                                  enlaceInvitacionActivo:
-                                                    datos.enlaceInvitacionActivo,
-                                                }
-                                              : s,
-                                          ),
-                                        }
-                                      : prev,
-                                  );
-                                }}
-                              />
-                            </div>
-                          </div>
-                          {invitadosSubevento.length > 0 ? (
-                            <div className="w-full max-w-full overflow-x-auto rounded-lg border border-gray-200 shadow-sm">
-                              <Table
-                                columnas={columnasInvitados}
-                                filas={invitadosSubevento}
-                                obtenerClave={(invitado) =>
-                                  `${actividad.idSubEvento}-${
-                                    invitado.correo ||
-                                    (invitado.idInvitacionEvento
-                                      ? String(invitado.idInvitacionEvento)
-                                      : "") ||
-                                    String(invitado.idUsuario)
-                                  }`
-                                }
-                                encabezadoClassName="h-10 border-b border-gray-300"
-                                filaClassName="h-12"
-                                className="w-full min-w-full bg-white text-left text-sm [&_th]:py-2 [&_td]:py-2"
-                              />
-                            </div>
-                          ) : (
-                            <p className="text-sm text-gray-600">
-                              No hay invitados registrados para esta actividad.
-                            </p>
-                          )}
-                        </div>
-                      )}
                     </div>
                   );
                 }

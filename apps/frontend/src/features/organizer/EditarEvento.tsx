@@ -12,7 +12,6 @@ import {
   type InvitadoEventoItem,
   type Recinto,
 } from "@eventos/shared";
-import { Pencil } from "lucide-react";
 import { Input } from "../../components/atoms/Input/Input";
 import { TextArea } from "../../components/atoms/TextArea/TextArea";
 import { Table } from "../../components/organisms/Table/Table";
@@ -50,7 +49,6 @@ import {
   tienenCambiosPersonalLogistica,
 } from "./deferredOrganizerSync";
 import { InfoTooltip } from "../../components/atoms/InfoTooltip/InfoTooltip";
-import { ModalidadAccesoHelp } from "../../components/molecules/ModalidadAccesoHelp";
 
 function separarMotivoUrgencia(motivo: string) {
   const indice = motivo.lastIndexOf(MARCADOR_MOTIVO_URGENCIA);
@@ -163,7 +161,7 @@ export function EditarEvento() {
   const { idEvento, idSubEvento } = useParams();
   const idSubEventoSeleccionado = idSubEvento ? Number(idSubEvento) : undefined;
   const rutaAdministracion = idSubEventoSeleccionado
-    ? `/organizador/administrar-evento-subeventos/${idEvento}`
+    ? `/organizador/editar-evento-subeventos/${idEvento}`
     : `/organizador/administrar-evento/${idEvento}`;
   const [evento, setEvento] = useState<EventoOrganizadorDetalle | null>(null);
   const [recintos, setRecintos] = useState<Recinto[]>([]);
@@ -1191,55 +1189,41 @@ export function EditarEvento() {
                 className="space-y-2 border border-gray-200 bg-white p-5 shadow-md"
               >
                 <div className="relative">
-                  <label htmlFor="campoNombre" className="sr-only">
-                    Nombre del evento
-                  </label>
-                  <span className="text-xs">Máximo 150 caracteres</span>
-                  <div className="relative">
-                    <Pencil
-                      size={18}
-                      aria-hidden="true"
-                      className="absolute right-3 top-4 text-gray-500"
+                  <FormField
+                    label="Nombre"
+                    className="!font-bold !text-black"
+                    editable
+                    errorMessage={
+                      !nombre.trim()
+                        ? "El nombre del evento es obligatorio"
+                        : ""
+                    }
+                  >
+                    <span className="text-xs">Máximo 150 caracteres</span>
+                    <Input
+                      id="campoNombre"
+                      value={nombre}
+                      hasError={intentoGuardar && !nombre.trim()}
+                      aria-errormessage="El nombre del evento es obligatorio"
+                      maxLength={150}
+                      onChange={(event) => setNombre(event.currentTarget.value)}
                     />
-                    <FormField
-                      errorMessage={
-                        !nombre.trim()
-                          ? "El nombre del evento es obligatorio"
-                          : ""
-                      }
-                    >
-                      <Input
-                        id="campoNombre"
-                        className="pr-10 font-merriweather text-xl font-bold text-secondary sm:text-2xl"
-                        value={nombre}
-                        hasError={intentoGuardar && !nombre.trim()}
-                        aria-errormessage="El nombre del evento es obligatorio"
-                        maxLength={150}
-                        onChange={(event) =>
-                          setNombre(event.currentTarget.value)
-                        }
-                      />
-                    </FormField>
-                  </div>
+                  </FormField>
                 </div>
+
                 <div>
-                  <label htmlFor="campoDescripcion" className="sr-only">
-                    Descripción del evento
-                  </label>
-                  <span className="text-xs">Máximo 500 caracteres</span>
                   <div className="relative">
-                    <Pencil
-                      size={18}
-                      aria-hidden="true"
-                      className="absolute right-3 top-4 text-gray-500"
-                    />
                     <FormField
+                      label="Descripción"
+                      className="!font-bold !text-black"
+                      editable
                       errorMessage={
                         !descripcion.trim()
                           ? "La descripción es obligatoria"
                           : ""
                       }
                     >
+                      <span className="text-xs">Máximo 500 caracteres</span>
                       <TextArea
                         id="campoDescripcion"
                         value={descripcion}
@@ -1258,7 +1242,15 @@ export function EditarEvento() {
               <div className="grid min-w-0 grid-cols-1 items-start gap-8 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,0.9fr)] xl:gap-12">
                 <div className="w-full min-w-0 space-y-6">
                   <div id="contenedorPonentes" className="space-y-5">
-                    <h2 className="text-xl font-bold sm:text-2xl">Ponentes</h2>
+                    <div id="contenedorToolTip" className="inline-flex gap-2">
+                      <h2 className="text-xl font-bold sm:text-2xl">
+                        Ponentes
+                      </h2>
+                      <InfoTooltip
+                        ariaLabel="Informarción sobre ponentes"
+                        content="Los ponentes agregados aquí pertenecen a esta actividad y aparecerán en la ficha pública del evento. Los cambios se aplican al confirmar el guardado"
+                      />
+                    </div>
                     {ponentes.length > 0 ? (
                       <div className="mt-4 w-full min-w-0 overflow-x-auto rounded-md border border-gray-200 shadow-md">
                         <Table
