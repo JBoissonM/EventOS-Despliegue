@@ -1,3 +1,12 @@
+import {
+  CalendarCheck2,
+  Layers,
+  CalendarDays,
+  Clock3,
+  MapPin,
+  Armchair,
+} from "lucide-react";
+
 export interface ReservationSummaryProps {
   eventName: string;
   parentEventName?: string;
@@ -10,15 +19,15 @@ export interface ReservationSummaryProps {
 }
 
 export function ReservationSummary({
-                                     eventName,
-                                     parentEventName,
-                                     date,
-                                     startTime,
-                                     endTime,
-                                     venue,
-                                     selectedSeatLabel,
-                                     showSeat = true,
-                                   }: ReservationSummaryProps) {
+  eventName,
+  parentEventName,
+  date,
+  startTime,
+  endTime,
+  venue,
+  selectedSeatLabel,
+  showSeat = true,
+}: ReservationSummaryProps) {
   return (
     <section
       aria-label="Resumen de reservación"
@@ -32,35 +41,79 @@ export function ReservationSummary({
       <dl className="space-y-3 text-sm">
         {parentEventName && (
           <div>
-            <dt className="font-semibold">Evento</dt>
+            <div className="inline-flex gap-2 ">
+              <CalendarCheck2
+                size={18}
+                className="mt-0.5 shrink-0 text-eventos-secondary"
+              />
+              <dt className="font-semibold">Evento</dt>
+            </div>
             <dd>{parentEventName}</dd>
           </div>
         )}
         <div>
-          <dt className="font-semibold">Actividad</dt>
+          <div className="inline-flex gap-2 ">
+            <Layers
+              size={18}
+              className="mt-0.5 shrink-0 text-eventos-secondary"
+            />
+            <dt className="font-semibold">Actividad</dt>
+          </div>
           <dd>{eventName}</dd>
         </div>
 
         <div>
-          <dt className="font-semibold">Fecha</dt>
-          <dd>{date ? new Date(`${date}T12:00:00`).toLocaleDateString("es-MX", { year: "numeric", month: "2-digit", day: "2-digit" }) : "Por confirmar"}</dd>
+          <div className="inline-flex gap-2 ">
+            <CalendarDays
+              size={18}
+              className="mt-0.5 shrink-0 text-eventos-secondary"
+            />
+            <dt className="font-semibold">Fecha</dt>
+          </div>
+          <dd>
+            {date
+              ? new Date(`${date}T12:00:00`).toLocaleDateString("es-MX", {
+                  year: "numeric",
+                  month: "2-digit",
+                  day: "2-digit",
+                })
+              : "Por confirmar"}
+          </dd>
         </div>
 
         <div>
-          <dt className="font-semibold">Horario</dt>
+          <div className="inline-flex gap-2 ">
+            <Clock3
+              size={18}
+              className="mt-0.5 shrink-0 text-eventos-secondary"
+            />
+            <dt className="font-semibold">Horario</dt>
+          </div>
           <dd>
             {startTime} - {endTime}
           </dd>
         </div>
 
         <div>
-          <dt className="font-semibold">Recinto</dt>
+          <div className="inline-flex gap-2 ">
+            <MapPin
+              size={18}
+              className="mt-0.5 shrink-0 text-eventos-secondary"
+            />
+            <dt className="font-semibold">Recinto</dt>
+          </div>
           <dd>{venue}</dd>
         </div>
 
         {showSeat && (
           <div>
-            <dt className="font-semibold">Asiento</dt>
+            <div className="inline-flex gap-2 ">
+              <Armchair
+                size={18}
+                className="mt-0.5 shrink-0 text-eventos-secondary"
+              />
+              <dt className="font-semibold">Asiento</dt>
+            </div>
             <dd>{selectedSeatLabel ?? "Sin seleccionar"}</dd>
           </div>
         )}
