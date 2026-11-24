@@ -255,7 +255,14 @@ export function MenuAsistente() {
           ? cause.message
           : "No fue posible cancelar tu asistencia. Intenta nuevamente.",
       );
+
       setSelectedTicket(null);
+
+      if (cause instanceof ApiError && cause.status === 409) {
+        setClockNow(Date.now());
+        agenda.refresh();
+        retry();
+      }
     } finally {
       setIsCancelling(false);
     }

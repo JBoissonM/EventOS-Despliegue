@@ -10,6 +10,17 @@
   --color-eventos-primary-light: #EDD5D6;
   --color-eventos-secondary-light: #B7D6D9;
 
+
+  --color-eventos-alcance-publico-bg: #DBEAFE;
+  --color-eventos-alcance-publico-text: #1E40AF;
+
+  --color-eventos-alcance-interno-bg: #5F1B36;
+  --color-eventos-alcance-interno-text: #FFFFFF;
+
+  --color-eventos-alcance-privado-bg: #EDE9FE;
+  --color-eventos-alcance-privado-text: #5B21B6;
+
+
   /* Estados */
   --color-eventos-success: #338315;
   --color-eventos-error: #AD3343;
