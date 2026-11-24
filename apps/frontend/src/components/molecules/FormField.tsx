@@ -1,6 +1,7 @@
 import { type ReactNode } from "react";
 import { InfoTooltip } from "../atoms/InfoTooltip/InfoTooltip";
 import { Label } from "../atoms/Label/Label";
+import { Pencil } from "lucide-react";
 
 interface FormFieldProps {
   label?: string;
@@ -13,6 +14,7 @@ interface FormFieldProps {
   className?: string;
   info?: ReactNode;
   tooltip?: ReactNode;
+  editable?: ReactNode;
   tooltipLabel?: string;
 }
 
@@ -27,6 +29,7 @@ export function FormField({
   className = "",
   info,
   tooltip,
+  editable,
   tooltipLabel,
 }: FormFieldProps) {
   return (
@@ -41,6 +44,13 @@ export function FormField({
           >
             {label}
           </Label>
+          {editable && (
+            <Pencil
+              size={18}
+              aria-hidden="true"
+              className="shrink-0 translate-y-[-2px]"
+            />
+          )}
           {tooltip && (
             <InfoTooltip
               content={tooltip}

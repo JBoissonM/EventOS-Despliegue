@@ -155,11 +155,6 @@ function obtenerHorasInicioDisponibles(
   );
 }
 
-/**
- * Conserva la hora de inicio y fin tras un cambio de fecha o recinto cuando
- * siguen disponibles en la agenda del espacio; limpia solo las que ya no
- * son válidas.
- */
 export function ajustarHorarioSegunAgenda(
   horaInicio: string,
   horaFin: string,
@@ -613,17 +608,11 @@ export function EditLogisticsSection({
         )}
         {mostrarBanner && (
           <div className="flex min-w-0 flex-col gap-2 sm:col-span-2">
-            <label htmlFor="campoJustificacion" className="font-bold">
-              Beneficio politécnico
-            </label>
             <div className="relative">
-              <Pencil
-                size={18}
-                aria-hidden="true"
-                className="absolute right-3 top-4 text-gray-500"
-              />
               <FormField
+                label="Beneficio politécnico"
                 className="!font-bold !text-black"
+                editable
                 errorMessage={
                   intentoGuardar
                     ? !justificacion.trim()

@@ -132,6 +132,7 @@ export function ModalPonentes({
             htmlFor="campoNombre"
             label="Nombre del ponente"
             required
+            mensajeAyuda="Agrega el nombre completo de los ponentes para esta actividad"
             errorMessage={errorPonente ?? undefined}
           >
             <Input
@@ -147,6 +148,7 @@ export function ModalPonentes({
               placeholder="Ej. Dr. Juan Pérez"
             />
           </FormField>
+          <br />
           <Button
             text="Agregar ponente"
             variant="primary"
