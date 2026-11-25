@@ -8,6 +8,7 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
+import { randomUUID } from 'crypto';
 import * as bcrypt from 'bcrypt';
 import { UsuarioEntity } from './entities/usuario.entity';
 import {
@@ -16,7 +17,7 @@ import {
   EstadoEvento,
 } from '@eventos/shared';
 import { JwtService } from '@nestjs/jwt';
-import { TOKEN_BLACKLIST } from './roles.guard';
+import { ACTIVE_USER_TOKENS, TOKEN_BLACKLIST } from './roles.guard';
 import { ActivarCuentaLogisticaDto } from './dto/activarCuentaLogistica.dto';
 import { SolicitarRecuperacionDto } from './dto/solicitarRecuperacion.dto';
 import { RestablecerContrasenaDto } from './dto/restablecerContrasena.dto';
@@ -41,6 +42,14 @@ export class AuthService {
     private readonly dataSource: DataSource,
     private readonly mailService: MailService,
   ) {}
+
+  private registrarSesionUnica(idUsuario: number, nuevoToken: string): void {
+    const tokenAnterior = ACTIVE_USER_TOKENS.get(idUsuario);
+    if (tokenAnterior && tokenAnterior !== nuevoToken) {
+      TOKEN_BLACKLIST.add(tokenAnterior);
+    }
+    ACTIVE_USER_TOKENS.set(idUsuario, nuevoToken);
+  }
 
   private async decodificarTokenInvitacion(tokenRaw?: string): Promise<{
     token: string;
@@ -738,9 +747,11 @@ export class AuthService {
       correo: usuario.correo,
       tipoCuenta: usuario.tipoCuenta,
       esJefeAcademia: usuario.esJefeAcademia,
+      jti: randomUUID(),
     };
 
     const accessToken = this.jwtService.sign(payload);
+    this.registrarSesionUnica(usuario.idUsuario, accessToken);
 
     const { contrasena: _contrasena, ...datosUsuario } = usuario;
     return {
@@ -753,6 +764,14 @@ export class AuthService {
   async logout(token?: string) {
     if (token) {
       TOKEN_BLACKLIST.add(token);
+      const decoded = this.jwtService.decode(token) as {
+        sub?: number;
+        idUsuario?: number;
+      } | null;
+      const idUsuario = Number(decoded?.sub ?? decoded?.idUsuario);
+      if (idUsuario && ACTIVE_USER_TOKENS.get(idUsuario) === token) {
+        ACTIVE_USER_TOKENS.delete(idUsuario);
+      }
     }
     return {
       mensaje: 'Sesión finalizada con éxito.',
@@ -1107,8 +1126,10 @@ export class AuthService {
       correo: usuario.correo,
       tipoCuenta: usuario.tipoCuenta,
       esJefeAcademia: usuario.esJefeAcademia,
+      jti: randomUUID(),
     };
     const accessToken = this.jwtService.sign(sessionPayload);
+    this.registrarSesionUnica(usuario.idUsuario, accessToken);
 
     const { contrasena: _contrasena, ...datosUsuario } = usuario;
     return {

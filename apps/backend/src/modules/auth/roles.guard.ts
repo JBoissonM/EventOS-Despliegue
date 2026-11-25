@@ -7,8 +7,11 @@ import {
 import { Reflector } from '@nestjs/core';
 import { JwtService } from '@nestjs/jwt';
 
-// Lista negra en memoria para invalidar tokens al cerrar sesión
+// Lista negra en memoria para invalidar tokens al cerrar sesión o abrir una nueva
 export const TOKEN_BLACKLIST = new Set<string>();
+
+// Registro de sesión única activa por usuario (idUsuario -> token vigente)
+export const ACTIVE_USER_TOKENS = new Map<number, string>();
 
 @Injectable()
 export class RolesGuard implements CanActivate {
@@ -32,10 +35,10 @@ export class RolesGuard implements CanActivate {
       throw new ForbiddenException('Formato de token inválido (HTTP 403).');
     }
 
-    // Verificar si el token fue invalidado mediante logout
+    // Verificar si el token fue invalidado mediante logout o desplazado por otra sesión
     if (TOKEN_BLACKLIST.has(token)) {
       throw new ForbiddenException(
-        'La sesión ya fue finalizada. Token invalidado en lista negra (HTTP 403).',
+        'La sesión ya fue finalizada o reemplazada por otro inicio de sesión (HTTP 403).',
       );
     }
 
@@ -43,6 +46,15 @@ export class RolesGuard implements CanActivate {
       const payload = await this.jwtService.verifyAsync(token, {
         secret: process.env.JWT_PASS || 'clave_secreta',
       });
+
+      const idUsuario = Number(payload?.sub ?? payload?.idUsuario);
+      const tokenActivo = ACTIVE_USER_TOKENS.get(idUsuario);
+      if (idUsuario && tokenActivo && tokenActivo !== token) {
+        TOKEN_BLACKLIST.add(token);
+        throw new ForbiddenException(
+          'Tu sesión fue cerrada porque se inició sesión en otra ventana o dispositivo (HTTP 403).',
+        );
+      }
 
       request.user = payload;
 
