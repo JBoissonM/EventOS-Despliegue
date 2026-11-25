@@ -761,11 +761,16 @@ export class UsuariosService {
         return false;
       }
 
-      const correoMin = u.correo.toLowerCase();
+      // En Tab 2 (Revocar Jefe) se muestran todos los jefes activos para poder revocarlos
+      if (esJefe) {
+        return true;
+      }
+
+      // En Tab 1 (Asignar Jefe) solo se permiten correos institucionales @ipn.mx (nunca @alumno.ipn.mx ni externos)
+      const correoMin = (u.correo || '').trim().toLowerCase();
       return (
-        u.tipoCuenta === TipoCuentaUsuario.INTERNO ||
-        correoMin.endsWith('@ipn.mx') ||
-        correoMin.endsWith('@alumno.ipn.mx')
+        correoMin.endsWith('@ipn.mx') &&
+        !correoMin.endsWith('@alumno.ipn.mx')
       );
     });
 
@@ -838,6 +843,22 @@ export class UsuariosService {
     ) {
       throw new ConflictException(
         'La cuenta de Subdirección no puede ser asignada como Jefe de Departamento.',
+      );
+    }
+
+    const correoMin = (usuario.correo || '').trim().toLowerCase();
+
+    // Las cuentas de alumno (@alumno.ipn.mx) no pueden ser asignadas como Jefe de Departamento
+    if (correoMin.endsWith('@alumno.ipn.mx')) {
+      throw new BadRequestException(
+        'Las cuentas con correo de alumno (@alumno.ipn.mx) no pueden ser asignadas como Jefe de Departamento.',
+      );
+    }
+
+    // Solo correos institucionales @ipn.mx pueden recibir el cargo
+    if (!correoMin.endsWith('@ipn.mx')) {
+      throw new BadRequestException(
+        'Solo las cuentas con correo institucional (@ipn.mx) pueden ser asignadas como Jefe de Departamento.',
       );
     }
 

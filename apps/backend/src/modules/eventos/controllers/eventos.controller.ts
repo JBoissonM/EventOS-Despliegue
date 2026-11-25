@@ -13,7 +13,11 @@ import {
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { JwtService } from '@nestjs/jwt';
 import { EventosService } from '../services/eventos.service';
-import { RolesGuard, TOKEN_BLACKLIST } from '../../auth/roles.guard';
+import {
+  ACTIVE_USER_TOKENS,
+  RolesGuard,
+  TOKEN_BLACKLIST,
+} from '../../auth/roles.guard';
 import { Roles } from '../../../common/decorators/roles.decorator';
 import { TipoCuentaUsuario } from '@eventos/shared';
 
@@ -35,15 +39,29 @@ export class EventosController {
 
     if (TOKEN_BLACKLIST.has(token)) {
       throw new ForbiddenException(
-        'La sesión ya fue finalizada. Token invalidado en lista negra (HTTP 403).',
+        'La sesión ya fue finalizada o reemplazada por otro inicio de sesión (HTTP 403).',
       );
     }
 
     try {
-      return await this.jwtService.verifyAsync(token, {
+      const payload = await this.jwtService.verifyAsync(token, {
         secret: process.env.JWT_PASS || 'clave_secreta',
       });
-    } catch {
+
+      const idUsuario = Number(payload?.sub ?? payload?.idUsuario);
+      const tokenActivo = ACTIVE_USER_TOKENS.get(idUsuario);
+      if (idUsuario && tokenActivo && tokenActivo !== token) {
+        TOKEN_BLACKLIST.add(token);
+        throw new ForbiddenException(
+          'Tu sesión fue cerrada porque se inició sesión en otra ventana o dispositivo (HTTP 403).',
+        );
+      }
+
+      return payload;
+    } catch (error) {
+      if (error instanceof ForbiddenException) {
+        throw error;
+      }
       return undefined;
     }
   }
