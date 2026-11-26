@@ -57,13 +57,23 @@ export function CardMenuPrincipal({
           id="contenedorBadges"
           className="flex flex-wrap justify-between gap-2"
         >
-          <Badge variant="primary">
+          <Badge
+            variant={
+              idAlcance == 1
+                ? "scope-public"
+                : idAlcance == 2
+                  ? "scope-internal"
+                  : idAlcance == 3
+                    ? "scope-private"
+                    : "primary"
+            }
+          >
             {idAlcance !== undefined && idAlcance === 1
-              ? "PÚBLICO"
+              ? "Público"
               : idAlcance !== undefined && idAlcance === 2
-                ? "INTERNO"
+                ? "Interno"
                 : idAlcance !== undefined && idAlcance === 3
-                  ? "PRIVADO"
+                  ? "Privado"
                   : "Sin alcance"}
           </Badge>
           <Badge
@@ -79,9 +89,15 @@ export function CardMenuPrincipal({
                       : "error"
             }
           >
-            {idEstadoEvento == 3
-              ? "PENDIENTE"
-              : idEstadoEvento !== undefined && EstadoEvento[idEstadoEvento]}
+            {idEstadoEvento == 1
+              ? "Rechazado"
+              : idEstadoEvento == 2
+                ? "Aceptado"
+                : idEstadoEvento == 3
+                  ? "Pendiente"
+                  : idEstadoEvento == 4
+                    ? "Cancelado"
+                    : ""}
           </Badge>
         </div>
         <div id="contenedorTexto" className="space-y-2">
