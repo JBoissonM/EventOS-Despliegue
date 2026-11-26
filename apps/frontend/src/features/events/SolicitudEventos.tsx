@@ -671,6 +671,13 @@ export function SolicitudEvento() {
               text="Solicitar evento"
               type="submit"
               className="w-full sm:w-auto"
+              onClick={
+                tipoCuenta.includes("subdireccion")
+                  ? () => {
+                      setModal("confirmacion");
+                    }
+                  : undefined
+              }
             />
           </div>
 
@@ -687,7 +694,7 @@ export function SolicitudEvento() {
                 ? mensajeError ||
                   "Por favor, completa todos los campos obligatorios resaltados para continuar"
                 : modal === "exito"
-                  ? `{La solicitud se ha procesado éxitosamente ${isSubdireccion ? "" : "y será evaluada por Subdirección de Servicios Académicos"}}`
+                  ? `La solicitud se ha procesado éxitosamente ${isSubdireccion ? "" : "y será evaluada por Subdirección de Servicios Académicos"}`
                   : "¿Desea enviar la solicitud de este evento?"
             }
             mostrarModal={modal !== null}
@@ -725,7 +732,7 @@ export function SolicitudEvento() {
             </div>
           </Modal>
 
-          {modalUrgente && (
+          {modalUrgente && !tipoCuenta.includes("subdireccion") && (
             <ModalMotivoUrgente
               mostrar={modalUrgente}
               motivo={motivoUrgente}

@@ -33,7 +33,7 @@ export function FormField({
   tooltipLabel,
 }: FormFieldProps) {
   return (
-    <div className="flex min-w-0 flex-col justify-end gap-0">
+    <div className="flex min-w-0 flex-col justify-end gap-1.5">
       {label && (
         <div className="mb-1 flex items-center gap-1.5">
           <Label
@@ -44,13 +44,13 @@ export function FormField({
           >
             {label}
           </Label>
-          {editable && (
+          {/*      {editable && (
             <Pencil
-              size={18}
+              size={14}
               aria-hidden="true"
               className="shrink-0 translate-y-[-2px]"
             />
-          )}
+          )} */}
           {tooltip && (
             <InfoTooltip
               content={tooltip}
