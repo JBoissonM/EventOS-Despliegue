@@ -118,6 +118,7 @@ export function Perfil() {
                 <Button
                   text="Cerrar sesión"
                   type="button"
+                  variant="danger"
                   onClick={handleCerrarSesion}
                   className="w-full sm:w-auto px-6 py-2.5 rounded-md text-sm transition-colors shadow-sm"
                 />

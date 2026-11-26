@@ -45,6 +45,7 @@ export function ReservationSummary({
               <CalendarCheck2
                 size={18}
                 className="mt-0.5 shrink-0 text-eventos-secondary"
+                aria-hidden="true"
               />
               <dt className="font-semibold">Evento</dt>
             </div>
@@ -56,6 +57,7 @@ export function ReservationSummary({
             <Layers
               size={18}
               className="mt-0.5 shrink-0 text-eventos-secondary"
+              aria-hidden="true"
             />
             <dt className="font-semibold">Actividad</dt>
           </div>
@@ -67,6 +69,7 @@ export function ReservationSummary({
             <CalendarDays
               size={18}
               className="mt-0.5 shrink-0 text-eventos-secondary"
+              aria-hidden="true"
             />
             <dt className="font-semibold">Fecha</dt>
           </div>
@@ -86,6 +89,7 @@ export function ReservationSummary({
             <Clock3
               size={18}
               className="mt-0.5 shrink-0 text-eventos-secondary"
+              aria-hidden="true"
             />
             <dt className="font-semibold">Horario</dt>
           </div>
@@ -99,6 +103,7 @@ export function ReservationSummary({
             <MapPin
               size={18}
               className="mt-0.5 shrink-0 text-eventos-secondary"
+              aria-hidden="true"
             />
             <dt className="font-semibold">Recinto</dt>
           </div>
@@ -111,6 +116,7 @@ export function ReservationSummary({
               <Armchair
                 size={18}
                 className="mt-0.5 shrink-0 text-eventos-secondary"
+                aria-hidden="true"
               />
               <dt className="font-semibold">Asiento</dt>
             </div>

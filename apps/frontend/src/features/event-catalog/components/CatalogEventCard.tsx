@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { Link } from "react-router";
-import { ImageOff } from "lucide-react";
+import { CalendarDays, Clock3, ImageOff, MapPin } from "lucide-react";
 import { EventScopeBadge } from "../../../components/atoms/Badge/EventScopeBadge";
+import { resolverUrlPoster } from "../../../utils/posterUrl";
 
 import type { CatalogEventApi } from "../types/eventCatalog.types";
 import {
@@ -25,11 +26,7 @@ export function CatalogEventCard({
                                  }: CatalogEventCardProps) {
   const [failedPoster, setFailedPoster] = useState<string | null>(null);
 
-  const posterCandidate = event.poster?.trim() ?? "";
-
-  const poster = /^https?:\/\//i.test(posterCandidate)
-    ? posterCandidate
-    : null;
+  const poster = resolverUrlPoster(event.poster);
 
   const imageAvailable = poster !== null && failedPoster !== poster;
 
@@ -77,44 +74,65 @@ export function CatalogEventCard({
           {event.nombre}
         </Heading>
 
-        <div className="space-y-1 text-sm leading-relaxed text-eventos-body-text">
+        <div className="space-y-1.5 text-sm leading-relaxed text-eventos-body-text">
           {firstDate === null ? (
-            <p>
-              <strong>Fecha:</strong> Por confirmar
+            <p className="flex items-start gap-1.5">
+              <CalendarDays size={16} className="mt-0.5 shrink-0 text-eventos-body-text" aria-hidden="true" />
+              <span>
+                <strong>Fecha:</strong> Por confirmar
+              </span>
             </p>
           ) : firstDate === lastDate ? (
-            <p>
-              <strong>Fecha:</strong> {formatCatalogDate(firstDate)}
+            <p className="flex items-start gap-1.5">
+              <CalendarDays size={16} className="mt-0.5 shrink-0 text-eventos-body-text" aria-hidden="true" />
+              <span>
+                <strong>Fecha:</strong> {formatCatalogDate(firstDate)}
+              </span>
             </p>
           ) : (
             <>
-              <p>
-                <strong>Fecha inicio:</strong> {formatCatalogDate(firstDate)}
+              <p className="flex items-start gap-1.5">
+                <CalendarDays size={16} className="mt-0.5 shrink-0 text-eventos-body-text" aria-hidden="true" />
+                <span>
+                  <strong>Fecha inicio:</strong> {formatCatalogDate(firstDate)}
+                </span>
               </p>
-              <p>
-                <strong>Fecha fin:</strong> {formatCatalogDate(lastDate!)}
+              <p className="flex items-start gap-1.5">
+                <CalendarDays size={16} className="mt-0.5 shrink-0 text-eventos-body-text" aria-hidden="true" />
+                <span>
+                  <strong>Fecha fin:</strong> {formatCatalogDate(lastDate!)}
+                </span>
               </p>
             </>
           )}
 
           {singleActivity?.fecha && (
-            <p>
-              <strong>Horario:</strong>{" "}
-              {formatCatalogTime(singleActivity.fecha.horaInicio)}
-              {" – "}
-              {formatCatalogTime(singleActivity.fecha.horaFin)} hrs
+            <p className="flex items-start gap-1.5">
+              <Clock3 size={16} className="mt-0.5 shrink-0 text-eventos-body-text" aria-hidden="true" />
+              <span>
+                <strong>Horario:</strong>{" "}
+                {formatCatalogTime(singleActivity.fecha.horaInicio)}
+                {" – "}
+                {formatCatalogTime(singleActivity.fecha.horaFin)} hrs
+              </span>
             </p>
           )}
 
           {venueNames.length === 1 && (
-            <p>
-              <strong>Espacio:</strong> {venueNames[0]}
+            <p className="flex items-start gap-1.5">
+              <MapPin size={16} className="mt-0.5 shrink-0 text-eventos-body-text" aria-hidden="true" />
+              <span>
+                <strong>Espacio:</strong> {venueNames[0]}
+              </span>
             </p>
           )}
 
           {venueNames.length > 1 && (
-            <p>
-              <strong>Espacios:</strong> {venueNames.join(", ")}
+            <p className="flex items-start gap-1.5">
+              <MapPin size={16} className="mt-0.5 shrink-0 text-eventos-body-text" aria-hidden="true" />
+              <span>
+                <strong>Espacios:</strong> {venueNames.join(", ")}
+              </span>
             </p>
           )}
         </div>

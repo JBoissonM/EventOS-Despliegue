@@ -10,6 +10,8 @@ import { mapTicketToCard } from "../tickets/utils/mapTicketToCard";
 import { ConfirmationDialog } from "../../components/organisms/ConfirmationDialog/ConfirmationDialog";
 import { ApiError } from "../../lib/apiClient";
 import { PageContainer } from "../../components/templates/PageContainer";
+import { ArrowRight } from "lucide-react";
+import { PageForwardLink } from "../../components/molecules/PageForwardLink";
 
 export function puedeCancelarAsistencia(
   ticket: { dateIso?: string; startTime: string },
@@ -276,13 +278,7 @@ export function MenuAsistente() {
             <h2 className="text-xl font-bold text-eventos-ink">
               Eventos Próximos
             </h2>
-
-            <Link
-              to="/asistente/cartelera"
-              className="text-sm font-semibold text-eventos-primary underline-offset-4 hover:underline"
-            >
-              Ver cartelera completa
-            </Link>
+            <PageForwardLink to={"/asistente/cartelera"} label={"Ver cartelera completa"}/>
           </div>
 
           {status === "loading" && (
@@ -376,13 +372,7 @@ export function MenuAsistente() {
             <h2 className="text-xl font-bold text-eventos-ink">
               Mi Agenda
             </h2>
-
-            <Link
-              to="/asistente/boletos"
-              className="text-sm font-semibold text-eventos-primary underline-offset-4 hover:underline"
-            >
-              Ver mis boletos
-            </Link>
+            <PageForwardLink to={"/asistente/boletos"} label={"Ver mis boletos"}/>
           </div>
 
           {cancelError && (

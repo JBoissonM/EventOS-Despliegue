@@ -12,10 +12,11 @@ export function ReservationAvailabilityIndicator({
   isRefreshing = false,
 }: ReservationAvailabilityIndicatorProps) {
   return (
-    <div className="space-y-1 inline-flex items-center gap-2 inline-flex rounded-lg border border-eventos-panel-border bg-eventos-panel-surface px-4 py-2 text-sm font-semibold text-eventos-secondary">
+    <div className="inline-flex items-center gap-2 rounded-lg border border-eventos-panel-border bg-eventos-panel-surface px-4 py-2 text-sm font-semibold text-eventos-secondary">
       <UsersRound
         size={18}
         className="mt-0.5 shrink-0 text-eventos-secondary"
+        aria-hidden="true"
       />
       <p role="status">
         {availableSeats} de {capacity} lugares disponibles
