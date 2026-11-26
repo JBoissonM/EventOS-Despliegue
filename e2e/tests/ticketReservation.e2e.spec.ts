@@ -3,6 +3,7 @@ import { Builder, By, WebDriver, until } from "selenium-webdriver";
 import chrome from "selenium-webdriver/chrome";
 import { LoginPage } from "../pages/LoginPage";
 import { TicketReservationPage } from "../pages/TicketReservationPage";
+import { logQaAnnotation } from "../utils/qaAnnotations";
 import { connectTestDb } from "../utils/testEnv";
 
 const API_BASE_URL = process.env.API_BASE_URL || "http://localhost:3000/api";
@@ -341,6 +342,8 @@ async function runTicketReservationSuite(): Promise<void> {
     console.log("\n--- CASO 1: Reserva en Auditorio con selección de asiento ---");
     console.log("Paso 1: Navegando a la Cartelera (UI04)...");
     await reservationPage.openCatalog();
+    logQaAnnotation("ERR-03", "Paso 1 (UI03 /menu-asistente): Enlaces 'Ver cartelera completa' y 'Ver mis boletos' sin flecha");
+    logQaAnnotation("ERR-12", "Paso 2 (UI04 CatalogEventCard): Tarjeta sin íconos de Fecha, Horario y Espacio");
 
     console.log(`Paso 2: Localizando evento de auditorio '${ctx.auditorioEventName}' y abriendo detalles...`);
     await reservationPage.selectEventByTitle(ctx.auditorioEventName);
@@ -355,6 +358,8 @@ async function runTicketReservationSuite(): Promise<void> {
 
     console.log("Paso 5: Verificando pantalla de reserva UI06 y presencia del mapa de asientos...");
     await reservationPage.waitForReservationPage();
+    logQaAnnotation("ERR-05", "Paso 5 (UI06 Reservar lugar): Faltan íconos en lugares disponibles y Resumen de reservación");
+    logQaAnnotation("ERR-04", "Paso 5 (UI06 retorno): 'Volver a la actividad' ignora evento único origen y oculta póster");
     const isMapVisible = await reservationPage.isSeatMapVisible();
     assert.equal(isMapVisible, true, "El Auditorio Principal debe mostrar el mapa de asientos interactivo.");
 
@@ -439,6 +444,8 @@ async function runTicketReservationSuite(): Promise<void> {
     console.log("\n--- CASO 3: Evento con Entrada Libre ---");
     console.log("Paso 1: Navegando a la Cartelera (UI04)...");
     await reservationPage.openCatalog();
+    logQaAnnotation("ERR-03", "Paso 1 (UI03 /menu-asistente): Enlaces 'Ver cartelera completa' y 'Ver mis boletos' sin flecha");
+    logQaAnnotation("ERR-12", "Paso 2 (UI04 CatalogEventCard): Tarjeta sin íconos de Fecha, Horario y Espacio");
 
     console.log(`Paso 2: Localizando evento con entrada libre '${ctx.freeEventName}'...`);
     await reservationPage.selectEventByTitle(ctx.freeEventName);
