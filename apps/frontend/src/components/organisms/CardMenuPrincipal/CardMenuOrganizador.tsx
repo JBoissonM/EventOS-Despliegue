@@ -1,6 +1,8 @@
+import { useState } from "react";
 import { Badge } from "../../atoms/Badge/Badge";
 import { Button } from "../../atoms/Button/Button";
 import { useNavigate } from "react-router";
+import { CalendarDays, Clock3, MapPin } from "lucide-react";
 import { AlcanceEvento } from "@eventos/shared";
 import type { MisEventosItem } from "@eventos/shared";
 import { EstadoEvento } from "@eventos/shared";
@@ -8,6 +10,7 @@ import {
   formatearFechaDdMmAaaa,
   formatearHorarioRango,
 } from "../../../utils/fechaHorario";
+import { resolverUrlPoster } from "../../../utils/posterUrl";
 
 export function CardMenuPrincipal({
   nombre,
@@ -17,6 +20,7 @@ export function CardMenuPrincipal({
   idEstadoEvento,
   subeventos,
 }: MisEventosItem) {
+  const [failedPoster, setFailedPoster] = useState<string | null>(null);
   const estiloTexto = "font-merriweather text-[14px]";
   const navigate = useNavigate();
   const primerSubevento = subeventos?.[0];
@@ -30,17 +34,21 @@ export function CardMenuPrincipal({
     ),
   ];
 
+  const poster = resolverUrlPoster(posterUrl);
+  const imageAvailable = poster !== null && failedPoster !== poster;
+
   return (
     <article
       id="contenedorTarjeta"
       className="flex h-full min-w-0 flex-col overflow-hidden rounded-lg border border-eventos-panel-border bg-eventos-surface shadow-sm transition-shadow hover:shadow-md"
     >
       <div id="contenedorPoster" className="px-4 pt-4">
-        {posterUrl ? (
+        {imageAvailable ? (
           <img
-            src={posterUrl}
+            src={poster}
             alt={nombre}
             className="aspect-video w-full rounded-lg bg-gray-100 object-cover"
+            onError={() => setFailedPoster(poster)}
           />
         ) : (
           <div
@@ -106,46 +114,61 @@ export function CardMenuPrincipal({
           </h2>
           {tieneUnSubevento ||
           primerSubevento?.fecha === ultimoSubevento?.fecha ? (
-            <p className={estiloTexto}>
-              <strong>Fecha:</strong>{" "}
-              {formatearFechaDdMmAaaa(
-                primerSubevento?.fecha,
-                "Fecha no disponible",
-              )}
-            </p>
-          ) : (
-            <>
-              <p className={estiloTexto}>
-                <strong>Fecha inicio:</strong>{" "}
+            <p className={`${estiloTexto} flex items-start gap-1.5`}>
+              <CalendarDays size={16} className="mt-0.5 shrink-0 text-eventos-body-text" aria-hidden="true" />
+              <span>
+                <strong>Fecha:</strong>{" "}
                 {formatearFechaDdMmAaaa(
                   primerSubevento?.fecha,
                   "Fecha no disponible",
                 )}
+              </span>
+            </p>
+          ) : (
+            <>
+              <p className={`${estiloTexto} flex items-start gap-1.5`}>
+                <CalendarDays size={16} className="mt-0.5 shrink-0 text-eventos-body-text" aria-hidden="true" />
+                <span>
+                  <strong>Fecha inicio:</strong>{" "}
+                  {formatearFechaDdMmAaaa(
+                    primerSubevento?.fecha,
+                    "Fecha no disponible",
+                  )}
+                </span>
               </p>
-              <p className={estiloTexto}>
-                <strong>Fecha fin:</strong>{" "}
-                {formatearFechaDdMmAaaa(
-                  ultimoSubevento?.fecha,
-                  "Fecha no disponible",
-                )}
+              <p className={`${estiloTexto} flex items-start gap-1.5`}>
+                <CalendarDays size={16} className="mt-0.5 shrink-0 text-eventos-body-text" aria-hidden="true" />
+                <span>
+                  <strong>Fecha fin:</strong>{" "}
+                  {formatearFechaDdMmAaaa(
+                    ultimoSubevento?.fecha,
+                    "Fecha no disponible",
+                  )}
+                </span>
               </p>
             </>
           )}
           {tieneUnSubevento && (
-            <p className={estiloTexto}>
-              <strong>Horario:</strong>{" "}
-              {formatearHorarioRango(
-                primerSubevento?.horaInicio,
-                primerSubevento?.horaFin,
-                "Hora no disponible",
-              )}
+            <p className={`${estiloTexto} flex items-start gap-1.5`}>
+              <Clock3 size={16} className="mt-0.5 shrink-0 text-eventos-body-text" aria-hidden="true" />
+              <span>
+                <strong>Horario:</strong>{" "}
+                {formatearHorarioRango(
+                  primerSubevento?.horaInicio,
+                  primerSubevento?.horaFin,
+                  "Hora no disponible",
+                )}
+              </span>
             </p>
           )}
-          <p className={estiloTexto}>
-            <strong>{espacios.length > 1 ? "Espacios:" : "Espacio:"}</strong>{" "}
-            {espacios.length > 0
-              ? espacios.join(", ")
-              : "Recinto no disponible"}
+          <p className={`${estiloTexto} flex items-start gap-1.5`}>
+            <MapPin size={16} className="mt-0.5 shrink-0 text-eventos-body-text" aria-hidden="true" />
+            <span>
+              <strong>{espacios.length > 1 ? "Espacios:" : "Espacio:"}</strong>{" "}
+              {espacios.length > 0
+                ? espacios.join(", ")
+                : "Recinto no disponible"}
+            </span>
           </p>
         </div>
       </div>

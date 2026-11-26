@@ -1,5 +1,10 @@
 import { spawnSync } from "node:child_process";
 import path from "node:path";
+import {
+  QA_BROWSERS,
+  QA_HOST_ENVIRONMENT,
+  printQaSummaryBanner,
+} from "./utils/qaAnnotations";
 
 interface SuiteEntry {
   id: string;
@@ -158,7 +163,9 @@ function runSuites(): void {
 
   console.log("================================================================================");
   console.log(`  EventOS — Ejecución Estandarizada de Suites E2E (${selectedSuites.length} suites)`);
-  console.log(`  Modo Headless: ${headless}`);
+  console.log(`  Ambiente          : ${QA_HOST_ENVIRONMENT}`);
+  console.log(`  Navegadores QA    : ${QA_BROWSERS}`);
+  console.log(`  Modo Headless     : ${headless}`);
   console.log("================================================================================\n");
 
   const results: Array<{
@@ -213,6 +220,8 @@ function runSuites(): void {
     `  Total: ${results.length} suites | Exitosas: ${passedCount} | Fallidas: ${failedCount}`,
   );
   console.log("================================================================================\n");
+
+  printQaSummaryBanner();
 
   if (failedCount > 0) {
     process.exit(1);

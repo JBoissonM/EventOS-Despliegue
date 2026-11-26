@@ -62,6 +62,7 @@ export function PanelEventosAsignados() {
   }, [events, search, venue, dateFilter]);
 
   const hasFilters = search.trim() !== "" || dateFilter !== "todas" || venue !== "";
+  const showFilters = events.length > 0;
   const resetFilters = () => {
     setSearch("");
     setDateFilter("todas");
@@ -79,39 +80,41 @@ export function PanelEventosAsignados() {
           />
         </div>
 
-        <div className="w-full min-w-0 space-y-3 xl:max-w-5xl">
-          <SearchField
-            value={search}
-            onChange={setSearch}
-            placeholder="Buscar evento o actividad..."
-          />
+        {showFilters && (
+          <div className="w-full min-w-0 space-y-3 xl:max-w-5xl">
+            <SearchField
+              value={search}
+              onChange={setSearch}
+              placeholder="Buscar evento o actividad..."
+            />
 
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <div className="min-w-0">
-              <FilterDropdown
-                label="Fecha"
-                allLabel="Todas las fechas"
-                allValue="todas"
-                value={dateFilter}
-                options={dateOptions}
-                onChange={setDateFilter}
-              />
-            </div>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div className="min-w-0">
+                <FilterDropdown
+                  label="Fecha"
+                  allLabel="Todas las fechas"
+                  allValue="todas"
+                  value={dateFilter}
+                  options={dateOptions}
+                  onChange={setDateFilter}
+                />
+              </div>
 
-            <div className="min-w-0">
-              <FilterDropdown
-                label="Espacio"
-                allLabel="Todos los espacios"
-                value={venue}
-                options={venues.map((name) => ({ value: name, label: name }))}
-                onChange={setVenue}
-              />
+              <div className="min-w-0">
+                <FilterDropdown
+                  label="Espacio"
+                  allLabel="Todos los espacios"
+                  value={venue}
+                  options={venues.map((name) => ({ value: name, label: name }))}
+                  onChange={setVenue}
+                />
+              </div>
             </div>
           </div>
-        </div>
+        )}
       </div>
 
-      {hasFilters && (
+      {showFilters && hasFilters && (
         <div className="flex justify-end mb-6">
           <ClearFiltersButton onClick={resetFilters} />
         </div>

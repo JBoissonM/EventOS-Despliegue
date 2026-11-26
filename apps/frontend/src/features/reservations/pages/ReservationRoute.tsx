@@ -1,6 +1,6 @@
 import { PageBackLink } from "../../../components/molecules/PageBackLink";
 import { ModalidadAcceso, esModalidadConRegistro } from "@eventos/shared";
-import { Link, Navigate, useParams } from "react-router";
+import { Link, Navigate, useLocation, useParams } from "react-router";
 import { EventDetailsRequestState } from "../../event-details/components/molecules/EventDetailsRequestState";
 import { useSubEventDetails } from "../../event-details/hooks/useSubEventDetails";
 import { getAuthPathWithReturnUrl } from "../../event-details/utils/eventReturnUrl";
@@ -30,6 +30,7 @@ const AVAILABILITY_REFRESH_INTERVAL_MS = 30_000;
 
 export function ReservationRoute() {
   const { idEvento, idSubEvento } = useParams();
+  const location = useLocation();
 
   const eventId = parseId(idEvento);
   const activityId = parseId(idSubEvento);
@@ -46,6 +47,13 @@ export function ReservationRoute() {
     error,
     retry,
   } = useSubEventDetails(eventId, activityId);
+
+  const returnPathState = (location.state as { returnPath?: string } | null)?.returnPath;
+  const isSingleActivityEvent = event?.subEventos?.length === 1;
+  const isFromEvent = returnPathState === `/eventos/${eventId}` || (!returnPathState && isSingleActivityEvent);
+
+  const backPath = isFromEvent ? `/eventos/${eventId}` : detailPath;
+  const backLabel = isFromEvent ? "Volver al evento" : "Volver a la actividad";
 
   const {
     availability,
@@ -99,10 +107,10 @@ export function ReservationRoute() {
         <p>Solo las cuentas de asistentes pueden realizar reservaciones.</p>
 
         <Link
-          to={detailPath}
+          to={backPath}
           className="font-semibold text-eventos-primary underline"
         >
-          Volver a la actividad
+          {backLabel}
         </Link>
       </section>
     );
@@ -133,10 +141,10 @@ export function ReservationRoute() {
         </p>
 
         <Link
-          to={detailPath}
+          to={backPath}
           className="font-semibold text-eventos-primary underline"
         >
-          Volver a la actividad
+          {backLabel}
         </Link>
       </section>
     );
@@ -178,10 +186,10 @@ export function ReservationRoute() {
           </button>
 
           <Link
-            to={detailPath}
+            to={backPath}
             className="font-semibold text-eventos-primary underline"
           >
-            Volver a la actividad
+            {backLabel}
           </Link>
         </div>
       </section>
@@ -223,8 +231,8 @@ export function ReservationRoute() {
     <PageContainer>
       <div className="px-4 pb-4 pt-0 sm:px-6 lg:px-0">
         <PageBackLink
-          to={detailPath}
-          label="Volver a la actividad"
+          to={backPath}
+          label={backLabel}
         />
 
       {availabilityError ? (

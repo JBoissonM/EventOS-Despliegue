@@ -90,7 +90,11 @@ export function ActivityInformationCard({ activity, returnPath }: ActivityInform
               </Link>
             )}
             {canReserve && hasSession && (
-              <Link to={`/eventos/${activity.idEvento}/actividades/${activity.idSubEvento}/reservar`} className="mt-4 inline-flex min-h-11 items-center justify-center rounded-md bg-eventos-primary px-5 py-2 text-center text-sm font-semibold text-eventos-on-primary hover:bg-eventos-action-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-eventos-primary">
+              <Link
+                to={`/eventos/${activity.idEvento}/actividades/${activity.idSubEvento}/reservar`}
+                state={{ returnPath }}
+                className="mt-4 inline-flex min-h-11 items-center justify-center rounded-md bg-eventos-primary px-5 py-2 text-center text-sm font-semibold text-eventos-on-primary hover:bg-eventos-action-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-eventos-primary"
+              >
                 Reservar lugar
               </Link>
             )}
